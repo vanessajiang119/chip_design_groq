@@ -1,0 +1,40 @@
+# Groq vs GPU Architecture Comparison — Research Plan
+# Created: 2026-05-18
+
+project: groq_vs_gpu
+max_iterations: 3
+search_sources:
+  - ieee_xplore
+  - github
+  - web_search
+  - academic_papers
+  - vendor_docs
+
+research_directions:
+  - direction: "Groq TSP architecture deep dive"
+    priority: P0
+    sources: [ISCA 2020/2022, Hot Chips 2021, Groq blog]
+
+  - direction: "GPU architecture baseline (NVIDIA/AMD)"
+    priority: P0
+    sources: [NVIDIA CUDA programming guide, AMD CDNA whitepapers]
+
+  - direction: "TSP vs GPU: compute model comparison"
+    priority: P0
+    sources: [deterministic vs SIMT, systolic vs tensor core]
+
+  - direction: "Memory hierarchy comparison"
+    priority: P1
+    sources: [SRAM streaming vs HBM/cache hierarchy]
+
+  - direction: "Programming model & compiler"
+    priority: P1
+    sources: [GroqFlow/MLIR vs CUDA/Triton]
+
+  - direction: "Real benchmark comparison"
+    priority: P1
+    sources: [MLPerf, Groq published numbers, GPU published numbers]
+
+outputs:
+  - report: "4.result/Groq_vs_GPU_Comparison_Report_v1.html"
+  - diagrams: "4.result/Groq_vs_GPU_Comparison_Report_v1.drawio"

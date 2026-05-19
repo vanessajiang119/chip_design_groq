@@ -1,0 +1,233 @@
+{
+  "main": {
+    "id": "a3b8a54094fdecb4",
+    "type": "split",
+    "children": [
+      {
+        "id": "ef35f8eceb605893",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "fffd628e22bd6f59",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "AI2groq/groq_arch_design/4.result/2_groq_detailed_design_analysis_v1.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "2_groq_detailed_design_analysis_v1"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "8bf2f50e3ac83b7c",
+    "type": "split",
+    "children": [
+      {
+        "id": "818e34fb79bfb451",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "c0cdfcc11803fb14",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "文件列表"
+            }
+          },
+          {
+            "id": "f30e775190a841aa",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "搜索"
+            }
+          },
+          {
+            "id": "d7a6e577da7d346f",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "书签"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 765.5
+  },
+  "right": {
+    "id": "663a9a16eab002be",
+    "type": "split",
+    "children": [
+      {
+        "id": "6b7c8d7d0830ab0e",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "0885cace16950344",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "反向链接"
+            }
+          },
+          {
+            "id": "7ec23174c2c791d9",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "出链"
+            }
+          },
+          {
+            "id": "25ff701d04c5aad6",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "标签"
+            }
+          },
+          {
+            "id": "697d78d32dbaac57",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "添加笔记属性"
+            }
+          },
+          {
+            "id": "90bc2335c5032c7f",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "大纲"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:打开快速切换": false,
+      "graph:查看关系图谱": false,
+      "canvas:新建白板": false,
+      "daily-notes:打开/创建今天的日记": false,
+      "templates:插入模板": false,
+      "command-palette:打开命令面板": false,
+      "bases:新建数据库": false
+    }
+  },
+  "active": "fffd628e22bd6f59",
+  "lastOpenFiles": [
+    "AI2groq/groq_arch_design.zip",
+    "AI2groq/groq_arch_design/4.result/result_dataflow_streaming.html",
+    "AI2groq/groq_arch_design/4.result/groq-tsp-microarchitecture-final-analysis.html",
+    "AI2groq/groq_arch_design/4.result/groq-tsp-memory-architecture-summary.html",
+    "AI2groq/groq_arch_design/4.result/groq-compiler-architecture-summary.html",
+    "AI2groq/groq_arch_design/4.result/aggregated-report.html",
+    "AI2groq/groq_arch_design/4.result/2_groq_detailed_design_analysis_v1.html",
+    "AI2groq/groq_arch_design/4.result/1_groq_architecture_analysis_v1.html",
+    "AI2groq/groq_arch_design/3.working/working_streaming_model.html",
+    "AI2groq/groq_arch_design/3.working/working_pipeline_design.html",
+    "AI2groq/groq_arch_design/3.working/working_ilp_queues.html",
+    "AI2groq/groq_arch_design/4.result/aggregated-report.md",
+    "AI2groq/groq_arch_design/4.result/2_groq_detailed_design_analysis_v1.md",
+    "chip_design_spec/0.start/SPI2AXI.spec_gen.md",
+    "tool_config/keys.md",
+    "AI2groq/groq_arch_design/4.result/1_groq_architecture_analysis_v1.md",
+    "AI2groq/groq_arch_design/4.result/groq-tsp-microarchitecture-final-analysis.md",
+    "AI2groq/groq_arch_design/4.result/groq-compiler-architecture-summary.md",
+    "AI2groq/groq_arch_design/3.working/5-sxm/sxm-detailed-design.md",
+    "AI2groq/groq_arch_design/3.working/layer2-memory-layout.md",
+    "AI2groq/groq_arch_design/3.working/4-mxm/mxm-detailed-design.md",
+    "AI2groq/groq_arch_design/3.working/layer2-scheduling-algorithm.md",
+    "AI2groq/groq_arch_design/4.result/groq-tsp-memory-architecture-summary.md",
+    "AI2groq/groq_arch_design/3.working/3-vxm/vxm-detailed-design.md",
+    "AI2groq/groq_arch_design/3.working/l2-4-system-power-cooling.md",
+    "AI2groq/groq_arch_design/3.working/l2-3-compiler-network-scheduling.md",
+    "AI2groq/groq_arch_design/3.working/l2-2-tsp-comm-protocol.md",
+    "AI2groq/groq_arch_design/3.working/l2-1-dragonfly-params-deadlock.md",
+    "AI2groq/groq_arch_design/3.working/layer2-haskell-type-system.md",
+    "AI2groq/groq_arch_design/4.result/result_dataflow_streaming.md",
+    "AI2groq/groq_arch_design/3.working/working-noc-compiler-deep-dive.md",
+    "AI2groq/groq_arch_design/3.working/2-mem/mem-detailed-design.md",
+    "AI2groq/groq_arch_design/3.working/layer2-mlir-pass-pipeline.md",
+    "AI2groq/groq_arch_design/3.working/working_ilp_queues.md",
+    "AI2groq/groq_arch_design/3.working/working_pipeline_design.md",
+    "AI2groq/groq_arch_design/3.working/working_deterministic_scheduling.md",
+    "chip_design_spec/0.start/images/page6_img3.png",
+    "chip_design_spec/0.start/images/page6_img2.png",
+    "chip_design_spec/0.start/images/page6_img1.png",
+    "chip_design_spec/0.start/images/page5_img3.png",
+    "chip_design_spec/0.start/images/page5_img2.png",
+    "chip_design_spec/0.start/images/page5_img1.png",
+    "chip_design_spec/0.start/images/page4_img2.png",
+    "chip_design_spec/0.start/images/page4_img1.png",
+    "chip_design_spec/0.start/images/page3_img1.png",
+    "chip_design_spec/0.start/images/page1_img1.png",
+    "未命名.canvas"
+  ]
+}

@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Round 3: Groq TSP 片上互联与编译器优化</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; color: #333; background: #f8f9fa; line-height: 1.6; padding: 20px; }
+  .container { max-width: 1000px; margin: 0 auto; background: #fff; padding: 32px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  h1 { font-size: 24px; color: #1a1a2e; margin: 20px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #76b900; }
+  h2 { font-size: 20px; color: #1a1a2e; margin: 18px 0 10px; padding-bottom: 6px; border-bottom: 1px solid #e0e0e0; }
+  h3 { font-size: 17px; color: #0f3460; margin: 16px 0 8px; }
+  h4 { font-size: 14px; color: #555; margin: 12px 0 6px; }
+  p { margin: 8px 0; color: #444; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  th { background: #1a1a2e; color: white; padding: 8px 12px; text-align: left; font-weight: 600; }
+  td { padding: 7px 12px; border-bottom: 1px solid #e8e8e8; }
+  tr:nth-child(even) { background: #f9f9fb; }
+  tr:hover { background: #f0f7f0; }
+  pre { background: #1a1a2e; color: #e0e0e0; padding: 14px; border-radius: 6px; overflow-x: auto; font-size: 13px; margin: 10px 0; }
+  code { font-family: 'SF Mono', Monaco, 'Andale Mono', monospace; }
+  p > code, li > code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 13px; color: #cc3333; }
+  ul, ol { margin: 8px 0 8px 24px; color: #444; }
+  li { margin: 4px 0; }
+  blockquote { border-left: 4px solid #76b900; padding: 10px 16px; margin: 12px 0; background: #f8ffec; color: #555; }
+  hr { border: none; border-top: 1px solid #e0e0e0; margin: 20px 0; }
+  a { color: #0f3460; text-decoration: none; }
+  a:hover { color: #76b900; text-decoration: underline; }
+  .header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); color: white; padding: 24px 32px; border-radius: 8px 8px 0 0; margin-bottom: 0; }
+  .header h1 { color: white; border: none; margin: 0; padding: 0; font-size: 22px; }
+  .header .meta { font-size: 12px; color: #8899aa; margin-top: 4px; }
+  .nav-path { font-size: 12px; color: #76b900; margin-bottom: 16px; }
+  .footer { text-align: center; padding: 20px 0; color: #888; font-size: 12px; border-top: 1px solid #e0e0e0; margin-top: 20px; }
+</style>
+</head>
+<body>
+<div class="container">
+<div class="header"><h1>Round 3: Groq TSP 片上互联与编译器优化</h1><div class="meta">2.research/3-memory-architecture/round-3-noc-compiler.md</div></div>
+<div class="nav-path">&larr; <a href="../4.result/3_groq_arch_design_summary_v1.html">Back to Architecture Report</a></div>
+<h1>Round 3: Groq TSP 片上互联与编译器优化</h1>
+<blockquote><strong>时间</strong>: 20260519-1630</blockquote>
+<blockquote><strong>重点</strong>: SXM 交换模块、片上流式 NoC、编译器数据布局策略</blockquote>
+<hr>
+<h2>1. SXM (Switch Execution Module) — 片上互联核心</h2>
+<h3>1.1 SXM 的功能</h3>
+<p>SXM 是 Groq TSP 的<strong>交换执行切片</strong>，负责：</p>
+<table>
+  <thead><tr><th>功能</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td><strong>片上数据路由</strong></td><td>在功能 slice 之间传递数据（MXM ↔ MEM ↔ VXM）</td></tr>
+    <tr><td><strong>数据重组</strong></td><td>移位(shift)、旋转(rotate)、重排(swizzle)</td></tr>
+    <tr><td><strong>张量重塑</strong></td><td>tensor reshape、维度置换</td></tr>
+    <tr><td><strong>片间路由</strong></td><td>通过芯片间链路（C2C）将张量转发到其他 TSP</td></tr>
+  </tbody></table>
+<h3>1.2 每 Superlane 中的 SXM 布局</h3>
+<pre><code>左MXM → 左SXM → 左MEM → VXM → 右MEM → 右SXM → 右MXM
+                ↓                                  ↓
+           片上数据路由                        片间数据路由</code></pre>
+<p>每个 Superlane 有 <strong>2 个 SXM 单元</strong>（左右对称），这意味着：</p>
+<ul>
+<li>全芯片共 <strong>40 个 SXM 单元</strong></li>
+<li>每个 SXM 可以独立进行数据路由</li>
+<hr>
+<h2>2. 片上 NoC — 确定性流式互连</h2>
+<h3>2.1 与传统 NoC 的对比</h3>
+<table>
+  <thead><tr><th>特性</th><th>传统 Crossbar</th><th>GPU Mesh NoC</th><th>Groq 流式 NoC</th></tr></thead>
+  <tbody>
+    <tr><td><strong>路由方式</strong></td><td>动态路由</td><td>动态仲裁</td><td><strong>编译器静态调度</strong></td></tr>
+    <tr><td><strong>拥塞控制</strong></td><td>硬件拥塞检测</td><td>硬件拥塞管理</td><td><strong>不需要 — 无拥塞</strong></td></tr>
+    <tr><td><strong>仲裁</strong></td><td>硬件仲裁器</td><td>硬件调度器</td><td><strong>无仲裁器</strong></td></tr>
+    <tr><td><strong>延迟</strong></td><td>可变</td><td>可变</td><td><strong>固定延迟</strong></td></tr>
+    <tr><td><strong>协议</strong></td><td>请求-响应</td><td>load-store</td><td><strong>生产者-消费者流</strong></td></tr>
+  </tbody></table>
+<h3>2.2 两维流模型</h3>
+<pre><code>        北 (指令流: ICU → Tile 19 → ... → Tile 0)
+         ↑
+         │    ┌─────────────────────────────┐
+         │    │ MXM SXM MEM VXM MEM SXM MXM │
+  西 ←───┼────┤                             ├───────→ 东 (数据流)
+         │    │                             │
+         │    └─────────────────────────────┘
+         │          每个 Superlane × 16 lanes
+         ↓
+         ICU (指令控制单元)</code></pre>
+<li><strong>指令流</strong>: 垂直方向（南→北），从 ICU 向上传播，每 cycle 穿过一个 tile</li>
+<li><strong>数据流</strong>: 水平方向（东/西），在每个 superlane 内流动</li>
+<li><strong>计算发生</strong>: 指令流和数据流在精确的 cycle 于功能单元交汇</li>
+<h3>2.3 带宽分配</h3>
+<table>
+  <thead><tr><th>互联路径</th><th>带宽</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td><strong>片上流带宽</strong></td><td><strong>>60 TB/s</strong></td><td>片上流寄存器文件(stream register file)</td></tr>
+    <tr><td><strong>片外 C2C 链路</strong></td><td><strong>512 GB/s</strong></td><td>16 路 × 4 通道 × 25-30 Gbps</td></tr>
+    <tr><td><strong>片外节点内</strong></td><td>8 TSP 全连接</td><td>节点内全互联 mesh</td></tr>
+    <tr><td><strong>片外机架间</strong></td><td>Dragonfly 拓扑</td><td>任意两点最多 5 跳</td></tr>
+  </tbody></table>
+<h3>2.4 无仲裁的设计哲学</h3>
+<blockquote>"我们移除了所有反应式硬件，例如仲裁器和缓存。"</blockquote>
+</ul>
+<p>移除仲裁器的可行性：</p>
+<ul>
+<li>所有通信模式在编译时已知</li>
+<li>数据流是<strong>生产者-消费者</strong>模型，而非请求-响应</li>
+<li>编译器可以交错安排 stream 时序避免冲突</li>
+<li>不存在运行时竞争条件</li>
+<hr>
+<h2>3. 片间互联拓扑</h2>
+<h3>3.1 系统层次</h3>
+<pre><code>TSP 芯片 (1 个)
+  └── TSP Node (8 个 TSP)
+       │  └── 7 条本地 C2C 链路 (内部全连接 mesh)
+       │  └── 4 条全局链路 (节点间通信)
+       └── TSP Rack (9 个 Node = 72 TSP)
+            └── Dragonfly 组拓扑
+                 └── Max System (145 Racks = 10,440 TSP)
+                      └── 任意两点最多 5 跳</code></pre>
+<h3>3.2 引脚与链路</h3>
+</ul>
+<p>每个 TSP 芯片有 <strong>11 个引脚</strong>：</p>
+<table>
+  <thead><tr><th>链路类型</th><th>数量</th><th>连接目标</th><th>总带宽</th></tr></thead>
+  <tbody>
+    <tr><td><strong>本地链路</strong></td><td>7</td><td>同节点内其他 TSP</td><td>7 × 100 Gbps = 700 Gbps</td></tr>
+    <tr><td><strong>全局链路</strong></td><td>4</td><td>跨节点/机架</td><td>4 × 100 Gbps = 400 Gbps</td></tr>
+    <tr><td><strong>合计</strong></td><td>11</td><td></td><td><strong>1.1 Tbps per chip</strong></td></tr>
+  </tbody></table>
+<h3>3.3 同步机制</h3>
+<table>
+  <thead><tr><th>机制</th><th>功能</th></tr></thead>
+  <tbody>
+    <tr><td><strong>HAC</strong> (Hardware Aligned Counters)</td><td>多 TSP 间 cycle 级时钟同步</td></tr>
+    <tr><td><strong>DESKEW 指令</strong></td><td>校准跨 TSP 链路的偏斜</td></tr>
+    <tr><td><strong>SYNC/NOTIFY</strong></td><td>同步芯片上所有指令队列</td></tr>
+  </tbody></table>
+<blockquote>TSP 同时充当 <strong>处理端点</strong> 和 <strong>网络交换机</strong> — 编译器控制它何时扮演哪个角色。</blockquote>
+<hr>
+<h2>4. 编译器数据布局优化</h2>
+<h3>4.1 编译器面临的全局优化问题</h3>
+<blockquote>"编译器必须同时解决：lowering、layout、SRAM allocation、stream timing、function unit scheduling、cross-chip partition、network routing、和 synchronization。"</blockquote>
+<p>这是一个<strong>多维联合优化问题</strong>：</p>
+<pre><code>优化变量:
+  ├── 张量布局 (哪个 MEM 单元？哪个 bank？)
+  ├── SRAM 分配 (生命周期管理，空间复用)
+  ├── Stream 时序 (每个 stream 何时出发)
+  ├── 功能单元调度 (MXM/VXM/SXM 何时执行)
+  ├── 跨芯片 partition (哪些层在哪些芯片上)
+  └── 路由决策 (片上路径 + 片间路径)</code></pre>
+<h3>4.2 数据布局阶段 (Data Layout)</h3>
+<p><strong>目标</strong>: 将张量映射到 MEM 单元和 bank，最小化 bank 冲突和数据搬移距离。</p>
+<p><strong>约束条件</strong>:</p>
+<ul>
+<li>每个 MEM 单元容量限制 (5.5 MB)</li>
+<li>Bank 访问冲突避免（同一 cycle 不能两次访问同一 bank）</li>
+<li>数据局部性（靠近使用该数据的计算单元）</li>
+</ul>
+<p><strong>策略</strong>:</p>
+<ol>
+<li><strong>权重存储</strong>: 固定分配在靠近 MXM 的 MEM 单元</li>
+<li><strong>激活/KV-cache</strong>: 动态分配，编译器管理生存期</li>
+<li><strong>跨 chip 张量并行</strong>: 按输出通道切分（weight column split）</li>
+<h3>4.3 Stream 调度阶段 (Stream Scheduling)</h3>
+<pre><code>编译器决策示例:
+
+Cycle 0: MEM[L] 读取权重 W → Stream E0 (东向)
+Cycle 1: Stream E0 到达 MXM[L]
+Cycle 2: MXM[L] 开始矩阵乘
+...
+Cycle N: MEM[R] 读取激活 A → Stream W0 (西向)
+Cycle N+1: Stream W0 到达 VXM
+...</code></pre>
+<h3>4.4 资源共享与冲突解决</h3>
+<table>
+  <thead><tr><th>冲突类型</th><th>编译器解决方案</th></tr></thead>
+  <tbody>
+    <tr><td><strong>SRAM bank conflict</strong></td><td>静态 bank 分配，通过偏移地址避免同时访问</td></tr>
+    <tr><td><strong>Stream collision</strong></td><td>时序上交错出发，或使用不同方向的 stream</td></tr>
+    <tr><td><strong>MEM 端口竞争</strong></td><td>交错安排读写周期，利用 SRAM 双端口</td></tr>
+    <tr><td><strong>C2C 链路争用</strong></td><td>编译器显式分配链路时间槽，无动态竞争</td></tr>
+  </tbody></table>
+<h3>4.5 跨芯片扩展策略</h3>
+</ol>
+<p>Groq 编译器支持多种并行策略：</p>
+<table>
+  <thead><tr><th>策略</th><th>说明</th><th>适用场景</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Tensor Parallelism (TP)</strong></td><td>按输出通道/head 切分</td><td>Linear 层、Attention</td></tr>
+    <tr><td><strong>Pipeline Parallelism (PP)</strong></td><td>按 layer 切分</td><td>深层网络</td></tr>
+    <tr><td><strong>组合 TP+PP</strong></td><td>同时使用两种并行</td><td>大模型 (70B+)</td></tr>
+  </tbody></table>
+<hr>
+<h2>5. 编译器复杂度对比</h2>
+<pre><code>               GPU (CUDA)          Groq TSP
+               ──────────          ──────────
+硬件状态空间     大 (S_hw)             小 (S_hw)
+  └─ 缓存           ✓                无
+  └─ 分支预测       ✓                无  
+  └─ 乱序执行       ✓                无
+  └─ 动态调度       ✓                无
+
+编译器状态空间    小 (S_compiler)     大 (S_compiler)
+  └─ 调度时机      运行时               编译时
+  └─ 内存管理      硬件/运行时           编译器
+  └─ 网络路由      N/A                 编译器
+  └─ 冲突解决      硬件                 编译器
+
+设计哲学:        硬件复杂,编译器简单   硬件简单,编译器复杂</code></pre>
+<blockquote>复杂度没有消失 — 只是从硬件运行时 <strong>转移</strong> 到了编译器。</blockquote>
+<hr>
+<h2>6. 关键洞察</h2>
+<ol>
+<li><strong>SXM 是 NoC 的核心</strong> — 40 个 SXM 单元提供了片上 + 片间的全面互联</li>
+<li><strong>无仲裁器是可行的</strong> — 因为所有流量模式在编译时已知</li>
+<li><strong>编译器是真正的 "大脑"</strong> — 负责布局、调度、路由、冲突解决的全局优化</li>
+<li><strong>确定性是这一切的基石</strong> — 没有确定性就没有静态调度的可行性</li>
+<h3>参考文献</h3>
+<li>Abts, D. et al., <em>"A Software-defined Tensor Streaming Multiprocessor for Large-scale Machine Learning"</em>, ISCA 2022.</li>
+<li><em>"The Virtuous Cycles of Determinism: Programming Groq's Tensor Streaming Processor"</em>, Satnam Singh, 2022 Keynote.</li>
+<li><em>"Groq Shares Recipe for TSP Nodes, Systems"</em>, The Next Platform, Sep 2020.</li>
+<li><em>"确定性的边界：从 GPU 到 Groq 的 AI 芯片谱系学"</em>, 知乎深度分析.</li>
+</ol>
+<div class="footer">Groq Architecture Research &bull; Generated 2026-05-19</div>
+</div>
+</body>
+</html>

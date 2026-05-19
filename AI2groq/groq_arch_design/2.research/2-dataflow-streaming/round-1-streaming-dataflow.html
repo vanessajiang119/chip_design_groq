@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Round 1: Streaming Dataflow 模型 — 研究结果</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; color: #333; background: #f8f9fa; line-height: 1.6; padding: 20px; }
+  .container { max-width: 1000px; margin: 0 auto; background: #fff; padding: 32px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  h1 { font-size: 24px; color: #1a1a2e; margin: 20px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #76b900; }
+  h2 { font-size: 20px; color: #1a1a2e; margin: 18px 0 10px; padding-bottom: 6px; border-bottom: 1px solid #e0e0e0; }
+  h3 { font-size: 17px; color: #0f3460; margin: 16px 0 8px; }
+  h4 { font-size: 14px; color: #555; margin: 12px 0 6px; }
+  p { margin: 8px 0; color: #444; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  th { background: #1a1a2e; color: white; padding: 8px 12px; text-align: left; font-weight: 600; }
+  td { padding: 7px 12px; border-bottom: 1px solid #e8e8e8; }
+  tr:nth-child(even) { background: #f9f9fb; }
+  tr:hover { background: #f0f7f0; }
+  pre { background: #1a1a2e; color: #e0e0e0; padding: 14px; border-radius: 6px; overflow-x: auto; font-size: 13px; margin: 10px 0; }
+  code { font-family: 'SF Mono', Monaco, 'Andale Mono', monospace; }
+  p > code, li > code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 13px; color: #cc3333; }
+  ul, ol { margin: 8px 0 8px 24px; color: #444; }
+  li { margin: 4px 0; }
+  blockquote { border-left: 4px solid #76b900; padding: 10px 16px; margin: 12px 0; background: #f8ffec; color: #555; }
+  hr { border: none; border-top: 1px solid #e0e0e0; margin: 20px 0; }
+  a { color: #0f3460; text-decoration: none; }
+  a:hover { color: #76b900; text-decoration: underline; }
+  .header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); color: white; padding: 24px 32px; border-radius: 8px 8px 0 0; margin-bottom: 0; }
+  .header h1 { color: white; border: none; margin: 0; padding: 0; font-size: 22px; }
+  .header .meta { font-size: 12px; color: #8899aa; margin-top: 4px; }
+  .nav-path { font-size: 12px; color: #76b900; margin-bottom: 16px; }
+  .footer { text-align: center; padding: 20px 0; color: #888; font-size: 12px; border-top: 1px solid #e0e0e0; margin-top: 20px; }
+</style>
+</head>
+<body>
+<div class="container">
+<div class="header"><h1>Round 1: Streaming Dataflow 模型 — 研究结果</h1><div class="meta">2.research/2-dataflow-streaming/round-1-streaming-dataflow.md</div></div>
+<div class="nav-path">&larr; <a href="../4.result/3_groq_arch_design_summary_v1.html">Back to Architecture Report</a></div>
+<h1>Round 1: Streaming Dataflow 模型 — 研究结果</h1>
+<blockquote>创建时间: 2026-05-19</blockquote>
+<blockquote>来源: ISCA 2020/2022, Groq Blog, Zellic Analysis, EET China</blockquote>
+<hr>
+<h2>1. 核心概念: Tensor Streaming Processor (TSP)</h2>
+<p>Groq TSP 的核心创新在于<strong>完全确定性的数据流执行模型</strong>。与传统的 CPU/GPU 不同，TSP 不依赖任何运行时动态调度硬件，所有指令的执行时间在编译时即完全确定。</p>
+<h3>1.1 什么是 Streaming Dataflow？</h3>
+<p>在 Groq TSP 中，数据以<strong>流 (stream)</strong> 的形式在功能切片 (functional slices) 之间流动：</p>
+<pre><code>[Memory] --stream--&gt; [Matrix Unit] --stream--&gt; [Vector Unit] --stream--&gt; [Memory]</code></pre>
+<ul>
+<li>每个流有一个 <strong>stream ID</strong> (0-31) 和方向 (East/West)</li>
+<li>功能单元从 incoming stream 消费张量输入，向 outgoing stream 产生张量输出</li>
+<li>中间结果可以在功能单元之间"链式传递" (chaining)，无需写回主存</li>
+<h3>1.2 Producer-Consumer 模型</h3>
+</ul>
+<p>Groq 的编程模型基于 <strong>producer-consumer</strong> 范式：</p>
+<ul>
+<li><strong>生产者</strong> 产生数据流</li>
+<li><strong>消费者</strong> 消费数据流</li>
+<li>编译器确保生产者与消费者的时序完全对齐</li>
+<h2>2. 功能切片与数据流路径</h2>
+<h3>2.1 功能切片布局</h3>
+</ul>
+<p>TSP 将功能单元组织为<strong>二维网格的列 (slices)</strong>。每个 tile 在局部是同构的，但从芯片全局看是异构的：</p>
+<table>
+  <thead><tr><th>Slice (列)</th><th>功能</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td><strong>ICU</strong></td><td>指令控制</td><td>位于芯片底部 (水平 bar)，<3% 面积</td></tr>
+    <tr><td><strong>MEM</strong></td><td>内存访问</td><td>SRAM 读/写</td></tr>
+    <tr><td><strong>VXM</strong></td><td>向量执行</td><td>向量算术 (SIMD)</td></tr>
+    <tr><td><strong>MXM</strong></td><td>矩阵执行</td><td>矩阵乘法、卷积 (脉动阵列)</td></tr>
+    <tr><td><strong>SXM</strong></td><td>移位执行</td><td>向量移位/旋转</td></tr>
+  </tbody></table>
+<h3>2.2 数据的物理流动</h3>
+<p>物理布局中，数据在芯片上沿 <strong>X 方向 (水平)</strong> 在功能切片间流动：</p>
+<pre><code>        MXM  VXM  MEM  SXM  MXM  VXM  MEM  SXM ...
+        ┌───┬───┬───┬───┬───┬───┬───┬───┐
+Stream ─▶   │   │   │   │   │   │   │   │──▶
+(East)  └───┴───┴───┴───┴───┴───┴───┴───┘
+                            ◀───   ◀───   ◀───
+                          Stream (West)</code></pre>
+<ul>
+<li>每个切片有 20 tiles × 16 SIMD lanes = 320 通道</li>
+<li>每个通道支持 64 个逻辑流 (32 向东, 32 向西)</li>
+<li>流在芯片上的<strong>流式寄存器文件 (streaming register file)</strong> 中传递</li>
+<h3>2.3 片内 Streaming Register File</h3>
+</ul>
+<p>TSP 使用统一的芯片级流式寄存器文件，替代了传统的寄存器层级结构：</p>
+<ul>
+<li>没有传统的多级寄存器文件</li>
+<li>内存切片将数据直接送入计算切片</li>
+<li>数据在切片间通过流寄存器文件传递，无需中间存储</li>
+<h2>3. 确定性数据流的关键特征</h2>
+<h3>3.1 无反应式硬件 (No Reactive Hardware)</h3>
+</ul>
+<p>TSP 完全消除了以下传统处理器中引入非确定性的硬件组件：</p>
+<ul>
+<li>❌ 无 Cache (无 cache miss → 无延迟不确定性)</li>
+<li>❌ 无仲裁器 (无总线/网络仲裁 → 无竞争延迟)</li>
+<li>❌ 无分支预测器 (无序推测执行)</li>
+<li>❌ 无序执行 (OoO) 引擎</li>
+<li>❌ 无 Cache Coherence 协议</li>
+<h3>3.2 编译时确定一切</h3>
+</ul>
+<p>编译器在编译时即可完全确定：</p>
+<ul>
+<li>每条指令的精确延迟 (cycle 级别)</li>
+<li>数据到达每个功能单元的时间</li>
+<li>所有 144 个指令队列的发射时序</li>
+<li>所有网络路由路径</li>
+<h3>3.3 流式执行的优点</h3>
+<table>
+  <thead><tr><th>特性</th><th>优点</th></tr></thead>
+  <tbody>
+    <tr><td>确定性延迟</td><td>每次请求的延迟完全一致，适合 SLA 严格的场景</td></tr>
+    <tr><td>可预测性能</td><td>性能与输入数据无关，无 worst-case variance</td></tr>
+    <tr><td>高利用率</td><td>编译器可精确安排所有资源，无竞争浪费</td></tr>
+    <tr><td>低功耗</td><td>无动态调度硬件消耗功耗</td></tr>
+  </tbody></table>
+<h2>4. 与 GPU/CPU 的关键差异</h2>
+<table>
+  <thead><tr><th>维度</th><th>GPU</th><th>CPU</th><th>Groq TSP</th></tr></thead>
+  <tbody>
+    <tr><td>调度</td><td>硬件 warp scheduler</td><td>OoO 调度器 + 分支预测</td><td>编译器静态调度</td></tr>
+    <tr><td>存储层次</td><td>HBM + L1/L2 cache</td><td>DRAM + 多级 cache</td><td>仅 SRAM (无 cache)</td></tr>
+    <tr><td>数据流</td><td>隐式 (由 cache 层次决定)</td><td>隐式</td><td>显式流式</td></tr>
+    <tr><td>延迟模型</td><td>非确定性</td><td>非确定性</td><td>完全确定性</td></tr>
+    <tr><td>控制复杂度</td><td>高 (warp scheduler + cache)</td><td>极高 (OoO + 预测)</td><td>极低 (<3% ICU)</td></tr>
+  </tbody></table>
+<h2>5. 性能数据</h2>
+<li><strong>ResNet-50 (batch=1)</strong>: <43 μs 推理延迟, 20,400 images/sec</li>
+<li><strong>LLaMA-2 70B</strong>: 237 tokens/s</li>
+<li><strong>片上 SRAM</strong>: 220 MB (全局共享)</li>
+<li><strong>计算密度</strong>: >1 TOp/s 每 mm²</li>
+<li><strong>制程</strong>: 14nm, 25×29mm die</li>
+<li><strong>主频</strong>: 900 MHz</li>
+<h2>6. 关键参考文献</h2>
+<li>ISCA 2020: <em>"Think Fast: A Tensor Streaming Processor (TSP) for Accelerating Deep Learning Workloads"</em></li>
+<li>ISCA 2022: <em>"A Software-defined Tensor Streaming Multiprocessor for Large-scale Machine Learning"</em></li>
+<li>Zellic Blog: <em>"How Is Groq So Fast? An Overview of Groq's TSP Architecture"</em></li>
+<li>Groq LPU Architecture: https://groq.com/lpu-architecture</li>
+</ul>
+<div class="footer">Groq Architecture Research &bull; Generated 2026-05-19</div>
+</div>
+</body>
+</html>

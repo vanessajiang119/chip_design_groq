@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VXM — 向量执行模块详细设计分析</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; color: #333; background: #f8f9fa; line-height: 1.6; padding: 20px; }
+  .container { max-width: 1000px; margin: 0 auto; background: #fff; padding: 32px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  h1 { font-size: 24px; color: #1a1a2e; margin: 20px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #76b900; }
+  h2 { font-size: 20px; color: #1a1a2e; margin: 18px 0 10px; padding-bottom: 6px; border-bottom: 1px solid #e0e0e0; }
+  h3 { font-size: 17px; color: #0f3460; margin: 16px 0 8px; }
+  h4 { font-size: 14px; color: #555; margin: 12px 0 6px; }
+  p { margin: 8px 0; color: #444; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  th { background: #1a1a2e; color: white; padding: 8px 12px; text-align: left; font-weight: 600; }
+  td { padding: 7px 12px; border-bottom: 1px solid #e8e8e8; }
+  tr:nth-child(even) { background: #f9f9fb; }
+  tr:hover { background: #f0f7f0; }
+  pre { background: #1a1a2e; color: #e0e0e0; padding: 14px; border-radius: 6px; overflow-x: auto; font-size: 13px; margin: 10px 0; }
+  code { font-family: 'SF Mono', Monaco, 'Andale Mono', monospace; }
+  p > code, li > code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 13px; color: #cc3333; }
+  ul, ol { margin: 8px 0 8px 24px; color: #444; }
+  li { margin: 4px 0; }
+  blockquote { border-left: 4px solid #76b900; padding: 10px 16px; margin: 12px 0; background: #f8ffec; color: #555; }
+  hr { border: none; border-top: 1px solid #e0e0e0; margin: 20px 0; }
+  a { color: #0f3460; text-decoration: none; }
+  a:hover { color: #76b900; text-decoration: underline; }
+  .header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); color: white; padding: 24px 32px; border-radius: 8px 8px 0 0; margin-bottom: 0; }
+  .header h1 { color: white; border: none; margin: 0; padding: 0; font-size: 22px; }
+  .header .meta { font-size: 12px; color: #8899aa; margin-top: 4px; }
+  .nav-path { font-size: 12px; color: #76b900; margin-bottom: 16px; }
+  .footer { text-align: center; padding: 20px 0; color: #888; font-size: 12px; border-top: 1px solid #e0e0e0; margin-top: 20px; }
+</style>
+</head>
+<body>
+<div class="container">
+<div class="header"><h1>VXM — 向量执行模块详细设计分析</h1><div class="meta">3.working/3-vxm/vxm-detailed-design.md</div></div>
+<div class="nav-path">&larr; <a href="../4.result/3_groq_arch_design_summary_v1.html">Back to Architecture Report</a></div>
+<h1>VXM — 向量执行模块详细设计分析</h1>
+<h1>VXM — Vector Execution Module Detailed Design Analysis</h1>
+<blockquote>创建时间: 2026-05-19T1630</blockquote>
+<blockquote>分析层级: Layer 2 (微架构深度展开)</blockquote>
+<hr>
+<h2>1. 概述 (Overview)</h2>
+<p>VXM (Vector Execution Module) 是 Groq TSP 的向量处理引擎。每个 Super Lane 包含一个 VXM (16 个 ALU)，全芯片共 320 个 SIMD 通道 × 16 ALU/通道 = 5,120 个向量 ALU。VXM 负责所有元素级 (element-wise) 向量运算、激活函数、类型转换和归约操作。</p>
+<h3>架构定位</h3>
+<pre><code>Super Lane 内部排列:
+┌──────┬─────┬──────────┬────────────────────┬──────────┬─────┬──────┐
+│ MXM  │ SXM │  MEM_L   │       VXM          │  MEM_R   │ SXM │ MXM  │
+│(矩阵)│(开关)│ (存储左)  │ (向量 — 中心位置)    │ (存储右)  │(开关)│(矩阵)│
+└──────┴─────┴──────────┴────────────────────┴──────────┴─────┴──────┘
+
+VXM 位于每个 Super Lane 的中心 — 两侧对称镜像分布 MEM + SXM + MXM
+形成两个准独立的"计算半球 (hemisphere)"</code></pre>
+<hr>
+<h2>2. 微架构设计 (Microarchitecture)</h2>
+<h3>VXM 内部结构</h3>
+<pre><code>VXM (每个 Super Lane, 16 lanes × 32 bytes):
+┌─────────────────────────────────────────────────────────────┐
+│  Lane 0    Lane 1    Lane 2    ...    Lane 14   Lane 15     │
+│ ┌──────┐  ┌──────┐  ┌──────┐         ┌──────┐  ┌──────┐    │
+│ │ ALU0 │  │ ALU1 │  │ ALU2 │         │ ALU14│  │ ALU15│    │
+│ │┌────┐│  │┌────┐│  │┌────┐│         │┌────┐│  │┌────┐│    │
+│ ││ FP ││  ││ FP ││  ││ FP ││         ││ FP ││  ││ FP ││    │
+│ ││ INT ││  ││ INT ││  ││ INT ││         ││ INT ││  ││ INT ││    │
+│ ││ SIMD││  ││ SIMD││  ││ SIMD││         ││ SIMD││  ││ SIMD││    │
+│ │└────┘│  │└────┘│  │└────┘│         │└────┘│  │└────┘│    │
+│ │┌────┐│  │┌────┐│  │┌────┐│         │┌────┐│  │┌────┐│    │
+│ ││MAC ││  ││MAC ││  ││MAC ││         ││MAC ││  ││MAC ││    │ ← 标量 MAC
+│ │└────┘│  │└────┘│  │└────┘│         │└────┘│  │└────┘│    │
+│ └──────┘  └──────┘  └──────┘         └──────┘  └──────┘    │
+│ ┌──────┐  ┌──────┐  ┌──────┐         ┌──────┐  ┌──────┐    │
+│ │RF(流)│  │RF(流)│  │RF(流)│         │RF(流)│  │RF(流)│    │ ← 流式 RF
+│ └──────┘  └──────┘  └──────┘         └──────┘  └──────┘    │
+└─────────────────────────────────────────────────────────────┘</code></pre>
+<h3>ALU 内部组成 (ALU Internals)</h3>
+<p>每个 ALU 包含:</p>
+<table>
+  <thead><tr><th>子单元</th><th>功能</th><th>位宽</th></tr></thead>
+  <tbody>
+    <tr><td>FP32 Adder</td><td>浮点加法/减法</td><td>32-bit</td></tr>
+    <tr><td>FP32 Multiplier</td><td>浮点乘法</td><td>32-bit</td></tr>
+    <tr><td>INT32 ALU</td><td>整数算术/逻辑</td><td>32-bit</td></tr>
+    <tr><td>FP16/BF16 Unit</td><td>半精度运算</td><td>16-bit</td></tr>
+    <tr><td>INT8 SIMD</td><td>8-bit SIMD 运算</td><td>32-bit (4×INT8)</td></tr>
+    <tr><td>Type Converter</td><td>精度转换</td><td>可变</td></tr>
+    <tr><td>Comparator</td><td>比较/选择</td><td>32-bit</td></tr>
+  </tbody></table>
+<h3>全芯片向量能力汇总</h3>
+<table>
+  <thead><tr><th>参数</th><th>数值</th></tr></thead>
+  <tbody>
+    <tr><td>Super Lane 数</td><td>20</td></tr>
+    <tr><td>每 SL ALU 数</td><td>16</td></tr>
+    <tr><td>全芯片 ALU 数</td><td>320</td></tr>
+    <tr><td>全芯片运算单元数</td><td>5,120 (含每个 ALU 内的多个子单元)</td></tr>
+    <tr><td>向量宽度</td><td>320 elements/cycle</td></tr>
+    <tr><td>数据路径宽度</td><td>32 bytes/lane</td></tr>
+    <tr><td>流水线深度</td><td>20 级</td></tr>
+    <tr><td>每 cycle 最大操作</td><td>320 × 16 = 5,120 ops/cycle</td></tr>
+    <tr><td>每 cycle 最大 INT8 操作</td><td>5,120 × 4 = 20,480 ops/cycle</td></tr>
+  </tbody></table>
+<hr>
+<h2>3. 流水线设计 (Pipeline Design)</h2>
+<h3>20 级向量流水线</h3>
+<p>基于功能分片和数据流模型，推测 VXM 的流水线阶段:</p>
+<pre><code>Stage 0-1:  指令接收 (Inst Receive)
+            从垂直指令流接收来自 ICU 的 VXM 操作码
+            Stream ID 解析
+
+Stage 2-3:  操作数加载 (Operand Load)  
+            从东西方向数据流接收源操作数
+            如果数据未到达 → 等待 (编译器保证精确到达)
+
+Stage 4-5:  流合并 (Stream Combine)
+            多流输入合并 (如有)
+            数据类型统一
+
+Stage 6-12: 算术执行 (Arithmetic Execute)
+            FP/INT 运算核心执行
+            不同运算延迟不同:
+              - INT ADD: 1 cycle
+              - INT MUL: 2-3 cycles
+              - FP ADD: 3-4 cycles
+              - FP MUL: 4-5 cycles
+              - FP DIV: 7-12 cycles
+
+Stage 13-15: 类型转换/格式化 (Type Convert/Format)
+             结果精度转换
+             TruePoint 累加输出格式化
+
+Stage 16-17: 归约操作 (Reduce Operation)
+             跨 lane 的 SUM/MAX/MIN
+             用于 attention 等操作
+
+Stage 18-19: 结果输出 (Result Output)
+             将结果写回数据流
+             指定输出 Stream ID 和方向</code></pre>
+<h3>流水线交错 (Pipeline Interleaving)</h3>
+<p>由于 20 个 Super Lane 垂直堆叠:</p>
+<pre><code>Cycle 0:  ICU 发射 VXM 指令
+Cycle 1:  SL 0(VXM) 开始执行
+          同时 ICU 发射下一条 VXM 指令
+Cycle 2:  SL 0(VXM) Stage 1, SL 1(VXM) Stage 0
+          ICU 继续发射
+...
+Cycle 20: SL 19 开始执行
+          SL 0 完成执行</code></pre>
+<hr>
+<h2>4. 数据类型与精度 (Data Types & Precision)</h2>
+<h3>支持的数据类型</h3>
+<table>
+  <thead><tr><th>类型</th><th>位宽</th><th>VXM 操作</th><th>性能 (ops/cycle)</th></tr></thead>
+  <tbody>
+    <tr><td>INT8</td><td>8-bit</td><td>ADD/MUL/CMP</td><td>20,480</td></tr>
+    <tr><td>INT16</td><td>16-bit</td><td>ADD/MUL/CMP</td><td>10,240</td></tr>
+    <tr><td>INT32</td><td>32-bit</td><td>ADD/MUL/CMP</td><td>5,120</td></tr>
+    <tr><td>FP8</td><td>8-bit</td><td>ADD/MUL</td><td>20,480</td></tr>
+    <tr><td>FP16</td><td>16-bit</td><td>ADD/MUL</td><td>10,240</td></tr>
+    <tr><td>BF16</td><td>16-bit</td><td>ADD/MUL</td><td>10,240</td></tr>
+    <tr><td>FP32</td><td>32-bit</td><td>ADD/MUL</td><td>5,120</td></tr>
+  </tbody></table>
+<h3>TruePoint Numerics 详解</h3>
+<p>Groq 的专有精度管理技术:</p>
+<pre><code>传统方式:
+  FP16 输入 → FP16 乘法 → FP16 累加 → FP16 输出
+            ↘ 精度损失 ↗
+
+TruePoint 方式:
+  INT8/FP16 输入 → 全精度乘法 → 100-bit 累加器 → 按需量化输出
+                                     ↓
+                             精度无损累加</code></pre>
+<p><strong>关键特性</strong>:</p>
+<ol>
+<li>矩阵运算使用 100-bit 中间累加器</li>
+<li>权重/激活值可用低精度 (INT8/FP16) 存储</li>
+<li>输出根据下游层的误差敏感度选择性量化</li>
+<li>保证无精度损失的累加 — 无论输入位宽</li>
+</ol>
+<p><strong>实现推测</strong>:</p>
+<ul>
+<li>100-bit 累加器 = 多个 FP32 或大位宽定点累加器组成</li>
+<li>支持 accumulate-and-quantize 指令</li>
+<li>编译器控制量化点：在 MXM 输出处或在 VXM 后处理中</li>
+<hr>
+<h2>5. 向量指令集 (Vector Instruction Set)</h2>
+<h3>算术指令</h3>
+<table>
+  <thead><tr><th>指令</th><th>操作</th><th>周期</th></tr></thead>
+  <tbody>
+    <tr><td>VADD</td><td>向量加法</td><td>1-2</td></tr>
+    <tr><td>VSUB</td><td>向量减法</td><td>1-2</td></tr>
+    <tr><td>VMUL</td><td>向量乘法</td><td>2-3</td></tr>
+    <tr><td>VFMUL</td><td>向量浮点乘法</td><td>3-4</td></tr>
+    <tr><td>VFDIV</td><td>向量浮点除法</td><td>7-12</td></tr>
+    <tr><td>VSQRT</td><td>向量平方根</td><td>10-15</td></tr>
+    <tr><td>VMLA</td><td>向量乘加 (multiply-add)</td><td>3-4</td></tr>
+    <tr><td>VNEG</td><td>向量取负</td><td>1</td></tr>
+  </tbody></table>
+<h3>激活函数</h3>
+<table>
+  <thead><tr><th>指令</th><th>操作</th><th>实现方式</th></tr></thead>
+  <tbody>
+    <tr><td>RELU</td><td>ReLU(x) = max(0,x)</td><td>简单比较</td></tr>
+    <tr><td>GELU</td><td>Gaussian Error Linear Unit</td><td>分段近似</td></tr>
+    <tr><td>TANH</td><td>双曲正切</td><td>分段近似</td></tr>
+    <tr><td>SIGMOID</td><td>S 型函数</td><td>分段近似</td></tr>
+    <tr><td>EXP</td><td>指数</td><td>迭代/查找表</td></tr>
+    <tr><td>LOG</td><td>对数</td><td>迭代/查找表</td></tr>
+    <tr><td>SOFTMAX</td><td>Softmax (跨 lane)</td><td>归约 + 指数 + 归一化</td></tr>
+  </tbody></table>
+<h3>归约指令</h3>
+<table>
+  <thead><tr><th>指令</th><th>操作</th><th>跨 lane 实现</th></tr></thead>
+  <tbody>
+    <tr><td>REDUCE_SUM</td><td>求和归约</td><td>Tree reduction 跨 16 lanes</td></tr>
+    <tr><td>REDUCE_MAX</td><td>最大值归约</td><td>Tree reduction</td></tr>
+    <tr><td>REDUCE_MIN</td><td>最小值归约</td><td>Tree reduction</td></tr>
+    <tr><td>REDUCE_MEAN</td><td>均值归约</td><td>SUM + DIV</td></tr>
+  </tbody></table>
+<h3>类型转换</h3>
+<table>
+  <thead><tr><th>指令</th><th>转换</th></tr></thead>
+  <tbody>
+    <tr><td>CVT_I8_F16</td><td>INT8 → FP16</td></tr>
+    <tr><td>CVT_F16_F32</td><td>FP16 → FP32</td></tr>
+    <tr><td>CVT_F32_I8</td><td>FP32 → INT8 (量化)</td></tr>
+    <tr><td>CVT_BF16_F32</td><td>BF16 → FP32</td></tr>
+    <tr><td>PACK_I8</td><td>打包 4×INT8 到 32-bit</td></tr>
+    <tr><td>UNPACK_I8</td><td>解包 32-bit 到 4×INT8</td></tr>
+  </tbody></table>
+<hr>
+<h2>6. 数据通路设计 (Data Path Design)</h2>
+<h3>输入选择 (Input Select)</h3>
+</ul>
+<p>每个 ALU 可以从以下来源选择操作数:</p>
+<ul>
+<li><strong>Stream East</strong>: 来自东侧 MEM/SXM 的数据流</li>
+<li><strong>Stream West</strong>: 来自西侧 MEM/SXM 的数据流</li>
+<li><strong>MXM Result</strong>: 来自 MXM 的链式结果</li>
+<li><strong>广播 (Broadcast)</strong>: 来自 SXM 的广播值</li>
+<li><strong>立即数 (Immediate)</strong>: 指令中的立即字段</li>
+<h3>链式数据流 (Chaining)</h3>
+<pre><code>MXM(矩阵结果) ──► VXM(激活函数) ──► MEM(存储结果)
+                      ↑
+                 流操作数 (来自 MEM)
+
+无需寄存器文件中间存储:
+  MXM → VXM 链: 矩阵乘结果直接流向 VXM 进行激活函数处理
+  VXM → MEM 链: 向量结果直接流向 MEM 存储
+  VXM → VXM 链: 向量结果直接流向另一个 VXM 操作</code></pre>
+<h3>寄存器文件 (Register File)</h3>
+</ul>
+<p>TSP 不使用传统向量寄存器文件，而是使用<strong>流式寄存器文件 (Stream RF)</strong>:</p>
+<table>
+  <thead><tr><th>特性</th><th>传统 VRFs</th><th>TSP 流式 RF</th></tr></thead>
+  <tbody>
+    <tr><td>结构</td><td>多端口 SRAM</td><td>流寄存器 (每个 lane)</td></tr>
+    <tr><td>容量</td><td>32-256 registers</td><td>64 streams/lane</td></tr>
+    <tr><td>寻址</td><td>寄存器编号</td><td>Stream ID (0-31 × 2方向)</td></tr>
+    <tr><td>生命周期</td><td>函数/基本块</td><td>单次数据流传输</td></tr>
+    <tr><td>编译器控制</td><td>寄存器分配</td><td>流调度</td></tr>
+  </tbody></table>
+<hr>
+<h2>7. 面积与功耗 (Area & Power)</h2>
+<h3>VXM 面积分解 (推测)</h3>
+<table>
+  <thead><tr><th>子模块</th><th>占比 (SL 级)</th><th>全芯片面积</th></tr></thead>
+  <tbody>
+    <tr><td>ALU 阵列 (16 ALU × 20 SL)</td><td>~50%</td><td>~36 mm²</td></tr>
+    <tr><td>流式 RF (64 streams × 16 lanes)</td><td>~20%</td><td>~14 mm²</td></tr>
+    <tr><td>数据路径布线</td><td>~15%</td><td>~11 mm²</td></tr>
+    <tr><td>输入选择/路由</td><td>~10%</td><td>~7 mm²</td></tr>
+    <tr><td>控制逻辑</td><td>~5%</td><td>~4 mm²</td></tr>
+    <tr><td><strong>VXM 总计</strong></td><td><strong>100%</strong></td><td><strong>~72 mm²</strong></td></tr>
+  </tbody></table>
+<h3>每 cycle 功耗 (推测)</h3>
+<table>
+  <thead><tr><th>操作类型</th><th>每 ALU 功耗</th><th>全芯片功耗</th></tr></thead>
+  <tbody>
+    <tr><td>INT8 ADD</td><td>~0.5 mW</td><td>~1.6 W</td></tr>
+    <tr><td>FP16 MUL</td><td>~2 mW</td><td>~6.4 W</td></tr>
+    <tr><td>FP32 FMA</td><td>~5 mW</td><td>~16 W</td></tr>
+    <tr><td>激活函数</td><td>~3 mW</td><td>~9.6 W</td></tr>
+  </tbody></table>
+<hr>
+<h2>8. 与传统向量单元对比 (Comparison)</h2>
+<table>
+  <thead><tr><th>特性</th><th>TSP VXM</th><th>NVIDIA Tensor Core</th><th>ARM SVE</th></tr></thead>
+  <tbody>
+    <tr><td>SIMD 宽度</td><td>320 (全芯片)</td><td>32 (warp)</td><td>128-2048 bits</td></tr>
+    <tr><td>ALU 数</td><td>5,120</td><td>64-256</td><td>可变</td></tr>
+    <tr><td>寄存器文件</td><td>流式 (64 streams)</td><td>256 KB (regfile)</td><td>32 registers</td></tr>
+    <tr><td>数据类型</td><td>INT8/FP16/FP32/BF16</td><td>FP16/FP32/TF32</td><td>INT/FP 全</td></tr>
+    <tr><td>流水线</td><td>20 级 + tile 管道</td><td>动态调度</td><td>顺序/乱序</td></tr>
+    <tr><td>控制方式</td><td>编译器静态</td><td>SIMT scheduler</td><td>硬件控制</td></tr>
+    <tr><td>面积效率</td><td>高 (无调度器)</td><td>中</td><td>低</td></tr>
+  </tbody></table>
+<div class="footer">Groq Architecture Research &bull; Generated 2026-05-19</div>
+</div>
+</body>
+</html>

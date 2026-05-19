@@ -1,0 +1,50 @@
+topic: "Groq TSP 芯片架构分析与详细设计 — 递归多层研究"
+max_iterations: 3
+recursive_depth: 2
+search_sources:
+  - ieee_xplore
+  - github
+  - web_search
+  - academic_papers
+  - vendor_docs
+
+layer1_topics:
+  - id: "1-tsp-microarchitecture"
+    name: "TSP 微架构深度分析"
+    sub_topics:
+      - "ICU Instruction Control Unit"
+      - "MEM Memory Slice"
+      - "VXM Vector Execution Module"
+      - "MXM Matrix Execution Module"
+      - "SXM Shift Execution Module"
+
+  - id: "2-dataflow-streaming"
+    name: "数据流与流式架构"
+    sub_topics:
+      - "Streaming dataflow model"
+      - "Deterministic scheduling"
+      - "Pipeline design"
+      - "Instruction-level parallelism"
+
+  - id: "3-memory-architecture"
+    name: "存储架构"
+    sub_topics:
+      - "SRAM tile organization"
+      - "Memory bandwidth analysis"
+      - "NoC interconnect"
+      - "Cache-less hierarchy"
+
+  - id: "4-compiler-architecture"
+    name: "编译器架构"
+    sub_topics:
+      - "GroqFlow toolchain"
+      - "MLIR frontend"
+      - "Haskell backend"
+      - "Static scheduling algorithm"
+
+  - id: "5-multi-tsp-interconnect"
+    name: "Multi-TSP 互联架构"
+    sub_topics:
+      - "Dragonfly topology"
+      - "TSP-to-TSP communication"
+      - "Scale-out architecture"

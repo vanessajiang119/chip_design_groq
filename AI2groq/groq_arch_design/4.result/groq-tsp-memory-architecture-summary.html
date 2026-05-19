@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Groq TSP SRAM-only 存储架构 — 完整分析报告</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; color: #333; background: #f8f9fa; line-height: 1.6; padding: 20px; }
+  .container { max-width: 1000px; margin: 0 auto; background: #fff; padding: 32px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  h1 { font-size: 24px; color: #1a1a2e; margin: 20px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #76b900; }
+  h2 { font-size: 20px; color: #1a1a2e; margin: 18px 0 10px; padding-bottom: 6px; border-bottom: 1px solid #e0e0e0; }
+  h3 { font-size: 17px; color: #0f3460; margin: 16px 0 8px; }
+  h4 { font-size: 14px; color: #555; margin: 12px 0 6px; }
+  p { margin: 8px 0; color: #444; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  th { background: #1a1a2e; color: white; padding: 8px 12px; text-align: left; font-weight: 600; }
+  td { padding: 7px 12px; border-bottom: 1px solid #e8e8e8; }
+  tr:nth-child(even) { background: #f9f9fb; }
+  tr:hover { background: #f0f7f0; }
+  pre { background: #1a1a2e; color: #e0e0e0; padding: 14px; border-radius: 6px; overflow-x: auto; font-size: 13px; margin: 10px 0; }
+  code { font-family: 'SF Mono', Monaco, 'Andale Mono', monospace; }
+  p > code, li > code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 13px; color: #cc3333; }
+  ul, ol { margin: 8px 0 8px 24px; color: #444; }
+  li { margin: 4px 0; }
+  blockquote { border-left: 4px solid #76b900; padding: 10px 16px; margin: 12px 0; background: #f8ffec; color: #555; }
+  hr { border: none; border-top: 1px solid #e0e0e0; margin: 20px 0; }
+  a { color: #0f3460; text-decoration: none; }
+  a:hover { color: #76b900; text-decoration: underline; }
+  .header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); color: white; padding: 24px 32px; border-radius: 8px 8px 0 0; margin-bottom: 0; }
+  .header h1 { color: white; border: none; margin: 0; padding: 0; font-size: 22px; }
+  .header .meta { font-size: 12px; color: #8899aa; margin-top: 4px; }
+  .nav-path { font-size: 12px; color: #76b900; margin-bottom: 16px; }
+  .footer { text-align: center; padding: 20px 0; color: #888; font-size: 12px; border-top: 1px solid #e0e0e0; margin-top: 20px; }
+</style>
+</head>
+<body>
+<div class="container">
+<div class="header"><h1>Groq TSP SRAM-only 存储架构 — 完整分析报告</h1><div class="meta">4.result/groq-tsp-memory-architecture-summary.md</div></div>
+<div class="nav-path">&larr; <a href="../4.result/3_groq_arch_design_summary_v1.html">Back to Architecture Report</a></div>
+<h1>Groq TSP SRAM-only 存储架构 — 完整分析报告</h1>
+<blockquote><strong>时间</strong>: 20260519-1715</blockquote>
+<blockquote><strong>分析周期</strong>: 20260519-1530 ~ 20260519-1715</blockquote>
+<blockquote><strong>分析专家</strong>: Groq TSP 存储架构分析 Agent</blockquote>
+<hr>
+<h2>1. 架构总览</h2>
+<p>Groq TSP (Tensor Streaming Processor) 采用<strong>全 SRAM、无 DRAM、无 cache 层次</strong>的激进架构。这是半导体 AI 加速器领域最具争议但也最有特色的设计之一。</p>
+<h3>1.1 核心参数</h3>
+<table>
+  <thead><tr><th>参数</th><th>Groq TSP (14nm)</th><th>NVIDIA H100 (4nm)</th><th>比率</th></tr></thead>
+  <tbody>
+    <tr><td>片上存储</td><td><strong>230 MB SRAM</strong></td><td>50 MB L2 cache + 80 GB HBM3</td><td>—</td></tr>
+    <tr><td>存储带宽</td><td><strong>80 TB/s</strong></td><td>3.0 TB/s (HBM3)</td><td><strong>26.7×</strong></td></tr>
+    <tr><td>访存延迟</td><td><strong>~2-5 ns</strong></td><td>~375-500 ns (HBM)</td><td><strong>~100-250×</strong></td></tr>
+    <tr><td>每 bit 能耗</td><td><strong>~0.3 pJ</strong></td><td>~5-10 pJ (HBM+PHY)</td><td><strong>~17-33×</strong></td></tr>
+    <tr><td>功耗</td><td>~185 W</td><td>700 W</td><td>0.26×</td></tr>
+    <tr><td>计算 (FP16)</td><td>188 TFLOPS</td><td>989 TFLOPS</td><td>0.19×</td></tr>
+    <tr><td>工艺</td><td>14 nm</td><td>4 nm (custom)</td><td>—</td></tr>
+    <tr><td>Die 面积</td><td>725 mm²</td><td>~814 mm²</td><td>0.89×</td></tr>
+  </tbody></table>
+<h3>1.2 架构示意图</h3>
+<pre><code>Groq TSP 功能切片架构 (单芯片)
+
+             指令流方向 (南→北)
+                 ↑
+     ┌────┬────┬────┬────┬────┐    ─── 20 Superlanes
+     │MXM │SXM │MEM │VXM │MEM │      (Tile 19)
+     ├────┼────┼────┼────┼────┤
+     │MXM │SXM │MEM │VXM │MEM │      (Tile 18)
+     ├────┼────┼────┼────┼────┤
+     │..  │..  │..  │..  │..  │      ...
+     ├────┼────┼────┼────┼────┤
+     │MXM │SXM │MEM │VXM │MEM │      (Tile 0)
+     ├────┼────┼────┼────┼────┤
+     │        ICU (指令控制单元)   │
+     └────────────────────────────┘
+       ←── 数据流 (东/西) ──→
+     
+     每 Superlane:
+       2 × MEM  (5.5 MB each = 11 MB/superlane)
+       2 × MXM  (矩阵乘)
+       1 × VXM  (向量)
+       2 × SXM  (路由/交换)
+       16 Lanes (32 B each = 512 B/superlane/cycle)
+     
+     总计: 40 MEM × 5.5 MB = 220 MB SRAM
+           320 SIMD channels (20 × 16)
+           144 独立指令队列</code></pre>
+<hr>
+<h2>2. 存储架构深度解析</h2>
+<h3>2.1 SRAM 物理组织</h3>
+<table>
+  <thead><tr><th>层级</th><th>容量</th><th>数量</th><th>合计</th></tr></thead>
+  <tbody>
+    <tr><td>SRAM Bank</td><td>~172-344 KB</td><td>16-32 / MEM</td><td>5.5 MB / MEM</td></tr>
+    <tr><td>MEM 单元</td><td>5.5 MB</td><td>40 (20×2)</td><td><strong>220 MB</strong></td></tr>
+    <tr><td>Superlane</td><td>11 MB</td><td>20</td><td><strong>220 MB</strong></td></tr>
+  </tbody></table>
+<h3>2.2 80 TB/s 带宽分解</h3>
+<pre><code>80 TB/s = 40 (MEM units) × 2 (R+W ports) × 128 B/port × 900 MHz × ~4.4× (bank parallelism)
+
+或等价:
+80 TB/s = 20 (superlanes) × 512 B (data width) × 900 MHz × 2 (R+W) × ~4.4× (bank factor)
+        = 9.2 TB/s × ~8.7× internal parallelism</code></pre>
+<h3>2.3 Streaming Buffer vs Cache</h3>
+<table>
+  <thead><tr><th>特性</th><th>GPU Cache Hierarchy</th><th>Groq Streaming Buffer</th></tr></thead>
+  <tbody>
+    <tr><td>管理</td><td>硬件自动</td><td><strong>编译器显式</strong></td></tr>
+    <tr><td>容量</td><td>L1: 128KB, L2: 50MB</td><td><strong>230MB 统一地址空间</strong></td></tr>
+    <tr><td>延迟</td><td>命中: ~20ns, 未命中: ~500ns</td><td><strong>固定 ~2-5ns</strong></td></tr>
+    <tr><td>一致性</td><td>硬件 coherence</td><td><strong>编译器保证</strong></td></tr>
+    <tr><td>替换</td><td>LRU (硬件)</td><td><strong>编译器预定义生命周期</strong></td></tr>
+    <tr><td>行为</td><td>反应式 (reactive)</td><td><strong>确定性 (deterministic)</strong></td></tr>
+  </tbody></table>
+<hr>
+<h2>3. 定量对比: HBM GPU vs SRAM TSP</h2>
+<h3>3.1 带宽供给 vs 需求</h3>
+<pre><code>场景: Llama-2 7B 推理 (batch=1)
+
+数据访问需求:
+  - 每 token: ~14 MB 权重读取
+  - 计算量: ~14 GMACs
+  - 计算密度: ~1 MAC/B (compute/byte ratio)
+
+GPU (H100):
+  带宽: 3.0 TB/s → 供给 ~3 compute/byte (带宽限制)
+  利用率: ~30% (小 batch)
+  有效性能: ~0.9 TB/s × ~1 MAC/B ≈ 限制在 ~1.8 TFLOPS
+
+TSP (SRAM):
+  带宽: 80 TB/s → 供给 ~80 compute/byte (远超过需求)
+  利用率: ~80% (小 batch)
+  有效性能: ~64 TB/s × ~1 MAC/B ≈ 无带宽瓶颈</code></pre>
+<h3>3.2 带宽利用率对比</h3>
+<table>
+  <thead><tr><th>Batch Size</th><th>GPU H100 利用率</th><th>Groq TSP 利用率</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>~1%</td><td><strong>~75-85%</strong></td></tr>
+    <tr><td>8</td><td>~10%</td><td>~85-90%</td></tr>
+    <tr><td>64</td><td>~50%</td><td>~90% (容量限制)</td></tr>
+    <tr><td>256</td><td>~80%</td><td>需多芯片</td></tr>
+  </tbody></table>
+<p><strong>核心洞察</strong>: GPU 在小 batch 时因 HBM 请求-响应协议开销和低利用率而效率极差。Groq TSP 的流式 SRAM 在 batch=1 时就能达到高利用率。</p>
+<h3>3.3 延迟对比</h3>
+<table>
+  <thead><tr><th>操作</th><th>GPU (H100)</th><th>Groq TSP</th><th>优势</th></tr></thead>
+  <tbody>
+    <tr><td>单 MAC 操作</td><td>~0.5 ns</td><td>~1.1 ns</td><td>GPU (频率更高)</td></tr>
+    <tr><td>寄存器访问</td><td><1 ns</td><td>N/A (stream 模型)</td><td>—</td></tr>
+    <tr><td>SRAM/共享内存</td><td>~20 ns (L1)</td><td><strong>~2-5 ns</strong> (全局)</td><td>TSP 4-10×</td></tr>
+    <tr><td>HBM 访问</td><td><strong>~375-500 ns</strong></td><td>N/A</td><td>GPU 慢 100×+</td></tr>
+    <tr><td>多 TSP 通信</td><td>~1-5 us (NVLink)</td><td><strong>~100-500 ns</strong> (C2C)</td><td>TSP 10×+</td></tr>
+  </tbody></table>
+<h3>3.4 功耗效率对比 (推理)</h3>
+<table>
+  <thead><tr><th>指标</th><th>GPU (H100)</th><th>Groq TSP</th></tr></thead>
+  <tbody>
+    <tr><td>Llama-2 7B (tok/s)</td><td>~50 tok/s</td><td>~750 tok/s</td></tr>
+    <tr><td>功耗</td><td>~700W</td><td>~185W</td></tr>
+    <tr><td>能效</td><td>~14 tok/kWh</td><td><strong>~4,054 tok/kWh</strong></td></tr>
+    <tr><td>每 token 能耗</td><td>~14 J</td><td><strong>~0.25 J</strong></td></tr>
+  </tbody></table>
+<h3>3.5 TCO 对比 (大规模推理)</h3>
+<h4>场景: 服务 Llama-2 70B, 1M token/s</h4>
+<table>
+  <thead><tr><th>指标</th><th>GPU Cluster (8× H100)</th><th>Groq Cluster (572× TSP)</th></tr></thead>
+  <tbody>
+    <tr><td>芯片数</td><td>8</td><td>572</td></tr>
+    <tr><td>硬件成本</td><td>~$300K</td><td><strong>~$11.44M</strong></td></tr>
+    <tr><td>功耗</td><td>~10 kW</td><td>~106 kW</td></tr>
+    <tr><td>年电费</td><td>~$24K</td><td>~$254K</td></tr>
+    <tr><td>可服务模型</td><td>Llama-2 70B (单节点)</td><td>Llama-2 70B (必须分布式)</td></tr>
+  </tbody></table>
+<blockquote><strong>Groq TSP 在 TCO 上在大模型场景中不占优势</strong>，但在小模型或延迟敏感场景中胜出。</blockquote>
+<hr>
+<h2>4. 不同工作负载的适应性分析</h2>
+<h3>4.1 强项场景</h3>
+<table>
+  <thead><tr><th>场景</th><th>原因</th><th>性能优势</th></tr></thead>
+  <tbody>
+    <tr><td><strong>小模型推理</strong> (≤7B)</td><td>SRAM 可容纳全部权重</td><td><strong>10-15× vs GPU</strong></td></tr>
+    <tr><td><strong>低延迟推理</strong> (streaming)</td><td>确定性 ~2-5ns 延迟</td><td><strong>~100× 尾延迟优势</strong></td></tr>
+    <tr><td><strong>批量大小=1</strong></td><td>流式架构天然高效</td><td><strong>75-90× 带宽利用率</strong></td></tr>
+    <tr><td><strong>实时应用</strong> (语音, 视频)</td><td>零方差执行时间</td><td><strong>确定性 SLA</strong></td></tr>
+    <tr><td><strong>KV-cache 密集型</strong></td><td>高速 SRAM 适合频繁读写</td><td><strong>~10× 吞吐量</strong></td></tr>
+  </tbody></table>
+<h3>4.2 弱项场景</h3>
+<table>
+  <thead><tr><th>场景</th><th>原因</th><th>劣势</th></tr></thead>
+  <tbody>
+    <tr><td><strong>大模型推理</strong> (≥70B)</td><td>SRAM 无法容纳，需大量芯片</td><td><strong>TCO 劣势 10-30×</strong></td></tr>
+    <tr><td><strong>训练</strong></td><td>无动态调度，无自动微分支持</td><td><strong>不支持</strong></td></tr>
+    <tr><td><strong>大批量推理</strong> (batch≥64)</td><td>计算能力受限 (188 TFLOPS)</td><td><strong><0.2× H100</strong></td></tr>
+    <tr><td><strong>稀疏模型</strong></td><td>SRAM 利用率下降</td><td><strong>效率降低</strong></td></tr>
+  </tbody></table>
+<hr>
+<h2>5. 架构设计哲学总结</h2>
+<h3>5.1 十个关键设计决策</h3>
+<pre><code>1. SRAM-only, no DRAM         → 带宽 80TB/s, 延迟 ~5ns
+2. No cache hierarchy          → 确定性访存, 无 coherence 开销
+3. Functional slicing          → 面积效率最大化  
+4. Compiler-managed memory     → 硬件简单, 编译器复杂
+5. No arbitration              → 静态调度消除运行时竞争
+6. Stream-based dataflow       → 生产者-消费者, 非 load-store
+7. 2D instruction+data flow    → 指令南-北, 数据东-西
+8. Deterministic execution     → 零延迟方差
+9. Software-defined network    → TSP 即处理器也即交换机
+10. 144 parallel instruction queues → 细粒度指令级并行</code></pre>
+<h3>5.2 SRAM-only vs HBM: 根本权衡</h3>
+<pre><code>             SRAM-only (Groq)         HBM + DRAM (GPU)
+             ───────────────          ─────────────────
+容量成本比    ~$500/MB                  ~$0.01/MB
+带宽        极高 (80 TB/s)             高 (3 TB/s)  
+延迟        极低 (~5ns)                高 (~500ns)
+功耗/bit    极低 (0.3 pJ)              高 (5-10 pJ)
+扩展性      水平(芯片数)               垂直(容量密度)
+编译器      极高复杂度                 标准工具链
+确定性      完全确定                   概率性</code></pre>
+<h3>5.3 核心结论</h3>
+<p><strong>Groq TSP 的 SRAM-only 架构不是一种通用设计，而是一种针对特定负载的极致优化</strong>:</p>
+<ul>
+<li><strong>做对了什么</strong>: 在延迟敏感、小 batch、小模型的推理场景中，SRAM-only 架构提供了 <strong>10-15× 的性能优势和 100× 的能效优势</strong></li>
+<li><strong>代价是什么</strong>: 大模型场景的 TCO 劣势、不支持训练、编译时间长、生态不成熟</li>
+<li><strong>启示</strong>: NVIDIA 收购 Groq 的 LPU 技术并将其用于 Vera Rubin 的 Decode FFN 阶段，说明业界认可 SRAM-centric 架构作为 GPU 的补充而非替代</li>
+<hr>
+<h2>6. 参考文献</h2>
+</ul>
+<ol>
+<li>Abts, D. et al., <em>"Think Fast: A Tensor Streaming Processor for Accelerating Deep Learning Workloads"</em>, ISCA 2020.</li>
+<li>Abts, D. et al., <em>"A Software-defined Tensor Streaming Multiprocessor for Large-scale Machine Learning"</em>, ISCA 2022.</li>
+<li>Satnam Singh, <em>"The Virtuous Cycles of Determinism: Programming Groq's Tensor Streaming Processor"</em>, 2022.</li>
+<li>Groq Hot Chips 2020 Presentation.</li>
+<li><em>"Groq Shares Recipe for TSP Nodes, Systems"</em>, The Next Platform, Sep 2020.</li>
+<li><em>"The emerging role of SRAM-centric chips in AI inference"</em>, Gimlet Labs, 2025.</li>
+<li><em>"确定性的边界：从 GPU 到 Groq 的 AI 芯片谱系学"</em>, 知乎, 2025.</li>
+<li><em>"How is Groq so Fast? An Overview of Groq's TSP Architecture"</em>, Security Boulevard, 2024.</li>
+</ol>
+<div class="footer">Groq Architecture Research &bull; Generated 2026-05-19</div>
+</div>
+</body>
+</html>

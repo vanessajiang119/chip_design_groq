@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Round 2: 确定性调度 — 研究结果</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; color: #333; background: #f8f9fa; line-height: 1.6; padding: 20px; }
+  .container { max-width: 1000px; margin: 0 auto; background: #fff; padding: 32px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  h1 { font-size: 24px; color: #1a1a2e; margin: 20px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #76b900; }
+  h2 { font-size: 20px; color: #1a1a2e; margin: 18px 0 10px; padding-bottom: 6px; border-bottom: 1px solid #e0e0e0; }
+  h3 { font-size: 17px; color: #0f3460; margin: 16px 0 8px; }
+  h4 { font-size: 14px; color: #555; margin: 12px 0 6px; }
+  p { margin: 8px 0; color: #444; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  th { background: #1a1a2e; color: white; padding: 8px 12px; text-align: left; font-weight: 600; }
+  td { padding: 7px 12px; border-bottom: 1px solid #e8e8e8; }
+  tr:nth-child(even) { background: #f9f9fb; }
+  tr:hover { background: #f0f7f0; }
+  pre { background: #1a1a2e; color: #e0e0e0; padding: 14px; border-radius: 6px; overflow-x: auto; font-size: 13px; margin: 10px 0; }
+  code { font-family: 'SF Mono', Monaco, 'Andale Mono', monospace; }
+  p > code, li > code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 13px; color: #cc3333; }
+  ul, ol { margin: 8px 0 8px 24px; color: #444; }
+  li { margin: 4px 0; }
+  blockquote { border-left: 4px solid #76b900; padding: 10px 16px; margin: 12px 0; background: #f8ffec; color: #555; }
+  hr { border: none; border-top: 1px solid #e0e0e0; margin: 20px 0; }
+  a { color: #0f3460; text-decoration: none; }
+  a:hover { color: #76b900; text-decoration: underline; }
+  .header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); color: white; padding: 24px 32px; border-radius: 8px 8px 0 0; margin-bottom: 0; }
+  .header h1 { color: white; border: none; margin: 0; padding: 0; font-size: 22px; }
+  .header .meta { font-size: 12px; color: #8899aa; margin-top: 4px; }
+  .nav-path { font-size: 12px; color: #76b900; margin-bottom: 16px; }
+  .footer { text-align: center; padding: 20px 0; color: #888; font-size: 12px; border-top: 1px solid #e0e0e0; margin-top: 20px; }
+</style>
+</head>
+<body>
+<div class="container">
+<div class="header"><h1>Round 2: 确定性调度 — 研究结果</h1><div class="meta">2.research/2-dataflow-streaming/round-2-deterministic-scheduling.md</div></div>
+<div class="nav-path">&larr; <a href="../4.result/3_groq_arch_design_summary_v1.html">Back to Architecture Report</a></div>
+<h1>Round 2: 确定性调度 — 研究结果</h1>
+<blockquote>创建时间: 2026-05-19</blockquote>
+<blockquote>来源: Zellic Analysis, ISCA 2020, Groq Blog, EET China, 知乎技术分析</blockquote>
+<hr>
+<h2>1. 确定性调度的核心原理</h2>
+<h3>1.1 静态调度 vs 动态调度</h3>
+<p>Groq TSP 的核心区别在于将所有调度决策从硬件运行时移至编译器编译时：</p>
+<pre><code>传统 CPU/GPU:                    Groq TSP:
+┌────────────────────┐          ┌────────────────────┐
+│ 编译器: 生成代码    │          │ 编译器: 生成代码 +  │
+│                    │          │  静态调度所有指令   │
+└────────┬───────────┘          └────────┬───────────┘
+         ▼                               ▼
+┌────────────────────┐          ┌────────────────────┐
+│ 硬件运行时:          │          │ 硬件: 严格按计划执行 │
+│  OoO 调度器          │          │  无任何运行时决策    │
+│  分支预测器          │          │  无调度器            │
+│  Cache 层次         │          │  无仲裁器            │
+│  动态网络路由        │          │  无 cache           │
+└────────────────────┘          └────────────────────┘</code></pre>
+<h3>1.2 Groq 编译器如何实现静态调度</h3>
+<p>编译器在编译时即完全确定：</p>
+<p><strong>a) 指令时序 (Instruction Timing)</strong></p>
+<ul>
+<li>每条指令的延迟在硬件中是固定的、已知的</li>
+<li>编译器知道精确到 cycle 的指令完成时间</li>
+<li>无需像 OoO 那样依赖 ROB (Reorder Buffer) 跟踪指令状态</li>
+</ul>
+<p><strong>b) 数据到达时间 (Data Arrival Time)</strong></p>
+<ul>
+<li>每个张量从 MEM slice 读取到送达 VXM/MXM/SXM 的时间精确已知</li>
+<li>编译器确保数据和指令在同一 cycle 到达同一功能单元</li>
+</ul>
+<p><strong>c) 网络路由 (Network Routing)</strong></p>
+<ul>
+<li>所有数据包的发送时间和路径在编译时确定</li>
+<li>无需 request/response 协议</li>
+<li>发送方和接收方的时序精确对齐</li>
+<h2>2. 编译器调度算法</h2>
+<h3>2.1 144 指令队列的调度</h3>
+</ul>
+<p>TSP 有 144 个独立指令队列，编译器需要管理：</p>
+<table>
+  <thead><tr><th>维度</th><th>数量</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td>指令队列数</td><td>144</td><td>每个队列独立发射</td></tr>
+    <tr><td>SIMD 通道</td><td>320</td><td>20 tiles × 16 lanes</td></tr>
+    <tr><td>逻辑流</td><td>64/通道</td><td>32 East + 32 West</td></tr>
+    <tr><td>片上 SRAM</td><td>220 MB</td><td>全局共享</td></tr>
+    <tr><td>主频</td><td>900 MHz</td><td>每个 cycle 都被精确调度</td></tr>
+  </tbody></table>
+<h3>2.2 ILP (指令级并行) 调度</h3>
+<p>TSP 被描述为一个 <strong>"144-wide VLIW 架构"</strong> — 编译器在 144 个指令槽中打包指令并调度：</p>
+<ul>
+<li>每 cycle 每个功能切片可以发射多条指令</li>
+<li>编译器负责指令打包，无硬件重排序</li>
+<li>指令和数据的"相遇"发生在确定的 cycle 和位置</li>
+<h3>2.3 关键调度约束</h3>
+<pre><code>功能切片每 cycle 指令分配:
+  MXM (矩阵):  6 条指令
+  SXM (开关):  14 条指令
+  MEM (内存):  44 条指令
+  VXM (向量):  16 条指令
+  ─────────────────────────
+  合计:        80+ 条指令/cycle 可并行发射</code></pre>
+</ul>
+<p>编译器必须确保：</p>
+<ol>
+<li>每个功能切片在其指令带宽限制内被调度</li>
+<li>数据依赖关系在所有队列之间正确同步</li>
+<li>流缓冲区不出现上溢/下溢</li>
+<li>所有队列在 barrier/sync 点上对齐</li>
+<h2>3. 同步机制: SYNC / NOTIFY</h2>
+<h3>3.1 基本同步指令</h3>
+</ol>
+<ul>
+<li><strong>SYNC</strong>: 等待所有先前的指令完成 (全局屏障)</li>
+<li><strong>NOTIFY</strong>: 通知其他队列某个事件已完成</li>
+<li>编译器通过精确 timing 最小化同步开销</li>
+<h3>3.2 硬件对齐计数器 (HAC)</h3>
+</ul>
+<p>多芯片扩展时的全局同步机制：</p>
+<ul>
+<li>每个 TSP 有一个 256-cycle 计数器</li>
+<li>芯片间通过链接同步 HAC 值，建立<strong>全局时间域</strong></li>
+<li><strong>SAC (软件对齐计数器)</strong>: 追踪本地时间</li>
+<li><strong>DESKEW / RUNTIME_DESKEW</strong>: 重新对齐所有 TSP</li>
+<h2>4. "复杂性守恒" 定律</h2>
+</ul>
+<p>一个关键洞察：<strong>复杂性不会消失，只是转移</strong>：</p>
+<pre><code>GPU:     硬件运行时状态丰富 (S_hw ↑)  →  编译器工作量小 (S_compiler ↓)
+Groq TSP:硬件运行时状态极小 (S_hw ↓)  →  编译器工作量大 (S_compiler ↑)</code></pre>
+<h3>4.1 GPU 上的复杂性 (动态调度)</h3>
+<ul>
+<li><strong>Warp Scheduler</strong>: 硬件逻辑选择每个 cycle 发射哪个 warp</li>
+<li><strong>Scoreboarding</strong>: 追踪跨 warp 的寄存器依赖</li>
+<li><strong>ROB (Reorder Buffer)</strong>: 追踪 OoO 完成和 in-order 退休</li>
+<li><strong>Cache Coherence</strong>: 窥探、MESI 协议、总线仲裁</li>
+<li><strong>分支预测</strong>: 推测执行 + 误预测恢复</li>
+<li><strong>动态资源划分</strong>: SM 划分、线程块调度</li>
+<h3>4.2 Groq TSP 上的复杂性 (静态调度)</h3>
+<li><strong>编译器需要完整的延迟模型</strong>: 所有指令、内存、网络的精确时序</li>
+<li><strong>全局调度问题</strong>: 144 队列的协同调度是 NP-hard 的</li>
+<li><strong>静态内存分配</strong>: 所有 SRAM 地址在编译时确定</li>
+<li><strong>流水线平衡</strong>: 所有功能单元的利用率优化</li>
+<li><strong>流管理</strong>: 缓冲区大小和流 ID 的全局分配</li>
+<h2>5. 优势与代价</h2>
+<h3>5.1 确定性执行节省了什么？</h3>
+<table>
+  <thead><tr><th>节省项</th><th>GPU 上的开销</th><th>TSP 上的状态</th></tr></thead>
+  <tbody>
+    <tr><td><strong>控制逻辑面积</strong></td><td>~20-30% die area</td><td><3% (ICU)</td></tr>
+    <tr><td><strong>调度能耗</strong></td><td>每 cycle warp 调度逻辑</td><td>0 (编译时已完成)</td></tr>
+    <tr><td><strong>Cache MISS 能耗</strong></td><td>动态，取决于访问模式</td><td>无 cache</td></tr>
+    <tr><td><strong>推测执行能耗</strong></td><td>分支预测 + 误预测恢复</td><td>无推测执行</td></tr>
+    <tr><td><strong>仲裁能耗</strong></td><td>总线、网络、内存仲裁</td><td>无仲裁器</td></tr>
+    <tr><td><strong>数据搬运能耗</strong></td><td>数据在 cache 层次间移动</td><td>显式流式搬运</td></tr>
+  </tbody></table>
+</ul>
+<p><strong>关键数据</strong>: 确定性执行和数据流控制可节省 60-80% 的通常浪费在数据搬运和控制开销上的能量（来源: ISCA 2020）。</p>
+<h3>5.2 确定性执行的代价</h3>
+<table>
+  <thead><tr><th>代价项</th><th>具体影响</th></tr></thead>
+  <tbody>
+    <tr><td><strong>编译器复杂度</strong></td><td>GroqFlow 编译器非常复杂，使用 MLIR + Haskell 后端</td></tr>
+    <tr><td><strong>动态工作负载</strong></td><td>不规则/稀疏计算因无法静态预测而性能下降</td></tr>
+    <tr><td><strong>编程约束</strong></td><td>需要显式流管理，开发者需理解数据流模型</td></tr>
+    <tr><td><strong>灵活性损失</strong></td><td>无法从硬件动态调度中受益（如分支丰富的代码）</td></tr>
+    <tr><td><strong>大模型容量</strong></td><td>220 MB SRAM 远小于 GPU HBM (80 GB+)，需要模型并行</td></tr>
+  </tbody></table>
+<h2>6. 关键参考文献</h2>
+<ul>
+<li>ISCA 2020: <em>"Think Fast: A Tensor Streaming Processor (TSP) for Accelerating Deep Learning Workloads"</em></li>
+<li>ASPLOS 2022: <em>"The Virtuous Cycles of Determinism: Programming Groq's Tensor Streaming Processor"</em></li>
+<li>Zellic: <em>"How Is Groq So Fast? An Overview of Groq's TSP Architecture"</em></li>
+<li>Groq LPU Architecture: https://groq.com/lpu-architecture</li>
+<li>EET China: <em>"深度拆解 Groq LPU 架构"</em></li>
+<li>知乎: <em>"确定性的边界：从 GPU 到 Groq 的 AI 芯片谱系学"</em></li>
+</ul>
+<div class="footer">Groq Architecture Research &bull; Generated 2026-05-19</div>
+</div>
+</body>
+</html>

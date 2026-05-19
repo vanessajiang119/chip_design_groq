@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Round 1: Groq Multi-TSP Dragonfly 拓扑分析</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; color: #333; background: #f8f9fa; line-height: 1.6; padding: 20px; }
+  .container { max-width: 1000px; margin: 0 auto; background: #fff; padding: 32px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  h1 { font-size: 24px; color: #1a1a2e; margin: 20px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #76b900; }
+  h2 { font-size: 20px; color: #1a1a2e; margin: 18px 0 10px; padding-bottom: 6px; border-bottom: 1px solid #e0e0e0; }
+  h3 { font-size: 17px; color: #0f3460; margin: 16px 0 8px; }
+  h4 { font-size: 14px; color: #555; margin: 12px 0 6px; }
+  p { margin: 8px 0; color: #444; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  th { background: #1a1a2e; color: white; padding: 8px 12px; text-align: left; font-weight: 600; }
+  td { padding: 7px 12px; border-bottom: 1px solid #e8e8e8; }
+  tr:nth-child(even) { background: #f9f9fb; }
+  tr:hover { background: #f0f7f0; }
+  pre { background: #1a1a2e; color: #e0e0e0; padding: 14px; border-radius: 6px; overflow-x: auto; font-size: 13px; margin: 10px 0; }
+  code { font-family: 'SF Mono', Monaco, 'Andale Mono', monospace; }
+  p > code, li > code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 13px; color: #cc3333; }
+  ul, ol { margin: 8px 0 8px 24px; color: #444; }
+  li { margin: 4px 0; }
+  blockquote { border-left: 4px solid #76b900; padding: 10px 16px; margin: 12px 0; background: #f8ffec; color: #555; }
+  hr { border: none; border-top: 1px solid #e0e0e0; margin: 20px 0; }
+  a { color: #0f3460; text-decoration: none; }
+  a:hover { color: #76b900; text-decoration: underline; }
+  .header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); color: white; padding: 24px 32px; border-radius: 8px 8px 0 0; margin-bottom: 0; }
+  .header h1 { color: white; border: none; margin: 0; padding: 0; font-size: 22px; }
+  .header .meta { font-size: 12px; color: #8899aa; margin-top: 4px; }
+  .nav-path { font-size: 12px; color: #76b900; margin-bottom: 16px; }
+  .footer { text-align: center; padding: 20px 0; color: #888; font-size: 12px; border-top: 1px solid #e0e0e0; margin-top: 20px; }
+</style>
+</head>
+<body>
+<div class="container">
+<div class="header"><h1>Round 1: Groq Multi-TSP Dragonfly 拓扑分析</h1><div class="meta">2.research/5-multi-tsp-interconnect/round-1-dragonfly-topology.md</div></div>
+<div class="nav-path">&larr; <a href="../4.result/3_groq_arch_design_summary_v1.html">Back to Architecture Report</a></div>
+<h1>Round 1: Groq Multi-TSP Dragonfly 拓扑分析</h1>
+<blockquote>创建时间: 2026-05-19</blockquote>
+<blockquote>状态: Research Complete</blockquote>
+<h2>一、Dragonfly 拓扑概述</h2>
+<p>Groq 的 Multi-TSP 互联采用 <strong>软件定义的 Dragonfly 拓扑（software-defined Dragonfly topology）</strong>，在 ISCA 2022 获奖论文 <em>"A Software-defined Tensor Streaming Multiprocessor for Large-scale Machine Learning"</em> 中详细描述。每个 TSP 同时扮演 <strong>计算端点（endpoint）</strong> 和 <strong>网络交换机（network switch）</strong> 的角色。</p>
+<p>Dragonfly 拓扑的核心思想：用高 radix 的路由器将网络组织为 <strong>group（组）</strong>，组内全连接，组间用少量 global link 互联。</p>
+<h2>二、拓扑参数详解</h2>
+<h3>2.1 每个 TSP 的物理链路</h3>
+<table>
+  <thead><tr><th>参数</th><th>数值</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Local links（局部链路）</strong></td><td>7 条 — 用于节点内（intra-node）互联</td></tr>
+    <tr><td><strong>Global links（全局链路）</strong></td><td>4 条 — 用于跨节点和跨机架互联</td></tr>
+    <tr><td><strong>合计物理链路</strong></td><td>11 条 C2C（Chip-to-Chip）链路</td></tr>
+    <tr><td><strong>每链路带宽</strong></td><td>25 Gbps/lane × 4 lanes = <strong>100 Gbps</strong></td></tr>
+    <tr><td><strong>SerDes 速率</strong></td><td>30 Gbps per lane（第一代 TSP）</td></tr>
+    <tr><td><strong>每链路有效带宽</strong></td><td>~15 GB/s（单向上）</td></tr>
+  </tbody></table>
+<h3>2.2 系统封装层级</h3>
+<pre><code>Level 1: Node（节点 / Group）
+├── 8 TSPs 在一个 4U 机箱
+├── 7 local links × 8 TSPs = 全连接拓扑（all-to-all）
+├── 所有 global link 聚合为 32 端口虚拟路由器
+└── Dragonfly 的 "group"
+
+Level 2: Rack（机架）
+├── 9 Nodes × 8 TSPs = 72 TSPs
+├── 其中 8 个计算节点 + 1 个冗余节点
+├── 机架内通过 global link 互联
+└── 半端口用于内部，半端口用于跨机架
+
+Level 3: Max System（最大系统）
+├── 145 机架 × 72 TSPs = 10,440 TSPs
+├── 全局共享 SRAM &gt; 2 TB
+└── 端到端延迟 &lt; 3 μs</code></pre>
+<h3>2.3 虚拟路由器设计</h3>
+<p>每个 Node（8 TSPs）的 4 条 global link 聚合为 <strong>32 端口虚拟路由器</strong>：</p>
+<ul>
+<li>这是 Dragonfly 拓扑中的 "group" 构建块</li>
+<li>高 radix 虚拟路由器减少了网络直径</li>
+<li>最大系统任意两 TSP 之间的 <strong>最大跳数为 5 跳</strong></li>
+<h3>2.4 带宽扩展曲线</h3>
+<table>
+  <thead><tr><th>TSP 规模</th><th>每 TSP 全局带宽</th><th>注释</th></tr></thead>
+  <tbody>
+    <tr><td>< 16 TSPs</td><td>极高（利用密集节点内布线）</td><td>节点内全连接</td></tr>
+    <tr><td>16–264 TSPs</td><td>~50 GB/s</td><td>3 跳 Dragonfly 内</td></tr>
+    <tr><td>> 264 TSPs（至 10,440）</td><td>~14 GB/s</td><td>Dragonfly 提供扁平带宽</td></tr>
+    <tr><td>全局 bisection 带宽</td><td>随规模近似线性扩展</td><td>软件定义路由避免了拥塞</td></tr>
+  </tbody></table>
+<h2>三、Dragonfly 拓扑对比</h2>
+<table>
+  <thead><tr><th>特性</th><th>Groq Dragonfly</th><th>InfiniBand Fat-Tree</th><th>NVIDIA NVSwitch</th></tr></thead>
+  <tbody>
+    <tr><td>网络直径</td><td>最大 5 跳</td><td>O(log N)</td><td>1 跳（单平面）</td></tr>
+    <tr><td>路由方式</td><td>编译器静态调度</td><td>自适应路由（通常）</td><td>硬件路由</td></tr>
+    <tr><td>死锁避免</td><td>编译器保证</td><td>VC 隔离</td><td>硬件保证</td></tr>
+    <tr><td>每跳延迟</td><td>极低（无头/尾开销）</td><td>中等</td><td>低</td></tr>
+    <tr><td>控制开销</td><td>~2.5%</td><td>较高（包头部）</td><td>中等</td></tr>
+    <tr><td>扩展性</td><td>10,440 TSPs</td><td>数千节点</td><td>数百 GPU</td></tr>
+  </tbody></table>
+<h2>四、物理层实现</h2>
+<h3>4.1 链路类型</h3>
+<table>
+  <thead><tr><th>链路类型</th><th>电缆</th><th>距离</th><th>速率</th></tr></thead>
+  <tbody>
+    <tr><td>节点内（local link）</td><td>铜缆 34 AWG</td><td>0.75m</td><td>30 Gbps/lane</td></tr>
+    <tr><td>机架内</td><td>QSFP 铜缆</td><td>< 2m</td><td>25 Gbps/lane</td></tr>
+    <tr><td>跨机架</td><td>有源光缆</td><td>长距离</td><td>25 Gbps/lane</td></tr>
+  </tbody></table>
+<h3>4.2 关键指标</h3>
+<li><strong>每 TSP 功耗</strong>: ~40W（典型负载），最大 ~375W（GroqCard 峰值）</li>
+<li><strong>每 TSP SRAM</strong>: 220-230 MiB</li>
+<li><strong>全局内存总量</strong>: > 2 TB（10,440 TSPs 时）</li>
+<li><strong>端到端延迟</strong>: < 3 μs（任意两 TSP 间）</li>
+<li><strong>控制开销</strong>: 仅 ~2.5% 头部/尾部标记</li>
+<h2>五、技术优势总结</h2>
+</ul>
+<ol>
+<li><strong>平坦带宽</strong> — Dragonfly 提供近似常数的每节点全局带宽，突破传统拓扑的带宽瓶颈</li>
+<li><strong>低直径</strong> — 最大 5 跳连接任意两个 TSP，10,440 节点规模下远优于 Fat-Tree</li>
+<li><strong>无动态竞争</strong> — 编译器预调度消除了链路冲突和拥塞</li>
+<li><strong>TSP 即交换机</strong> — 消除专用交换机硬件，每 TSP 的 global link 直接构建虚拟路由器</li>
+<li><strong>软件定义的灵活性</strong> — 拓扑参数可通过编译器重新配置，适应不同 workload</li>
+<h2>六、关键参考</h2>
+</ol>
+<ul>
+<li>ISCA 2022: "A Software-defined Tensor Streaming Multiprocessor for Large-scale Machine Learning"</li>
+<li>ISCA 2020: "Groq: A TSP for Deep Learning" (Abts et al.)</li>
+<li>ALCF Groq System Overview (Argonne Leadership Computing Facility)</li>
+<li>GroqNode Server Specification (groq.sa)</li>
+</ul>
+<div class="footer">Groq Architecture Research &bull; Generated 2026-05-19</div>
+</div>
+</body>
+</html>

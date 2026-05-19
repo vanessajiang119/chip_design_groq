@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Round 3: 流水线设计与指令级并行 — 研究结果</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; color: #333; background: #f8f9fa; line-height: 1.6; padding: 20px; }
+  .container { max-width: 1000px; margin: 0 auto; background: #fff; padding: 32px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  h1 { font-size: 24px; color: #1a1a2e; margin: 20px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #76b900; }
+  h2 { font-size: 20px; color: #1a1a2e; margin: 18px 0 10px; padding-bottom: 6px; border-bottom: 1px solid #e0e0e0; }
+  h3 { font-size: 17px; color: #0f3460; margin: 16px 0 8px; }
+  h4 { font-size: 14px; color: #555; margin: 12px 0 6px; }
+  p { margin: 8px 0; color: #444; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  th { background: #1a1a2e; color: white; padding: 8px 12px; text-align: left; font-weight: 600; }
+  td { padding: 7px 12px; border-bottom: 1px solid #e8e8e8; }
+  tr:nth-child(even) { background: #f9f9fb; }
+  tr:hover { background: #f0f7f0; }
+  pre { background: #1a1a2e; color: #e0e0e0; padding: 14px; border-radius: 6px; overflow-x: auto; font-size: 13px; margin: 10px 0; }
+  code { font-family: 'SF Mono', Monaco, 'Andale Mono', monospace; }
+  p > code, li > code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 13px; color: #cc3333; }
+  ul, ol { margin: 8px 0 8px 24px; color: #444; }
+  li { margin: 4px 0; }
+  blockquote { border-left: 4px solid #76b900; padding: 10px 16px; margin: 12px 0; background: #f8ffec; color: #555; }
+  hr { border: none; border-top: 1px solid #e0e0e0; margin: 20px 0; }
+  a { color: #0f3460; text-decoration: none; }
+  a:hover { color: #76b900; text-decoration: underline; }
+  .header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); color: white; padding: 24px 32px; border-radius: 8px 8px 0 0; margin-bottom: 0; }
+  .header h1 { color: white; border: none; margin: 0; padding: 0; font-size: 22px; }
+  .header .meta { font-size: 12px; color: #8899aa; margin-top: 4px; }
+  .nav-path { font-size: 12px; color: #76b900; margin-bottom: 16px; }
+  .footer { text-align: center; padding: 20px 0; color: #888; font-size: 12px; border-top: 1px solid #e0e0e0; margin-top: 20px; }
+</style>
+</head>
+<body>
+<div class="container">
+<div class="header"><h1>Round 3: 流水线设计与指令级并行 — 研究结果</h1><div class="meta">2.research/2-dataflow-streaming/round-3-pipeline-ILP.md</div></div>
+<div class="nav-path">&larr; <a href="../4.result/3_groq_arch_design_summary_v1.html">Back to Architecture Report</a></div>
+<h1>Round 3: 流水线设计与指令级并行 — 研究结果</h1>
+<blockquote>创建时间: 2026-05-19</blockquote>
+<blockquote>来源: ISCA 2020, EET China, Zellic Analysis, ProgrammerSought, Groq Blog</blockquote>
+<hr>
+<h2>1. 流水线架构概览</h2>
+<h3>1.1 空间-时间双维度执行模型</h3>
+<p>Groq TSP 的流水线与传统流水线有本质不同——它是<strong>二维的</strong>：</p>
+<pre><code>时间维度 (Y 方向 — 指令流动):
+  SuperLane 0  ← 指令在此注入
+       ↓ (每 cycle 推进 1 个 SuperLane)
+  SuperLane 1
+       ↓
+  ...
+       ↓
+  SuperLane 19
+
+空间维度 (X 方向 — 数据流动):
+  MXM → SXM → MEM → VXM → MEM → SXM → MXM
+  ← 数据在相邻功能切片间以 1 cycle 一跳传播</code></pre>
+<p><strong>关键洞察</strong>：当指令和数据在某个功能单元"相遇"时，执行发生。</p>
+<h3>1.2 SuperLane 组织</h3>
+<p>TSP 被划分为 <strong>20 个 SuperLane</strong>。每个 SuperLane 包含：</p>
+<pre><code>一个 SuperLane (水平行) 的结构:
+┌──────┬──────┬──────┬──────┬──────┬──────┬──────┐
+│ MXM  │ SXM  │ MEM  │ VXM  │ MEM  │ SXM  │ MXM  │
+│ (x2) │      │ (x2) │      │      │      │ (x2) │
+└──────┴──────┴──────┴──────┴──────┴──────┴──────┘
+         ← 512 字节/cycle 数据总线宽度 →
+           (32 字节 × 16 lanes)</code></pre>
+<p>每个 SuperLane 进一步分为 <strong>16 条 lane</strong>（每条 32 字节宽），共 <strong>320 条 lane</strong>（20 × 16）。</p>
+<h2>2. 流水线阶段详解</h2>
+<h3>2.1 指令流动 (Y-direction / Southbound)</h3>
+<pre><code>阶段 0: ICU 取指
+    ↓ (1 cycle)
+阶段 1: ICU 译码 &amp; 分发到 144 队列
+    ↓ (1 cycle)
+阶段 2-21: 指令沿 SuperLane 0→19 向下传播
+    (每 SuperLane 1 cycle, 共 20 cycle)
+    ↓
+阶段 22: 到达最后 SuperLane, 执行完成</code></pre>
+<p><strong>关键特性</strong>：</p>
+<ul>
+<li>指令垂直流动，每个 cycle 从一个 SuperLane 推进到下一个</li>
+<li>每个 SuperLane 中的功能单元可以从经过的指令流中 "pick off" 自己的指令</li>
+<li>编译器知道每条指令何时到达哪个 SuperLane</li>
+<h3>2.2 数据流动 (X-direction / East-West)</h3>
+<pre><code>数据流方向 (East):
+  MXM → SXM → MEM → VXM → MEM → SXM → MXM
+  每跳 ≈ 1 cycle 相邻传递
+
+数据流方向 (West):
+  MXM ← SXM ← MEM ← VXM ← MEM ← SXM ← MXM</code></pre>
+</ul>
+<p><strong>每个功能切片的流水线深度 ~20 级</strong>，这意味着：</p>
+<ul>
+<li>从数据进入切片到产生结果需要约 20 cycle</li>
+<li>由于每 SuperLane 都有独立的计算管道，整体是深度流水线化的</li>
+<h3>2.3 流式寄存器文件 (Stream Register File)</h3>
+</ul>
+<p>每个 SuperLane 包含<strong>流式寄存器文件</strong>作为切片间数据传递的媒介：</p>
+<ul>
+<li><strong>64 个逻辑流</strong>: 32 条向东 + 32 条向西</li>
+<li><strong>每流 512 字节/cycle</strong> 带宽 (32B × 16 lanes)</li>
+<li>数据在相邻功能切片间仅需 <strong>1 cycle 一跳</strong></li>
+<li>无传统寄存器重命名 — 数据通过流 ID 标识</li>
+<h2>3. 指令发射带宽</h2>
+<h3>3.1 每 cycle 指令分配</h3>
+<table>
+  <thead><tr><th>功能切片</th><th>指令/cycle</th><th>占比</th></tr></thead>
+  <tbody>
+    <tr><td>MXM (矩阵)</td><td>6</td><td>7.5%</td></tr>
+    <tr><td>SXM (开关/网络)</td><td>14</td><td>17.5%</td></tr>
+    <tr><td>MEM (内存)</td><td>44</td><td>55%</td></tr>
+    <tr><td>VXM (向量)</td><td>16</td><td>20%</td></tr>
+    <tr><td><strong>合计</strong></td><td><strong>80+</strong></td><td><strong>100%</strong></td></tr>
+  </tbody></table>
+<h3>3.2 指令发射的关键特征</h3>
+</ul>
+<ol>
+<li><strong>无需硬件调度器</strong>: 编译器已安排好每 cycle 每条指令的发射</li>
+<li><strong>完全静态</strong>: 无 OoO 窗口、无 reservation stations</li>
+<li><strong>高带宽</strong>: 80+ 条指令/cycle 在 144 队列中分发</li>
+<li><strong>确定性</strong>: 总执行时间编译时可知</li>
+<h2>4. Forwarding / Bypass 机制</h2>
+<h3>4.1 Stream Chaining (流式链)</h3>
+</ol>
+<p>TSP 不使用传统的基于寄存器文件的 forwarding。它使用 <strong>stream chaining</strong>：</p>
+<pre><code>传统 forwarding:
+  [EX] → [WB] → [Register File] → [ID/EX] → 下一指令
+  需要 bypass 网络检测 RAW 冲突
+
+TSP stream chaining:
+  [VXM 产生 stream] ──── 1 cycle ────▶ [MEM 消费 stream]
+  无需 bypass — 直接传递</code></pre>
+<h3>4.2 Chaining 的优点</h3>
+<ul>
+<li><strong>无 RAW 冲突检测</strong>: 编译器已确保时序对齐</li>
+<li><strong>零额外延迟</strong>: 数据从生产者直接流向消费者</li>
+<li><strong>无 bypass 网络开销</strong>: 无需在硬件中实现旁路多路选择器</li>
+<li><strong>利用数据流局部性</strong>: 中间结果无需写回再读取</li>
+<h3>4.3 跨 SuperLane 的数据传递</h3>
+</ul>
+<p>当数据需要在不同 SuperLane 间传递时：</p>
+<ul>
+<li>使用垂直数据路径 (Y-direction)</li>
+<li>编译器安排垂直路径的时序</li>
+<li>所有路径都是确定性的</li>
+<h2>5. 144 队列与 ILP</h2>
+<h3>5.1 指令队列架构</h3>
+</ul>
+<p>144 个独立指令队列分布在芯片上：</p>
+<pre><code>ICU ( &lt;3% 面积 )
+├── 队列 0-35:  MEM 操作 (36 队列)
+├── 队列 36-51: VXM 操作 (16 队列)
+├── 队列 52-63: MXM 操作 (12 队列)
+├── 队列 64-91: SXM 操作 (28 队列)
+└── 队列 92-143: 混合/其他 (52 队列)</code></pre>
+<h3>5.2 队列间依赖管理</h3>
+<p>由于编译器完全控制所有 144 个队列：</p>
+<ul>
+<li><strong>依赖在编译时已解析</strong>: 编译器确保生产者队列在消费者队列之前发射</li>
+<li><strong>无硬件 scoreboarding</strong>: 无需在运行时跟踪寄存器依赖</li>
+<li><strong>SYNC/NOTIFY</strong>: 在需要时进行队列间同步</li>
+<h3>5.3 ILP 的实现方式</h3>
+</ul>
+<p>TSP 通过以下方式实现指令级并行：</p>
+<ol>
+<li><strong>空间 ILP</strong>: 不同功能切片上的操作并行执行（如 MXM 矩阵乘 + VXM 向量运算）</li>
+<li><strong>流水线 ILP</strong>: 同一功能切片的不同流水线 stage 上有不同操作</li>
+<li><strong>流 ILP</strong>: 多个独立的数据流在芯片上并行传输和处理</li>
+<li><strong>队列级 ILP</strong>: 144 个队列独立发射，每个 cycle 多条指令</li>
+<h3>5.4 ILP 极限分析</h3>
+<table>
+  <thead><tr><th>ILP 来源</th><th>最大并行度</th></tr></thead>
+  <tbody>
+    <tr><td>MXM 操作</td><td>6 条/cycle</td></tr>
+    <tr><td>SXM 操作</td><td>14 条/cycle</td></tr>
+    <tr><td>MEM 操作</td><td>44 条/cycle</td></tr>
+    <tr><td>VXM 操作</td><td>16 条/cycle</td></tr>
+    <tr><td><strong>理论最大 ILP</strong></td><td><strong>80+ 条/cycle</strong></td></tr>
+  </tbody></table>
+<h2>6. 流水线的功耗/面积优势</h2>
+<h3>6.1 面积节省</h3>
+<table>
+  <thead><tr><th>组件</th><th>GPU</th><th>Groq TSP</th></tr></thead>
+  <tbody>
+    <tr><td>调度器 + 重命名</td><td>10-15%</td><td>0%</td></tr>
+    <tr><td>分支预测器</td><td>2-5%</td><td>0%</td></tr>
+    <tr><td>Cache (L1+L2)</td><td>20-30%</td><td>~50% SRAM (但更有效)</td></tr>
+    <tr><td>仲裁器/Crossbar</td><td>5-10%</td><td>0%</td></tr>
+    <tr><td><strong>控制逻辑总计</strong></td><td><strong>~30%</strong></td><td><strong><3%</strong></td></tr>
+  </tbody></table>
+<h3>6.2 功耗节省</h3>
+</ol>
+<p>TSP 的确定性执行在以下方面节省能耗：</p>
+<ul>
+<li>无调度器动态功耗</li>
+<li>无 cache miss 导致的停顿和额外访存</li>
+<li>无推测执行的浪费</li>
+<li>无仲裁器动态功耗</li>
+<li>数据搬运减少（stream chaining）</li>
+</ul>
+<p><strong>估计</strong>: 相比 GPU，控制/数据搬运开销降低 60-80%。</p>
+<h2>7. 关键发现总结</h2>
+<ol>
+<li><strong>二维流水线</strong>: 指令走 Y 方向，数据走 X 方向，在功能单元处交汇执行</li>
+<li><strong>80+ 条指令/cycle</strong>: 分布在 144 队列中，编译器静态安排</li>
+<li><strong>Stream chaining 替代 forwarding</strong>: 无传统 bypass 网络</li>
+<li><strong><3% 控制逻辑</strong>: 相比 GPU 的 ~30%，面积效率极高</li>
+<li><strong>ILP 空间 + 时间</strong>: 同时利用空间并行和流水线并行</li>
+<h2>8. 关键参考文献</h2>
+</ol>
+<ul>
+<li>ISCA 2020: <em>"Think Fast: A Tensor Streaming Processor (TSP) for Accelerating Deep Learning Workloads"</em></li>
+<li>Zellic: <em>"How Is Groq So Fast?"</em></li>
+<li>EET China: <em>"深度拆解 Groq LPU 架构"</em></li>
+<li>ProgrammerSought: <em>"Speed Reading - Tensor Stream Processor (TSP)"</em></li>
+</ul>
+<div class="footer">Groq Architecture Research &bull; Generated 2026-05-19</div>
+</div>
+</body>
+</html>

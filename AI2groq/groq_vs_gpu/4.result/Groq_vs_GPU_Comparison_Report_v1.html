@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Groq TSP vs GPU Architecture Comparison Report</title>
+<style>
+:root {
+  --bg-primary: #FFFFFF;
+  --bg-secondary: #F6F8FA;
+  --bg-tertiary: #F0F2F5;
+  --bg-hover: #EAECEF;
+  --text-primary: #1A1A1A;
+  --text-secondary: #4B5563;
+  --text-muted: #9CA3AF;
+  --accent-green: #76B900;
+  --accent-green-hover: #89C700;
+  --accent-green-dark: #3B5C00;
+  --border: #E5E7EB;
+  --border-strong: #D1D5DB;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC', Helvetica, Arial, sans-serif;
+  font-size: 16px; line-height: 1.7; color: var(--text-primary); background: var(--bg-primary);
+}
+/* Header */
+header {
+  position: sticky; top: 0; z-index: 100;
+  background: var(--bg-primary); border-bottom: 1px solid var(--border); height: 56px;
+  display: flex; align-items: center; padding: 0 24px;
+}
+header .logo { font-weight: 700; font-size: 1.1rem; color: var(--text-primary); display: flex; align-items: center; gap: 8px; }
+header .logo-mark { display: inline-block; width: 20px; height: 20px; background: var(--accent-green); border-radius: 4px; }
+header .breadcrumb { margin-left: 16px; font-size: 0.85rem; color: var(--text-secondary); }
+header .breadcrumb span { color: var(--text-muted); margin: 0 6px; }
+header .search-area {
+  margin-left: auto; display: flex; align-items: center;
+  background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px;
+  padding: 4px 12px; font-size: 0.85rem; color: var(--text-muted); gap: 8px;
+}
+header .search-area kbd {
+  font-family: 'SFMono-Regular', 'SF Mono', monospace;
+  background: var(--bg-primary); border: 1px solid var(--border); border-radius: 3px;
+  padding: 1px 5px; font-size: 0.75rem; color: var(--text-muted);
+}
+/* Layout */
+.wrapper { display: flex; max-width: 1200px; margin: 0 auto; min-height: calc(100vh - 56px); }
+/* Sidebar */
+nav.sidebar {
+  width: 280px; min-width: 280px;
+  background: var(--bg-secondary); border-right: 1px solid var(--border);
+  position: sticky; top: 56px; height: calc(100vh - 56px); overflow-y: auto;
+  padding: 1.5rem 0; font-size: 0.875rem;
+}
+nav.sidebar .section { padding: 0 16px; margin-bottom: 1.5rem; }
+nav.sidebar .section-title {
+  font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em;
+  color: var(--text-muted); margin-bottom: 8px; padding: 0 16px;
+}
+nav.sidebar a {
+  display: block; padding: 6px 16px; color: var(--text-secondary);
+  text-decoration: none; border-radius: 4px; border-left: 3px solid transparent;
+  transition: all 0.15s;
+}
+nav.sidebar a:hover { background: var(--bg-hover); color: var(--text-primary); }
+nav.sidebar a.active { border-left-color: var(--accent-green); color: var(--text-primary); font-weight: 600; background: var(--bg-hover); }
+nav.sidebar a.sub { padding-left: 32px; font-size: 0.8rem; }
+nav.sidebar .divider { border: none; border-top: 1px solid var(--border); margin: 1rem 16px; }
+/* Main */
+main { flex: 1; max-width: 860px; padding: 3rem 2rem; }
+main h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.02em; color: var(--text-primary); margin-bottom: 0.5rem; }
+main .meta { font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 2rem; }
+main h2 {
+  font-size: 1.5rem; font-weight: 600; color: var(--text-primary);
+  border-top: 1px solid var(--border); padding-top: 2rem; margin-top: 3rem; margin-bottom: 1rem;
+}
+main h3 { font-size: 1.25rem; font-weight: 600; color: var(--text-primary); margin-top: 2rem; margin-bottom: 0.75rem; }
+main p { margin-bottom: 1.25rem; color: var(--text-primary); }
+main p.muted { color: var(--text-secondary); font-size: 0.875rem; }
+/* Tables */
+main table { width: 100%; border-collapse: collapse; margin: 1rem 0 2rem; font-size: 0.9rem; }
+main th {
+  border-bottom: 2px solid var(--border-strong);
+  font-size: 0.75rem; font-weight: 600; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.03em;
+  padding: 10px 14px; text-align: left;
+}
+main td { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+main tr:nth-child(even) td { background: var(--bg-secondary); }
+/* Cards */
+.card {
+  background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px;
+  padding: 1.5rem; box-shadow: var(--shadow-sm); margin-bottom: 1.5rem;
+}
+.card-hover:hover { box-shadow: var(--shadow-md); }
+.card .card-title { font-weight: 600; font-size: 1rem; margin-bottom: 0.75rem; color: var(--text-primary); }
+/* Code */
+pre {
+  background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 6px;
+  padding: 1rem; font-family: 'SFMono-Regular', 'SF Mono', 'Fira Code', 'Hack', Consolas, monospace;
+  font-size: 0.85rem; overflow-x: auto; margin: 1rem 0 2rem; position: relative;
+}
+code { font-family: 'SFMono-Regular', 'SF Mono', 'Fira Code', 'Hack', Consolas, monospace; font-size: 0.85em; }
+/* Links */
+a { color: var(--accent-green); text-decoration: underline; }
+a:hover { color: var(--accent-green-hover); }
+/* Diagram containers */
+.diagram-container {
+  border: 1px solid var(--border); border-radius: 8px; margin: 1.5rem 0; overflow: hidden;
+  background: var(--bg-primary); box-shadow: var(--shadow-sm);
+}
+.diagram-container svg { display: block; width: 100%; height: auto; }
+.diagram-toggle {
+  display: block; width: 100%; padding: 8px 16px;
+  background: var(--bg-secondary); border: none; border-top: 1px solid var(--border);
+  font-size: 0.8rem; color: var(--text-secondary); cursor: pointer; text-align: left;
+}
+.diagram-toggle:hover { background: var(--bg-hover); }
+.diagram-xml { display: none; padding: 1rem; background: var(--bg-tertiary); font-size: 0.75rem; max-height: 300px; overflow: auto; }
+.diagram-xml.open { display: block; }
+/* Winner badges */
+.winner-tsp { display: inline-block; background: #1E88E5; color: #fff; font-size: 0.75rem; padding: 2px 8px; border-radius: 4px; font-weight: 600; }
+.winner-gpu { display: inline-block; background: #76B900; color: #fff; font-size: 0.75rem; padding: 2px 8px; border-radius: 4px; font-weight: 600; }
+.winner-tie { display: inline-block; background: var(--text-muted); color: #fff; font-size: 0.75rem; padding: 2px 8px; border-radius: 4px; }
+/* Responsive */
+@media (max-width: 768px) {
+  nav.sidebar { display: none; }
+  main { padding: 1.5rem 1rem; }
+  header .search-area { display: none; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><span class="logo-mark"></span> Groq vs GPU Research</div>
+  <div class="breadcrumb">Research <span>/</span> Architecture Comparison</div>
+  <div class="search-area">
+    <span>Search</span>
+    <kbd>Ctrl+K</kbd>
+  </div>
+</header>
+
+<div class="wrapper">
+  <nav class="sidebar">
+    <div class="section">
+      <div class="section-title">Report</div>
+      <a href="#overview" class="active">报告概览</a>
+    </div>
+    <div class="section">
+      <div class="section-title">Architecture</div>
+      <a href="#arch-philosophy">架构哲学对比</a>
+      <a href="#compute-units" class="sub">计算单元</a>
+      <a href="#memory-hierarchy" class="sub">存储层次</a>
+      <a href="#arch-diagram">架构对比图</a>
+    </div>
+    <div class="section">
+      <div class="section-title">Programming</div>
+      <a href="#programming-model">编程模型对比</a>
+      <a href="#compiler-philosophy">编译器哲学</a>
+    </div>
+    <div class="section">
+      <div class="section-title">Performance</div>
+      <a href="#benchmarks">基准性能对比</a>
+      <a href="#ecosystem">生态与成本</a>
+    </div>
+    <div class="section">
+      <div class="section-title">Summary</div>
+      <a href="#conclusion">总结与趋势</a>
+    </div>
+    <hr class="divider">
+    <div class="section">
+      <div class="section-title">Related</div>
+      <a href="#nvidia-groq-deal">NVIDIA-Groq 交易</a>
+    </div>
+  </nav>
+
+  <main>
+    <h1>Groq TSP vs GPU 架构对比报告</h1>
+    <p class="meta">Groq TSP vs NVIDIA/AMD GPU Architecture Deep Dive — 2026-05-18</p>
+
+    <section id="overview">
+      <h2>1. 报告概览</h2>
+      <p>本报告系统对比 Groq TSP (Tensor Streaming Processor) 与主流 GPU (NVIDIA CUDA/AMD CDNA) 在架构理念、计算单元、存储层次、编程模型、以及实际性能方面的根本差异。Groq 的 LPU (Language Processing Unit) 在 2024-2025 年间因极低的推理延迟和高能效比引发了广泛关注，甚至以约 <strong>$200 亿</strong> 的价格将其 LPU 技术授权给 NVIDIA。本报告旨在帮助芯片架构师和 AI 基础设施决策者理解两种技术路线的本质区别及各自适用场景。</p>
+      <p>报告覆盖范围包括：Groq TSP 的确定性执行模型与功能切片架构、NVIDIA GPU 的 SIMT 模型与 Tensor Core 设计、SRAM 流式存储与 HBM+CACHE 层次对比、GroqFlow 静态编译与 CUDA 动态调度对比，以及基于 MLPerf、第三方评测的客观性能数据。</p>
+    </section>
+
+    <section id="arch-philosophy">
+      <h2>2. 架构哲学对比</h2>
+
+      <h3>2.1 Groq TSP — 确定性执行 (Deterministic Execution)</h3>
+      <p>Groq TSP 的设计核心理念是消除所有"反应式硬件"——即那些引入非确定性的硬件机制。这包括：<strong>无缓存</strong>（所有存储为 SRAM，访问延迟固定）、<strong>无需分支预测</strong>（两条路径均计算，通过掩码选择）、<strong>无需乱序执行</strong>（指令严格按编译器确定的顺序执行）、<strong>无动态仲裁</strong>（所有路由决策在编译时完成）、<strong>无缓存一致性协议</strong>（因为没有缓存）。编译器被授予完全控制权——在编译时静态调度每一条指令、每一次数据移动和每一个时钟周期。</p>
+      <p>关键结果：编译器在执行开始前即可知道程序的精确周期数，运行时抖动 &lt;1 微秒。这种"软件定义硬件"的理念使得推理延迟完全可预测，服务质量保证 (SLA) 可以做到硬实时级别。</p>
+
+      <h3>2.2 NVIDIA GPU — SIMT + 动态调度</h3>
+      <p>NVIDIA GPU 采用 SIMT (Single Instruction, Multiple Threads) 模型。每个 SM (Streaming Multiprocessor) 包含数百个 CUDA Core 和 Tensor Core，以 32 线程为一组（一个 Warp）执行相同指令。硬件 Warp 调度器在运行时动态决定哪个 Warp 发射指令——当一个 Warp 因访存而停顿，调度器零成本切换到另一个就绪的 Warp。这种<strong>以大量并发线程隐藏延迟</strong>的设计是 GPU 的核心哲学。</p>
+      <p>GPU 的复杂性体现在：动态 Warp 调度器、多级缓存层次（L1/L2）、缓存一致性协议、原子操作支持、以及处理分支发散 (warp divergence) 的机制。这种复杂性换取了极大的灵活性——GPU 可以高效处理任意计算模式（训练、推理、图形、科学计算），但也引入了显著的延迟不确定性。</p>
+
+      <table>
+        <tr><th>维度</th><th>Groq TSP</th><th>NVIDIA GPU</th></tr>
+        <tr><td>调度时机</td><td>编译时（静态）</td><td>运行时（动态）</td></tr>
+        <tr><td>内存延迟</td><td>固定（所有 SRAM）</td><td>可变（缓存缺失/HBM）</td></tr>
+        <tr><td>延迟抖动</td><td>&lt; 1 µs</td><td>ms 级</td></tr>
+        <tr><td>编译器复杂度</td><td>极高</td><td>中等</td></tr>
+        <tr><td>硬件复杂度</td><td>低</td><td>高</td></tr>
+        <tr><td>灵活性</td><td>固定计算图最优</td><td>通用并行计算</td></tr>
+      </table>
+    </section>
+
+    <section id="compute-units">
+      <h2>3. 计算单元对比</h2>
+
+      <h3>3.1 Groq TSP 功能切片</h3>
+      <p>Groq TSP 将芯片按功能类型分解为垂直列（称为 slices）。每片晶粒包含 20 个 Super Lane，每个 Super Lane 包含一组功能切片管线：<strong>ICU</strong>（取指译码分发，占芯片面积 &lt;3%）、<strong>MEM</strong>（SRAM 读写，每 Super Lane 2 个，共 88 个独立 bank，220 MB 总容量，80 TB/s 带宽）、<strong>VXM</strong>（向量运算，ALU/激活函数）、<strong>MXM</strong>（矩阵乘累加，共 409,600 MAC 单元）、<strong>SXM</strong>（移位/旋转/路由/C2C I/O）。数据流为二维正交：指令垂直流动（北→南），数据水平流动（东→西），在交汇点执行计算。</p>
+
+      <h3>3.2 NVIDIA GPU 计算单元</h3>
+      <p>NVIDIA SM 包含 <strong>CUDA Core</strong>（标量 ALU/FPU，H100 有 16,896 个）和 <strong>Tensor Core</strong>（矩阵乘累加专用单元，H100 有 528 个第四代 Tensor Core）。CUDA Core 自 G80（2006）起存在，采用 SIMT 模型执行通用并行计算。Tensor Core 自 Volta（2017）起引入，操作矩阵 tile（4×4／8×8／16×16），承担现代深度学习的绝大部分计算量——H100 的 FP8 Tensor Core 算力达到 2,000 TFLOPS，而 CUDA Core 仅约 66 TFLOPS。Blackwell B200 进一步支持 FP4/FP6，峰值可达 9 PFLOPS。</p>
+
+      <table>
+        <tr><th>对比项</th><th>Groq MXM</th><th>NVIDIA Tensor Core</th></tr>
+        <tr><td>组织方式</td><td>320 通道 SIMD 流式</td><td>4x4～16x16 MAC tile 阵列</td></tr>
+        <tr><td>数据搬运</td><td>流式推送，无需寄存器文件</td><td>经典脉动阵列，结果写回寄存器</td></tr>
+        <tr><td>调度</td><td>编译器精确周期级</td><td>硬件 warp 调度器发射 MMA</td></tr>
+        <tr><td>Batch=1</td><td>极优（流式保持所有 MAC 满载）</td><td>较差（阵列利用率低）</td></tr>
+        <tr><td>精度灵活性</td><td>编译器配置定点/浮点</td><td>硬件原生 FP4/FP8/FP16/BF16/TF32/FP64</td></tr>
+      </table>
+    </section>
+
+    <section id="memory-hierarchy">
+      <h2>4. 存储层次对比</h2>
+
+      <h3>4.1 Groq SRAM 流式存储</h3>
+      <p>Groq TSP 采用纯 SRAM 片上存储设计，完全无 DRAM 或 HBM。220 MB 全局共享 SRAM 通过 88 个独立 bank 提供高达 <strong>80 TB/s</strong> 的片上带宽——比 H100 的 HBM 带宽（3.35 TB/s）高出约 24 倍。数据以流（Stream）形式在功能切片间传递：MEM → VXM/MXM/SXM 直接推送，无需寄存器文件中转。编译器精确调度每个数据元素到达每个计算单元的时间。</p>
+      <p>这种设计的代价是：单芯片最多只能容纳约 230 MB 参数。运行 Llama 2 70B（INT8 量化后约 70 GB）需要 305-572 个 LPU，功耗约 106 kW，硬件成本是同性能 H100 集群的约 40 倍。Groq 的核心假设是：对于延迟敏感的推理场景，片上 SRAM 的高带宽优势远远抵消了多芯片扩展的代价。</p>
+
+      <h3>4.2 GPU HBM + 缓存层次</h3>
+      <p>NVIDIA GPU 使用多级存储层次：<strong>HBM3/HBM3e</strong>（80-192 GB，3-8 TB/s 带宽）提供大容量片外存储；<strong>L2 Cache</strong>（40-96 MB）减少对 HBM 的平均访问次数；<strong>Shared Memory / L1</strong>（每 SM 128-256 KB）为线程块内提供低延迟数据共享；<strong>Register File</strong>（每 SM 64K-256K 32 位寄存器）保存线程上下文。GPU 通过大量并发线程（H100 最大 53,248 线程）隐藏 HBM 访问延迟。</p>
+
+      <table>
+        <tr><th>维度</th><th>Groq TSP</th><th>NVIDIA GPU</th></tr>
+        <tr><td>主存储器</td><td>220 MB 片上 SRAM</td><td>80-192 GB 片外 HBM3</td></tr>
+        <tr><td>内存带宽</td><td>~80 TB/s（片上）</td><td>~3-8 TB/s（HBM）</td></tr>
+        <tr><td>访问延迟</td><td>固定（几个周期）</td><td>可变（数百周期）</td></tr>
+        <tr><td>缓存层次</td><td>无</td><td>L1/L2 + 共享内存</td></tr>
+        <tr><td>每访问能耗</td><td>低（片上）</td><td>高（片外 DRAM + 长线）</td></tr>
+        <tr><td>大模型能力</td><td>需数百芯片</td><td>单芯片可容纳 70B+</td></tr>
+      </table>
+    </section>
+
+    <section id="arch-diagram">
+      <h2>5. 架构对比图</h2>
+
+      <div class="diagram-container">
+        <!-- SVG rendered from drawio -->
+        <svg viewBox="0 0 1200 700" xmlns="http://www.w3.org/2000/svg">
+          <style>
+            .tsp-label { fill: #1E88E5; }
+            .gpu-label { fill: #76B900; }
+            .slice { rx: 6; ry: 6; }
+            .slice-text { fill: #fff; font-size: 10px; text-anchor: middle; font-family: -apple-system, sans-serif; }
+            .slice-title { font-weight: bold; font-size: 11px; }
+            .feature-text { font-size: 10px; font-family: -apple-system, sans-serif; }
+            .comp-header { font-weight: bold; font-size: 11px; }
+            .comp-cell { font-size: 10px; }
+            .even { fill: #F6F8FA; }
+            .winner-badge { font-size: 9px; font-weight: bold; fill: #fff; }
+          </style>
+
+          <!-- Labels -->
+          <rect x="30" y="60" width="500" height="30" rx="6" class="tsp-label"/>
+          <text x="280" y="80" text-anchor="middle" fill="#fff" font-size="14" font-weight="bold" font-family="-apple-system,sans-serif">Groq Tensor Streaming Processor (TSP)</text>
+
+          <rect x="640" y="60" width="530" height="30" rx="6" class="gpu-label"/>
+          <text x="905" y="80" text-anchor="middle" fill="#fff" font-size="14" font-weight="bold" font-family="-apple-system,sans-serif">NVIDIA GPU (SM + Tensor Core)</text>
+
+          <!-- TSP Slices -->
+          <rect x="30" y="110" width="100" height="55" rx="6" fill="#1E88E5"/>
+          <text x="80" y="130" text-anchor="middle" class="slice-title" fill="#fff">ICU</text>
+          <text x="80" y="145" text-anchor="middle" class="slice-text">取指/译码/分发</text>
+
+          <rect x="150" y="110" width="100" height="55" rx="6" fill="#43A047"/>
+          <text x="200" y="130" text-anchor="middle" class="slice-title" fill="#fff">MEM</text>
+          <text x="200" y="145" text-anchor="middle" class="slice-text">SRAM 220MB</text>
+          <text x="200" y="157" text-anchor="middle" class="slice-text">80TB/s BW</text>
+
+          <rect x="270" y="110" width="100" height="55" rx="6" fill="#F4511E"/>
+          <text x="320" y="130" text-anchor="middle" class="slice-title" fill="#fff">VXM</text>
+          <text x="320" y="145" text-anchor="middle" class="slice-text">向量运算</text>
+
+          <rect x="390" y="110" width="100" height="55" rx="6" fill="#8E24AA"/>
+          <text x="440" y="130" text-anchor="middle" class="slice-title" fill="#fff">MXM</text>
+          <text x="440" y="145" text-anchor="middle" class="slice-text">409.6K MAC</text>
+
+          <rect x="510" y="110" width="100" height="55" rx="6" fill="#00897B"/>
+          <text x="560" y="130" text-anchor="middle" class="slice-title" fill="#fff">SXM</text>
+          <text x="560" y="145" text-anchor="middle" class="slice-text">C2C I/O</text>
+
+          <!-- Arrows between TSP slices -->
+          <line x1="130" y1="137" x2="150" y2="137" stroke="#1E88E5" stroke-width="2"/>
+          <polygon points="148,132 158,137 148,142" fill="#1E88E5"/>
+          <line x1="250" y1="137" x2="270" y2="137" stroke="#F4511E" stroke-width="2"/>
+          <polygon points="268,132 278,137 268,142" fill="#F4511E"/>
+          <line x1="370" y1="137" x2="390" y2="137" stroke="#8E24AA" stroke-width="2"/>
+          <polygon points="388,132 398,137 388,142" fill="#8E24AA"/>
+          <line x1="490" y1="137" x2="510" y2="137" stroke="#00897B" stroke-width="2"/>
+          <polygon points="508,132 518,137 508,142" fill="#00897B"/>
+
+          <!-- TSP Features -->
+          <rect x="30" y="180" width="580" height="90" rx="6" fill="#E3F2FD" stroke="#1E88E5" stroke-width="1"/>
+          <text x="45" y="198" class="feature-text" font-weight="bold">Key Features:</text>
+          <text x="45" y="214" class="feature-text">• 20 Super Lanes × 16 SIMD = 320 lanes</text>
+          <text x="45" y="228" class="feature-text">• Deterministic execution (no caches/BP/arbiters)</text>
+          <text x="45" y="242" class="feature-text">• Data flow East→West, Instructions North→South</text>
+          <text x="45" y="256" class="feature-text">• TruePoint 100-bit accumulation • No DRAM/coherence</text>
+
+          <!-- GPU SM -->
+          <rect x="640" y="110" width="530" height="55" rx="6" fill="none" stroke="#76B900" stroke-width="2" stroke-dasharray="5,3"/>
+          <text x="905" y="132" text-anchor="middle" font-size="11" font-weight="bold" font-family="-apple-system,sans-serif">Streaming Multiprocessor (SM)</text>
+
+          <rect x="650" y="140" width="110" height="25" rx="4" fill="#76B900"/>
+          <text x="705" y="157" text-anchor="middle" class="slice-text">Warp Scheduler ×4</text>
+
+          <rect x="770" y="140" width="110" height="25" rx="4" fill="#2196F3"/>
+          <text x="825" y="157" text-anchor="middle" class="slice-text">CUDA Core 16.9K</text>
+
+          <rect x="890" y="140" width="110" height="25" rx="4" fill="#8E24AA"/>
+          <text x="945" y="157" text-anchor="middle" class="slice-text">Tensor Core 528</text>
+
+          <rect x="1010" y="140" width="150" height="25" rx="4" fill="#FF9800"/>
+          <text x="1085" y="157" text-anchor="middle" class="slice-text">SMEM/L1 + L2(50MB) + HBM(80GB)</text>
+
+          <!-- GPU Features -->
+          <rect x="640" y="180" width="530" height="90" rx="6" fill="#F0FCE8" stroke="#76B900" stroke-width="1"/>
+          <text x="655" y="198" class="feature-text" font-weight="bold">Key Features:</text>
+          <text x="655" y="214" class="feature-text">• SIMT — 32 threads/warp, thousands of threads/SM</text>
+          <text x="655" y="228" class="feature-text">• Dynamic warp scheduling — zero-cost context switch</text>
+          <text x="655" y="242" class="feature-text">• CUDA Cores (scalar) + Tensor Cores (matrix MMA)</text>
+          <text x="655" y="256" class="feature-text">• Latency hiding via massive thread concurrency</text>
+
+          <!-- Comparison Table -->
+          <text x="600" y="310" text-anchor="middle" font-size="14" font-weight="bold" font-family="-apple-system,sans-serif">Architecture Comparison Summary</text>
+
+          <!-- Header -->
+          <rect x="30" y="330" width="280" height="26" rx="4" fill="#1A1A1A"/>
+          <text x="170" y="348" text-anchor="middle" class="winner-badge" fill="#fff">Dimension</text>
+          <rect x="310" y="330" width="430" height="26" rx="4" fill="#1E88E5"/>
+          <text x="525" y="348" text-anchor="middle" class="winner-badge" fill="#fff">Groq TSP</text>
+          <rect x="740" y="330" width="430" height="26" rx="4" fill="#76B900"/>
+          <text x="955" y="348" text-anchor="middle" class="winner-badge" fill="#fff">NVIDIA GPU</text>
+
+          <!-- Rows -->
+          <text x="170" y="376" text-anchor="middle" class="feature-text" font-weight="bold">Execution Model</text>
+          <text x="525" y="376" text-anchor="middle" class="feature-text">Deterministic — compile-time scheduling</text>
+          <text x="955" y="376" text-anchor="middle" class="feature-text">Dynamic — hardware warp scheduling</text>
+
+          <line x1="30" y1="382" x2="1170" y2="382" stroke="#E5E7EB" stroke-width="1"/>
+
+          <text x="170" y="402" text-anchor="middle" class="feature-text" font-weight="bold">Memory</text>
+          <text x="525" y="402" text-anchor="middle" class="feature-text">220MB SRAM, 80TB/s, no DRAM</text>
+          <text x="955" y="402" text-anchor="middle" class="feature-text">80-192GB HBM, 3-8TB/s, L1+L2 cache</text>
+
+          <line x1="30" y1="408" x2="1170" y2="408" stroke="#E5E7EB" stroke-width="1"/>
+
+          <rect x="30" y="412" width="280" height="26" class="even"/>
+          <text x="170" y="430" text-anchor="middle" class="feature-text" font-weight="bold">Matrix Compute</text>
+          <rect x="310" y="412" width="430" height="26" class="even"/>
+          <text x="525" y="430" text-anchor="middle" class="feature-text">409,600 MACs (systolic stream)</text>
+          <rect x="740" y="412" width="430" height="26" class="even"/>
+          <text x="955" y="430" text-anchor="middle" class="feature-text">528 Tensor Cores (systolic array)</text>
+
+          <rect x="30" y="438" width="280" height="26" fill="#FFFFFF"/>
+          <text x="170" y="456" text-anchor="middle" class="feature-text" font-weight="bold">Programming</text>
+          <rect x="310" y="438" width="430" height="26" fill="#FFFFFF"/>
+          <text x="525" y="456" text-anchor="middle" class="feature-text">GroqFlow / MLIR (static compilation)</text>
+          <rect x="740" y="438" width="430" height="26" fill="#FFFFFF"/>
+          <text x="955" y="456" text-anchor="middle" class="feature-text">CUDA / Triton / OpenCL (runtime dispatch)</text>
+
+          <rect x="30" y="464" width="280" height="26" class="even"/>
+          <text x="170" y="482" text-anchor="middle" class="feature-text" font-weight="bold">Batch=1 Efficiency</text>
+          <rect x="310" y="464" width="430" height="26" class="even"/>
+          <text x="525" y="482" text-anchor="middle" class="feature-text">Excellent (streaming keeps all MACs fed)</text>
+          <rect x="740" y="464" width="430" height="26" class="even"/>
+          <text x="955" y="482" text-anchor="middle" class="feature-text">Poor (tensor cores underutilized)</text>
+
+          <rect x="30" y="490" width="280" height="26" fill="#FFFFFF"/>
+          <text x="170" y="508" text-anchor="middle" class="feature-text" font-weight="bold">Latency Jitter</text>
+          <rect x="310" y="490" width="430" height="26" fill="#FFFFFF"/>
+          <text x="525" y="508" text-anchor="middle" class="feature-text">&lt; 1µs (fully deterministic)</text>
+          <rect x="740" y="490" width="430" height="26" fill="#FFFFFF"/>
+          <text x="955" y="508" text-anchor="middle" class="feature-text">Milliseconds+ (cache/HBM jitter)</text>
+
+          <rect x="30" y="516" width="280" height="26" class="even"/>
+          <text x="170" y="534" text-anchor="middle" class="feature-text" font-weight="bold">Energy Efficiency</text>
+          <rect x="310" y="516" width="430" height="26" class="even"/>
+          <text x="525" y="534" text-anchor="middle" class="feature-text">1-3 J/token (~10x better)</text>
+          <rect x="740" y="516" width="430" height="26" class="even"/>
+          <text x="955" y="534" text-anchor="middle" class="feature-text">10-30 J/token</text>
+
+          <rect x="30" y="542" width="280" height="26" fill="#FFFFFF"/>
+          <text x="170" y="560" text-anchor="middle" class="feature-text" font-weight="bold">Large Model Capacity</text>
+          <rect x="310" y="542" width="430" height="26" fill="#FFFFFF"/>
+          <text x="525" y="560" text-anchor="middle" class="feature-text">Limited (~230MB), needs 100s of chips</text>
+          <rect x="740" y="542" width="430" height="26" fill="#FFFFFF"/>
+          <text x="955" y="560" text-anchor="middle" class="feature-text">80-192GB/chip, fits 70B+ models</text>
+
+          <rect x="30" y="568" width="280" height="26" class="even"/>
+          <text x="170" y="586" text-anchor="middle" class="feature-text" font-weight="bold">Software Ecosystem</text>
+          <rect x="310" y="568" width="430" height="26" class="even"/>
+          <text x="525" y="586" text-anchor="middle" class="feature-text">Early stage (2M+ devs, GroqCloud)</text>
+          <rect x="740" y="568" width="430" height="26" class="even"/>
+          <text x="955" y="586" text-anchor="middle" class="feature-text">Mature (4M+ devs, 15+ years CUDA)</text>
+
+          <!-- Summary box -->
+          <rect x="30" y="620" width="1140" height="36" rx="6" fill="#FFF9C4" stroke="#F9A825" stroke-width="1"/>
+          <text x="600" y="642" text-anchor="middle" font-size="12" font-weight="bold" font-family="-apple-system,sans-serif">Bottom Line: Groq TSP wins on latency, determinism, energy efficiency for inference. GPU wins on capacity, flexibility, ecosystem maturity, training.</text>
+        </svg>
+
+        <!-- mxGraphModel XML for editing -->
+        <button class="diagram-toggle" onclick="toggleXML(this)">Show editable mxGraphModel XML</button>
+        <pre class="diagram-xml">&lt;mxGraphModel&gt;
+  &lt;root&gt;
+    &lt;mxCell id="0"/&gt;
+    &lt;mxCell id="1" parent="0"/&gt;
+    &lt;mxCell id="t" value="Groq TSP vs NVIDIA GPU Architecture Comparison" style="text;html=1;fontSize=16;fontStyle=1;align=center;verticalAlign=top;" vertex="1" parent="1" connectable="0"&gt;
+      &lt;mxGeometry x="0" y="0" width="1200" height="40"/&gt;
+    &lt;/mxCell&gt;
+    &lt;mxCell id="lbl-tsp" value="Groq Tensor Streaming Processor (TSP)" style="text;html=1;fontSize=14;fontStyle=1;align=center;verticalAlign=middle;fillColor=#1E88E5;fontColor=#FFFFFF;strokeColor=#1565C0;rounded=1;" vertex="1" parent="1" connectable="0"&gt;
+      &lt;mxGeometry x="30" y="60" width="500" height="30"/&gt;
+    &lt;/mxCell&gt;
+    &lt;mxCell id="lbl-gpu" value="NVIDIA GPU (SM + Tensor Core)" style="text;html=1;fontSize=14;fontStyle=1;align=center;verticalAlign=middle;fillColor=#76B900;fontColor=#FFFFFF;strokeColor=#3B5C00;rounded=1;" vertex="1" parent="1" connectable="0"&gt;
+      &lt;mxGeometry x="640" y="60" width="530" height="30"/&gt;
+    &lt;/mxCell&gt;
+  &lt;/root&gt;
+&lt;/mxGraphModel&gt;</pre>
+      </div>
+    </section>
+
+    <section id="programming-model">
+      <h2>6. 编程模型对比</h2>
+
+      <h3>6.1 GroqFlow / MLIR 静态编译</h3>
+      <p>Groq 的软件栈以 <strong>GroqFlow</strong> 为核心——一个基于 MLIR 的编译器，接受 PyTorch、Keras 或 ONNX 模型作为输入，经过图捕获、MLIR 重写、静态张量放置、周期级调度等阶段，最终生成可在 TSP 上直接执行的二进制代码。编译器控制 144 条独立指令队列，精确决定每条指令在哪个周期发射到哪个功能单元。这种编译方式需要求解复杂的 ILP/CSP（整数线性规划/约束满足）问题，但在推理延迟方面提供了无与伦比的确定性。</p>
+
+      <h3>6.2 CUDA / Triton 动态调度</h3>
+      <p>NVIDIA 的编程模型以 <strong>CUDA</strong> 为核心——采用 Grid → Block → Warp → Thread 的四级线程层次。GigaThread Engine 将 Thread Block 分发到 SM，Block Scheduler 管理每个 SM 上的线程块，Warp Scheduler 每周期选择一个就绪 Warp 发射。这种三级调度机制使得 GPU 能够自适应地处理任意计算负载，但也引入了显著的调度不确定性。<strong>Triton</strong> 提供了类 Python 的更高抽象层级，能够达到 cuBLAS 约 90-96% 的性能。</p>
+
+      <table>
+        <tr><th>维度</th><th>GroqFlow / MLIR</th><th>CUDA / Triton</th></tr>
+        <tr><td>调度时机</td><td>编译时静态调度</td><td>运行时动态调度</td></tr>
+        <tr><td>总周期数</td><td>执行前已知</td><td>依赖输入数据</td></tr>
+        <tr><td>编译器复杂度</td><td>极高（ILP/CSP）</td><td>中等</td></tr>
+        <tr><td>延迟不确定性</td><td>&lt; 1 µs</td><td>ms 级</td></tr>
+        <tr><td>适用场景</td><td>固定计算图推理</td><td>通用计算</td></tr>
+      </table>
+    </section>
+
+    <section id="compiler-philosophy">
+      <h2>7. 编译器哲学对比</h2>
+      <p>两种路线的核心分歧在于"复杂度守恒"的分配方式：</p>
+      <ul style="margin-bottom: 1.25rem; padding-left: 1.5rem;">
+        <li><strong>Groq 路线</strong>：编译器承担极高复杂度（求解 ILP/CSP），硬件保持极简（无调度器/无仲裁器）。收益是运行时完全确定性，代价是编译器灵活度有限。</li>
+        <li><strong>GPU 路线</strong>：编译器复杂度较低（生成 PTX/ISA），硬件承担动态调度负担（复杂 Warp Scheduler 和缓存控制器）。收益是任意负载都能运行，代价是延迟不可预测。</li>
+      </ul>
+      <p>值得注意的<strong>收敛趋势</strong>：GPU 侧通过 CUDA Graphs（将多内核执行捕获为单次提交）、算子融合（FlashAttention）、Megakernel 设计模式等方式引入更多确定性；Groq 侧通过编译器支持动态形状、MoE 路由、多调度表切换等方式吸收更多动态行为。NVIDIA 以 $200 亿授权 Groq LPU 技术就是这一收敛趋势的最有力证明。</p>
+    </section>
+
+    <section id="benchmarks">
+      <h2>8. 基准性能对比</h2>
+
+      <h3>8.1 LLM 推理性能</h3>
+      <table>
+        <tr><th>Model</th><th>Groq LPU (t/s)</th><th>GPU Cloud (t/s)</th><th>Winner</th></tr>
+        <tr><td>Llama 3 8B</td><td>877</td><td>~150-250</td><td><span class="winner-tsp">Groq</span></td></tr>
+        <tr><td>Llama 3 70B</td><td>284-305</td><td>~50-150</td><td><span class="winner-tsp">Groq</span></td></tr>
+        <tr><td>Mixtral 8x7B</td><td>480</td><td>~80-120</td><td><span class="winner-tsp">Groq</span></td></tr>
+        <tr><td>Llama 2 70B (MLPerf)</td><td>N/A</td><td>3,040 (H100)</td><td><span class="winner-gpu">GPU</span></td></tr>
+        <tr><td>Llama 2 70B (8x GPU)</td><td>—</td><td>24,323 (8×H100)</td><td><span class="winner-gpu">GPU</span></td></tr>
+      </table>
+
+      <h3>8.2 Time-to-First-Token (TTFT)</h3>
+      <table>
+        <tr><th>场景</th><th>Groq LPU</th><th>GPU Cloud</th></tr>
+        <tr><td>Llama 2 70B</td><td>0.22 s</td><td>0.5-2 s</td></tr>
+        <tr><td>Llama 3 70B</td><td>0.3 s</td><td>0.5-3 s</td></tr>
+        <tr><td>Llama 3.3 70B (优化后)</td><td>0.005 s</td><td>0.1-0.5 s</td></tr>
+      </table>
+
+      <h3>8.3 能效与成本</h3>
+      <table>
+        <tr><th>指标</th><th>Groq LPU</th><th>NVIDIA H100</th></tr>
+        <tr><td>每 Token 能耗</td><td>1-3 J</td><td>10-30 J</td></tr>
+        <tr><td>系统 TDP</td><td>185 W</td><td>700 W</td></tr>
+        <tr><td>Llama 3.3 70B 输出价格</td><td>$0.79 / M tokens</td><td>$0.50-1.50 / M tokens</td></tr>
+        <tr><td>70B 推理速度</td><td>394 t/s</td><td>50-150 t/s</td></tr>
+      </table>
+    </section>
+
+    <section id="ecosystem">
+      <h2>9. 生态与成本对比</h2>
+
+      <h3>9.1 开发者生态</h3>
+      <table>
+        <tr><th>维度</th><th>GroqCloud</th><th>CUDA (NVIDIA)</th><th>ROCm (AMD)</th></tr>
+        <tr><td>开发者数量</td><td>~2M+</td><td>~4M+</td><td>Growing</td></tr>
+        <tr><td>生态成熟度</td><td>早期（OpenAI兼容API）</td><td>成熟（15+年）</td><td>发展中（~9年）</td></tr>
+        <tr><td>核心库</td><td>Python SDK, GroqFlow</td><td>cuDNN, TensorRT, NCCL</td><td>HIP, MIOpen, RCCL</td></tr>
+        <tr><td>框架支持</td><td>有限（PyTorch/ONNX）</td><td>全量（PT/TF/JAX）</td><td>主要框架已支持</td></tr>
+        <tr><td>市场占比</td><td>&lt; 1%（推理专用）</td><td>&gt; 90% 数据中心</td><td>&lt; 10%</td></tr>
+      </table>
+
+      <h3>9.2 适用场景推荐</h3>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1.5rem 0;">
+        <div class="card">
+          <div class="card-title"><span class="winner-tsp">Groq TSP</span> 最佳场景</div>
+          <ul style="padding-left: 1.2rem; font-size: 0.9rem;">
+            <li>延迟敏感的 LLM 推理（实时聊天、语音）</li>
+            <li>单 batch 推理（batch=1）</li>
+            <li>需要 P99 延迟保证的 SLA</li>
+            <li>固定计算图模型</li>
+            <li>边缘/能效受限部署</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="card-title"><span class="winner-gpu">NVIDIA GPU</span> 最佳场景</div>
+          <ul style="padding-left: 1.2rem; font-size: 0.9rem;">
+            <li>大模型训练</li>
+            <li>大 batch 推理（高吞吐场景）</li>
+            <li>动态计算图 / MoE / 推测解码</li>
+            <li>通用 GPU 计算 / 图形渲染</li>
+            <li>成熟生态（CUDA 库/TensorRT）</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="nvidia-groq-deal">
+      <h2>10. NVIDIA-Groq 交易与技术收敛</h2>
+      <p>2025 年 12 月，NVIDIA 宣布以约 <strong>$200 亿</strong> 的非排他性授权协议获得 Groq LPU 技术。该交易包括：Groq 创始人 Jonathan Ross 加入 NVIDIA 担任推理架构 SVP，约 90% 的 Groq 工程团队加入 NVIDIA，GroqCloud 继续独立运营（由新 CEO Simon Edwards 领导）。NVIDIA 随后发布了 <strong>Groq 3 LPU (LP30)</strong>——每芯片 500 MB SRAM，150 TB/s 带宽，以及 <strong>LPX 机架系统</strong>（256 LPU，总 128 GB SRAM，40 PB/s 带宽）。</p>
+      <p>这一交易被业界解读为：<strong>GPU 巨头对确定性推理架构的正式认可</strong>。它验证了 Groq 技术路线的价值——当 AI 推理成为主导工作负载时，单靠 GPU 的"暴力计算 + 延迟隐藏"范式不足以满足延迟敏感场景的需求。同时也表明两种架构正在走向融合：GPU 吸收确定性特性，TSP 增强容量和灵活性。</p>
+    </section>
+
+    <section id="conclusion">
+      <h2>11. 总结与趋势</h2>
+
+      <table>
+        <tr><th>维度</th><th>Winner</th><th>说明</th></tr>
+        <tr><td>推理速度 (tokens/s)</td><td><span class="winner-tsp">Groq TSP</span></td><td>3-18x 快于 GPU 云服务</td></tr>
+        <tr><td>大模型吞吐 (MLPerf)</td><td><span class="winner-gpu">NVIDIA GPU</span></td><td>H200/B200 在 MLPerf 占据主导</td></tr>
+        <tr><td>能效</td><td><span class="winner-tsp">Groq TSP</span></td><td>~10x 优于 H100 (1-3 vs 10-30 J/token)</td></tr>
+        <tr><td>大模型容量</td><td><span class="winner-gpu">NVIDIA GPU</span></td><td>80-192 GB HBM 容纳 70B+ 模型</td></tr>
+        <tr><td>训练能力</td><td><span class="winner-gpu">NVIDIA GPU</span></td><td>CUDA 生态是训练的唯一选择</td></tr>
+        <tr><td>开发者生态</td><td><span class="winner-gpu">NVIDIA GPU</span></td><td>15+ 年 CUDA 生态积累</td></tr>
+        <tr><td>小模型推理成本</td><td><span class="winner-tsp">Groq TSP</span></td><td>按 token 付费，零闲置成本</td></tr>
+        <tr><td>大规模推理成本</td><td><span class="winner-tie">看场景</span></td><td>GPU 预留实例在高吞吐时更具优势</td></tr>
+        <tr><td>企业采用率</td><td><span class="winner-gpu">NVIDIA GPU</span></td><td>&gt; 90% 数据中心 GPU 市场份额</td></tr>
+      </table>
+
+      <div class="card" style="margin-top: 2rem; border-left: 3px solid var(--accent-green);">
+        <p style="margin: 0;"><strong>关键结论</strong>：Groq TSP 和 GPU 不是替代关系，而是互补关系。Groq 在延迟敏感的推理场景（尤其是 batch=1）具有数量级优势，而 GPU 在训练、大模型推理、通用计算方面不可替代。NVIDIA 的 $200 亿 Groq 技术收购标志着推理架构正从"单一 GPU 通吃"走向"GPU 训练 + TSP 推理"的分工格局。对于芯片架构师而言，理解两种路线的本质差异——<strong>确定性 vs 动态、流式 vs 缓存、编译 vs 运行时调度</strong>——是设计下一代 AI 加速器的关键。</p>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+function toggleXML(btn) {
+  var xml = btn.nextElementSibling;
+  xml.classList.toggle('open');
+  btn.textContent = xml.classList.contains('open') ? 'Hide mxGraphModel XML' : 'Show editable mxGraphModel XML';
+}
+
+// Sidebar active link tracking
+document.querySelectorAll('nav.sidebar a').forEach(function(link) {
+  link.addEventListener('click', function() {
+    document.querySelectorAll('nav.sidebar a').forEach(function(a) { a.classList.remove('active'); });
+    this.classList.add('active');
+  });
+});
+
+// Highlight current section on scroll
+window.addEventListener('scroll', function() {
+  var sections = document.querySelectorAll('section[id]');
+  var navLinks = document.querySelectorAll('nav.sidebar a');
+  var current = '';
+  sections.forEach(function(section) {
+    var top = section.offsetTop - 120;
+    if (window.scrollY >= top) current = section.getAttribute('id');
+  });
+  navLinks.forEach(function(link) {
+    link.classList.remove('active');
+    if (link.getAttribute('href') === '#' + current) link.classList.add('active');
+  });
+});
+</script>
+
+</body>
+</html>

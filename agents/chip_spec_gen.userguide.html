@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chip Spec Gen Agent — User Guide</title>
+<style>
+:root {
+  --bg-primary: #FFFFFF;
+  --bg-secondary: #F6F8FA;
+  --bg-tertiary: #F0F2F5;
+  --bg-hover: #EAECEF;
+  --text-primary: #1A1A1A;
+  --text-secondary: #4B5563;
+  --text-muted: #9CA3AF;
+  --accent-green: #76B900;
+  --accent-green-hover: #89C700;
+  --accent-green-light: rgba(118,185,0,0.08);
+  --accent-green-dark: #3B5C00;
+  --border: #E5E7EB;
+  --border-strong: #D1D5DB;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC', Helvetica, Arial, sans-serif;
+  font-size: 16px; line-height: 1.7; color: var(--text-primary); background: var(--bg-primary);
+}
+header {
+  position: sticky; top: 0; z-index: 100;
+  background: var(--bg-primary); border-bottom: 1px solid var(--border); height: 56px;
+  display: flex; align-items: center; padding: 0 24px;
+}
+header .logo { font-weight: 700; font-size: 1rem; color: var(--text-primary); display: flex; align-items: center; gap: 8px; }
+header .logo-mark { display: inline-block; width: 20px; height: 20px; background: var(--accent-green); border-radius: 4px; }
+header .breadcrumb { margin-left: 16px; font-size: 0.85rem; color: var(--text-secondary); }
+header nav { margin-left: auto; display: flex; gap: 1.5rem; }
+header nav a { color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; }
+header nav a:hover { color: var(--accent-green); }
+.container { max-width: 880px; margin: 0 auto; padding: 3rem 2rem 6rem; }
+h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 0.5rem; }
+h1 + .meta { margin-bottom: 2.5rem; }
+.meta { font-size: 0.875rem; color: var(--text-secondary); }
+h2 {
+  font-size: 1.5rem; font-weight: 600; color: var(--text-primary);
+  border-top: 1px solid var(--border); padding-top: 2rem; margin-top: 3rem; margin-bottom: 1rem;
+}
+h3 { font-size: 1.2rem; font-weight: 600; margin-top: 1.5rem; margin-bottom: 0.75rem; }
+p { margin-bottom: 1.25rem; }
+a { color: var(--accent-green); text-decoration: underline; }
+a:hover { color: var(--accent-green-hover); }
+table { width: 100%; border-collapse: collapse; margin: 1rem 0 2rem; font-size: 0.9rem; }
+th {
+  border-bottom: 2px solid var(--border-strong);
+  font-size: 0.75rem; font-weight: 600; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.03em; padding: 10px 14px; text-align: left;
+}
+td { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+tr:nth-child(even) td { background: var(--bg-secondary); }
+pre, .code-block {
+  background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 6px;
+  padding: 1rem; font-family: 'SFMono-Regular', 'SF Mono', 'Fira Code', 'Hack', Consolas, monospace;
+  font-size: 0.85rem; overflow-x: auto; margin: 1rem 0 2rem;
+}
+code { font-family: 'SFMono-Regular', 'SF Mono', 'Fira Code', 'Hack', Consolas, monospace; font-size: 0.85em; }
+.steps { counter-reset: step; margin: 2rem 0; }
+.step-card {
+  background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px;
+  padding: 1.5rem; margin-bottom: 1rem; box-shadow: var(--shadow-sm);
+  display: flex; gap: 1rem; align-items: flex-start;
+}
+.step-card .step-num {
+  flex-shrink: 0; width: 36px; height: 36px; border-radius: 8px;
+  background: var(--accent-green); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 1rem;
+}
+.step-card .step-body { flex: 1; }
+.step-card .step-body .step-title { font-weight: 600; font-size: 1rem; margin-bottom: 0.25rem; }
+.step-card .step-body p { font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0; }
+.card {
+  background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px;
+  padding: 1.5rem; box-shadow: var(--shadow-sm); margin-bottom: 1.5rem;
+}
+.card .card-title { font-weight: 600; font-size: 1rem; margin-bottom: 0.75rem; }
+.tip-box {
+  background: var(--accent-green-light); border: 1px solid var(--accent-green);
+  border-radius: 8px; padding: 1rem 1.25rem; margin: 1.5rem 0;
+  font-size: 0.9rem; color: var(--text-primary);
+}
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin: 1.5rem 0; }
+.badge {
+  display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 600; margin: 2px;
+}
+.badge-green { background: rgba(67,160,71,0.12); color: #43A047; }
+.badge-blue { background: rgba(30,136,229,0.12); color: #1E88E5; }
+.badge-orange { background: rgba(244,81,30,0.12); color: #F4511E; }
+.badge-purple { background: rgba(142,36,170,0.12); color: #8E24AA; }
+@media (max-width: 768px) {
+  .container { padding: 1.5rem 1rem; }
+  .grid-2 { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><span class="logo-mark"></span> Chip Spec Gen Agent</div>
+  <div class="breadcrumb">User Guide</div>
+  <nav>
+    <a href="#intro">Introduction</a>
+    <a href="#quickstart">Quick Start</a>
+    <a href="#workflow">Workflow</a>
+    <a href="#config">Configuration</a>
+    <a href="#best-practices">Best Practices</a>
+  </nav>
+</header>
+
+<div class="container">
+
+<h1>Chip Spec Gen Agent<br>用户使用指南</h1>
+<p class="meta">Version 1.0 — 芯片设计规格文档自动生成 | 2026-05-18</p>
+
+<section id="intro">
+  <h2>简介</h2>
+  <p>Chip Spec Gen Agent（芯片设计规格生成智能体）是一个面向 <strong>SoC / ASIC / IP</strong> 芯片设计领域的专业文档自动化生成工具。它接收用户提供的芯片设计源材料（HLD 文档、技术手册、设计说明、架构图片等），通过自动化的多阶段流水线处理，生成结构化的、中英双语的、包含专业架构图的芯片设计规格文档。</p>
+  <p>该 Agent 适用于以下场景：</p>
+  <ul style="margin:0 0 1.25rem 1.5rem;color:var(--text-secondary);">
+    <li>将技术手册或设计笔记整理为结构化 HLD/LLD 规格文档</li>
+    <li>将设计源材料按章节拆分后重新组织为标准输出格式</li>
+    <li>批量生成包含架构图的设计评审材料</li>
+    <li>文档标准化迁移（从非结构化到专业结构化的转换）</li>
+  </ul>
+</section>
+
+<section id="quickstart">
+  <h2>快速开始</h2>
+  <p>使用 Chip Spec Gen Agent 只需 5 步：</p>
+
+  <div class="steps">
+    <div class="step-card">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <div class="step-title">提交源文档</div>
+        <p>将你的芯片设计源文档提交给 Agent。支持的格式包括：markdown（.md）、图片（.png/.jpg）、WORD（.docx）、PDF（.pdf）等。同时说明你需要的输出文档类型和章节要求。</p>
+      </div>
+    </div>
+    <div class="step-card">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <div class="step-title">自动规划</div>
+        <p>Agent 自动解析源文档，转换为内部 md 格式，并生成 <code>planning.yml</code> 配置文件。你可以在执行前审查规划参数（如迭代次数、输出章节结构）并进行调整。</p>
+      </div>
+    </div>
+    <div class="step-card">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <div class="step-title">切片与整理</div>
+        <p>Agent 自动将源文档按章节切片提取，然后重新组织为输出要求的章节结构。检查内容完整性，对缺失内容进行多轮迭代补全。</p>
+      </div>
+    </div>
+    <div class="step-card">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <div class="step-title">审查进度</div>
+        <p>Agent 在整理阶段会输出阶段性分析报告，显示章节覆盖状态和完整度。你可以查看缺失内容清单，决定是否继续迭代或直接进入输出阶段。</p>
+      </div>
+    </div>
+    <div class="step-card">
+      <div class="step-num">5</div>
+      <div class="step-body">
+        <div class="step-title">获取最终报告</div>
+        <p>迭代完成后，Agent 生成三种格式的输出：NVIDIA 白色主题的 HTML 规格文档、可编辑的 .drawio 架构图文件、以及辅助 markdown 文件。所有文件保存在 <code>4.result/</code> 目录中。</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="tip-box">
+    <strong>💡 提示：</strong> 你可以在任意阶段介入审查 — 查看规划配置、检查切片质量、或要求补充特定章节内容。Agent 的设计理念是"人机协作"，不是完全黑盒。
+  </div>
+</section>
+
+<section id="workflow">
+  <h2>工作流程详解</h2>
+
+  <h3>Phase 1: Planning — 规划阶段</h3>
+  <p>规划阶段是流程的起点。用户提交源文档后，planning 子 Agent 会：</p>
+  <ul style="margin:0 0 1.25rem 1.5rem;color:var(--text-secondary);">
+    <li>创建四阶段目录结构（<code>1.planning/</code>, <code>2.slice/</code>, <code>3.working/</code>, <code>4.result/</code>）</li>
+    <li>读取并解析用户输入的源文件（支持多格式：md、图片、WORD、PDF 等）</li>
+    <li>将源文件统一转换为 markdown 格式，写入 <code>1.planning/</code></li>
+    <li>生成 <code>planning.yml</code> 配置文件，包含迭代次数和输出需求</li>
+  </ul>
+  <p>你可以通过 <code>planning.yml</code> 控制：迭代轮数（max_iterations）、输出章节结构、需要的图表类型。如果输入源文件就是 md 格式，规划阶段会快速跳过格式转换环节。</p>
+
+  <h3>Phase 2: Slice — 切片阶段</h3>
+  <p>切片阶段将源文档按章节拆分为独立的内容块。slice 子 Agent 会：</p>
+  <ul style="margin:0 0 1.25rem 1.5rem;color:var(--text-secondary);">
+    <li>识别文档的一级/二级标题作为章节边界</li>
+    <li>每章提取为独立的 <code>slice-N-章节名.md</code> 文件</li>
+    <li>提取图片到 <code>2.slice/images/</code> 目录，附加上下文标签</li>
+    <li>保留表格的行列结构和代码块格式</li>
+  </ul>
+  <p>此阶段<strong>只提取不修改</strong>，确保原始技术信息完整无损。切片后的材料是后续整理阶段的基础。</p>
+
+  <h3>Phase 3: Working — 整理阶段（核心迭代）</h3>
+  <p>整理阶段是流程的分析决策中心。working 子 Agent 执行"重组→检查→迭代"的核心循环：</p>
+  <ul style="margin:0 0 1.25rem 1.5rem;color:var(--text-secondary);">
+    <li><strong>重组</strong>：按输出章节要求排列文字和图片，轻度润色确保术语一致</li>
+    <li><strong>检查</strong>：逐章检查文字和图表是否完备</li>
+    <li><strong>迭代</strong>：缺失内容 → 回 Phase 2 补充；完整 → 进入 Phase 4</li>
+  </ul>
+  <p>每一轮迭代输出分析报告到 <code>3.working/</code>。报告显示每章的覆盖状态（✅ 完成 / ❌ 缺失）、完整度百分比。缺失的内容如果没有在源文档中找到，则标记为"待补充"，不会凭空编造。</p>
+
+  <h3>Phase 4: Result — 输出阶段</h3>
+  <p>输出阶段将整理后的内容生成最终交付物。workingresult 子 Agent 会：</p>
+  <ul style="margin:0 0 1.25rem 1.5rem;color:var(--text-secondary);">
+    <li>使用 <code>html_chip_design_spec</code> skill 生成 NVIDIA 白色主题的 HTML 规格文档</li>
+    <li>使用 <code>drawio_chip_diagram</code> skill 生成芯片架构图</li>
+    <li>每组图表以 SVG + mxGraphModel XML + .drawio 三种形式存在</li>
+    <li>生成辅助 markdown 文件（含内嵌图片引用）</li>
+  </ul>
+  <p>所有文件写入 <code>4.result/</code> 目录，文件名带时间戳（YYYYMMDD-HHMM）以区分版本。</p>
+</section>
+
+<section id="config">
+  <h2>配置说明</h2>
+  <p><code>planning.yml</code> 是 Chip Spec Gen Agent 的核心配置文件，位于 <code>1.planning/</code> 目录。你可以在规划阶段审查和修改此文件。</p>
+
+  <pre class="code-block">topic: &lt;文档主题&gt;
+max_iterations: 5   # 迭代轮数，可修改
+source_files:
+  - source-doc-01.md
+  - source-doc-02.md
+output_requirements:
+  chapters:
+    - 1. 功能概述
+    - 2. 系统架构
+    - 3. 接口定义
+    - 4. 特性列表
+    - 5. 性能指标
+  formats:
+    - html           # NVIDIA 白色主题 HTML
+    - drawio         # Draw.io 架构图
+    - markdown       # 辅助 md 文档</pre>
+
+  <table>
+    <tr><th>Field</th><th>Default</th><th>Description</th></tr>
+    <tr><td><code>max_iterations</code></td><td>5</td><td>最大迭代轮数。每轮 working 发回 slice 寻找补充材料。达到此值后即使有缺失也进入 Phase 4</td></tr>
+    <tr><td><code>output_requirements.chapters</code></td><td>—</td><td>输出文档的章节列表。working 子 Agent 按此列表组织内容和检查完整性</td></tr>
+    <tr><td><code>output_requirements.formats</code></td><td>[html, drawio, markdown]</td><td>输出文件格式。目前固定支持 html + drawio + md 三种</td></tr>
+  </table>
+
+  <div class="tip-box">
+    <strong>调整建议：</strong> 如果你希望 Agent 更全面地搜索源文档中的内容，可以增大 <code>max_iterations</code>（例如 8）。如果源文档结构清晰、内容明确，5 轮通常足够。
+  </div>
+</section>
+
+<section id="best-practices">
+  <h2>最佳实践</h2>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">✅ 推荐的输入方式</div>
+      <ul style="margin:0.5rem 0 0 1.25rem;color:var(--text-secondary);font-size:0.9rem;">
+        <li>源文档使用 markdown 格式，结构清晰（H1/H2 分层）</li>
+        <li>源文档中明确章节标题和图片引用</li>
+        <li>在最大迭代次数内让 Agent 自动迭代补全</li>
+        <li>审查 planning.yml 中的 output_requirements 是否符合预期</li>
+        <li>整理阶段检查完整性报告，决定是否继续迭代</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title">❌ 避免的操作</div>
+      <ul style="margin:0.5rem 0 0 1.25rem;color:var(--text-secondary);font-size:0.9rem;">
+        <li>输入格式混乱、标题层次不明确的文档</li>
+        <li>期望 Agent 自动发现源文档中不存在的内容</li>
+        <li>跳过 planning.yml 审查直接运行完整流程</li>
+        <li>同时提交大量不相关的文档材料</li>
+        <li>在迭代补全阶段随意中断流程</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="tip-box">
+    <strong>综合建议：</strong> Chip Spec Gen Agent 最适合的场景是你有一些"半成品"素材（设计笔记、技术手册初稿、架构白板图、HLD 草稿），希望它们变成格式规范、语言专业、带架构图的完整设计规格文档。Agent 不会像 design_research 那样去搜索互联网补充知识——它只基于你给的材料工作。
+  </div>
+</section>
+
+</div>
+</body>
+</html>

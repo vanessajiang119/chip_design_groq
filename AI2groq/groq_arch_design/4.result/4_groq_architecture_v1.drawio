@@ -1,0 +1,418 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxGraphModel>
+  <root>
+    <mxCell id="0"/>
+    <mxCell id="1" parent="0"/>
+
+    <!-- ====== Title ====== -->
+    <mxCell id="title" value="Groq TSP Architecture Diagrams" style="text;html=1;fontSize=20;fontStyle=1;align=center;verticalAlign=middle;fillColor=#1a1a2e;fontColor=#ffffff;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="20" y="20" width="1260" height="40"/>
+    </mxCell>
+
+    <!-- ============================================================ -->
+    <!-- PAGE 1: TSP Overall Architecture (20 SL x 5 Functional Slices) -->
+    <!-- ============================================================ -->
+    <mxCell id="page1_title" value="Diagram 1: TSP Overall Architecture — 20 Super Lanes × 5 Functional Slices" style="text;html=1;fontSize=14;fontStyle=1;align=center;verticalAlign=middle;fillColor=#76b900;fontColor=#ffffff;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="20" y="80" width="1260" height="30"/>
+    </mxCell>
+
+    <!-- Column headers -->
+    <mxCell id="col_mxm_l" value="MXM_L" style="text;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#ffd699;fontColor=#333;strokeColor=#cc8800;strokeWidth=1;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="60" y="120" width="100" height="24"/>
+    </mxCell>
+    <mxCell id="col_sxm_l" value="SXM_L" style="text;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#e6ccff;fontColor=#333;strokeColor=#9933ff;strokeWidth=1;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="170" y="120" width="80" height="24"/>
+    </mxCell>
+    <mxCell id="col_mem_l" value="MEM_L" style="text;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#b3d9ff;fontColor=#333;strokeColor=#0066cc;strokeWidth=1;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="260" y="120" width="100" height="24"/>
+    </mxCell>
+    <mxCell id="col_vxm" value="VXM" style="text;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#b3ffb3;fontColor=#333;strokeColor=#009900;strokeWidth=1;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="370" y="120" width="80" height="24"/>
+    </mxCell>
+    <mxCell id="col_mem_r" value="MEM_R" style="text;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#b3d9ff;fontColor=#333;strokeColor=#0066cc;strokeWidth=1;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="460" y="120" width="100" height="24"/>
+    </mxCell>
+    <mxCell id="col_sxm_r" value="SXM_R" style="text;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#e6ccff;fontColor=#333;strokeColor=#9933ff;strokeWidth=1;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="570" y="120" width="80" height="24"/>
+    </mxCell>
+    <mxCell id="col_mxm_r" value="MXM_R" style="text;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#ffd699;fontColor=#333;strokeColor=#cc8800;strokeWidth=1;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="660" y="120" width="100" height="24"/>
+    </mxCell>
+
+    <!-- SL rows: 0, 1, 2, 18, 19 (representative) -->
+    <script type="text/javascript">
+      // Super Lane rows 0-19
+    </script>
+
+    <!-- SL0 -->
+    <mxCell id="sl0_label" value="SL 0" style="text;html=1;fontSize=10;align=center;verticalAlign=middle;fillColor=#f0f0f0;strokeColor=#ccc;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="10" y="152" width="40" height="22"/>
+    </mxCell>
+    <mxCell id="sl0_mxm_l" value="Matrix×2" style="text;html=1;fontSize=9;align=center;verticalAlign=middle;fillColor=#fff5e6;strokeColor=#cc8800;strokeWidth=1;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="60" y="152" width="100" height="22"/>
+    </mxCell>
+    <mxCell id="sl0_sxm_l" value="Switch" style="text;html=1;fontSize=9;align=center;verticalAlign=middle;fillColor=#f5e6ff;strokeColor=#9933ff;strokeWidth=1;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="170" y="152" width="80" height="22"/>
+    </mxCell>
+    <mxCell id="sl0_mem_l" value="5.5MB" style="text;html=1;fontSize=9;align=center;verticalAlign=middle;fillColor=#e6f2ff;strokeColor=#0066cc;strokeWidth=1;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="260" y="152" width="100" height="22"/>
+    </mxCell>
+    <mxCell id="sl0_vxm" value="16 ALU" style="text;html=1;fontSize=9;align=center;verticalAlign=middle;fillColor=#e6ffe6;strokeColor=#009900;strokeWidth=1;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="370" y="152" width="80" height="22"/>
+    </mxCell>
+    <mxCell id="sl0_mem_r" value="5.5MB" style="text;html=1;fontSize=9;align=center;verticalAlign=middle;fillColor=#e6f2ff;strokeColor=#0066cc;strokeWidth=1;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="460" y="152" width="100" height="22"/>
+    </mxCell>
+    <mxCell id="sl0_sxm_r" value="Switch" style="text;html=1;fontSize=9;align=center;verticalAlign=middle;fillColor=#f5e6ff;strokeColor=#9933ff;strokeWidth=1;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="570" y="152" width="80" height="22"/>
+    </mxCell>
+    <mxCell id="sl0_mxm_r" value="Matrix×2" style="text;html=1;fontSize=9;align=center;verticalAlign=middle;fillColor=#fff5e6;strokeColor=#cc8800;strokeWidth=1;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="660" y="152" width="100" height="22"/>
+    </mxCell>
+
+    <!-- SL1 -->
+    <mxCell id="sl1_label" value="SL 1" style="text;html=1;fontSize=10;align=center;verticalAlign=middle;fillColor=#f0f0f0;strokeColor=#ccc;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="10" y="176" width="40" height="20"/>
+    </mxCell>
+    <mxCell id="sl1_mxm_l" value="" style="text;html=1;fontSize=9;align=center;verticalAlign=middle;fillColor=#fff5e6;strokeColor=#cc8800;strokeWidth=1;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="60" y="176" width="100" height="20"/>
+    </mxCell>
+    <mxCell id="sl1_sxm_l" value="" style="text;html=1;fontSize=9;align=center;verticalAlign=middle;fillColor=#f5e6ff;strokeColor=#9933ff;strokeWidth=1;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="170" y="176" width="80" height="20"/>
+    </mxCell>
+    <mxCell id="sl1_mem_l" value="" style="text;html=1;fontSize=9;align=center;verticalAlign=middle;fillColor=#e6f2ff;strokeColor=#0066cc;strokeWidth=1;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="260" y="176" width="100" height="20"/>
+    </mxCell>
+    <mxCell id="sl1_vxm" value="" style="text;html=1;fontSize=9;align=center;verticalAlign=middle;fillColor=#e6ffe6;strokeColor=#009900;strokeWidth=1;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="370" y="176" width="80" height="20"/>
+    </mxCell>
+    <mxCell id="sl1_mem_r" value="" style="text;html=1;fontSize=9;align=center;verticalAlign=middle;fillColor=#e6f2ff;strokeColor=#0066cc;strokeWidth=1;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="460" y="176" width="100" height="20"/>
+    </mxCell>
+    <mxCell id="sl1_sxm_r" value="" style="text;html=1;fontSize=9;align=center;verticalAlign=middle;fillColor=#f5e6ff;strokeColor=#9933ff;strokeWidth=1;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="570" y="176" width="80" height="20"/>
+    </mxCell>
+    <mxCell id="sl1_mxm_r" value="" style="text;html=1;fontSize=9;align=center;verticalAlign=middle;fillColor=#fff5e6;strokeColor=#cc8800;strokeWidth=1;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="660" y="176" width="100" height="20"/>
+    </mxCell>
+
+    <!-- SL2 -->
+    <mxCell id="sl2_label" value="SL 2" style="text;html=1;fontSize=10;align=center;verticalAlign=middle;fillColor=#f0f0f0;strokeColor=#ccc;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="10" y="198" width="40" height="20"/>
+    </mxCell>
+    <mxCell id="sl2_mxm_l" value="" style="text;html=1;fontSize=9;align=center;verticalAlign=middle;fillColor=#fff5e6;strokeColor=#cc8800;strokeWidth=1;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="60" y="198" width="100" height="20"/>
+    </mxCell>
+    <mxCell id="sl2_sxm_l" value="" style="text;html=1;fontSize=9;align=center;verticalAlign=middle;fillColor=#f5e6ff;strokeColor=#9933ff;strokeWidth=1;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="170" y="198" width="80" height="20"/>
+    </mxCell>
+    <mxCell id="sl2_mem_l" value="" style="text;html=1;fontSize=9;align=center;verticalAlign=middle;fillColor=#e6f2ff;strokeColor=#0066cc;strokeWidth=1;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="260" y="198" width="100" height="20"/>
+    </mxCell>
+    <mxCell id="sl2_vxm" value="" style="text;html=1;fontSize=9;align=center;verticalAlign=middle;fillColor=#e6ffe6;strokeColor=#009900;strokeWidth=1;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="370" y="198" width="80" height="20"/>
+    </mxCell>
+    <mxCell id="sl2_mem_r" value="" style="text;html=1;fontSize=9;align=center;verticalAlign=middle;fillColor=#e6f2ff;strokeColor=#0066cc;strokeWidth=1;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="460" y="198" width="100" height="20"/>
+    </mxCell>
+    <mxCell id="sl2_sxm_r" value="" style="text;html=1;fontSize=9;align=center;verticalAlign=middle;fillColor=#f5e6ff;strokeColor=#9933ff;strokeWidth=1;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="570" y="198" width="80" height="20"/>
+    </mxCell>
+    <mxCell id="sl2_mxm_r" value="" style="text;html=1;fontSize=9;align=center;verticalAlign=middle;fillColor=#fff5e6;strokeColor=#cc8800;strokeWidth=1;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="660" y="198" width="100" height="20"/>
+    </mxCell>
+
+    <!-- ... (vertical dots) -->
+    <mxCell id="dots" value="..." style="text;html=1;fontSize=16;align=center;verticalAlign=middle;fillColor=#f8f9fa;strokeColor=none;" vertex="1" parent="1">
+      <mxGeometry x="350" y="220" width="60" height="20"/>
+    </mxCell>
+
+    <!-- SL18 -->
+    <mxCell id="sl18_label" value="SL 18" style="text;html=1;fontSize=10;align=center;verticalAlign=middle;fillColor=#f0f0f0;strokeColor=#ccc;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="10" y="242" width="40" height="20"/>
+    </mxCell>
+    <mxCell id="sl18_mxm_l" value="" style="text;html=1;fontSize=9;align=center;verticalAlign=middle;fillColor=#fff5e6;strokeColor=#cc8800;strokeWidth=1;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="60" y="242" width="100" height="20"/>
+    </mxCell>
+    <mxCell id="sl18_sxm_l" value="" style="text;html=1;fontSize=9;align=center;verticalAlign=middle;fillColor=#f5e6ff;strokeColor=#9933ff;strokeWidth=1;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="170" y="242" width="80" height="20"/>
+    </mxCell>
+    <mxCell id="sl18_mem_l" value="" style="text;html=1;fontSize=9;align=center;verticalAlign=middle;fillColor=#e6f2ff;strokeColor=#0066cc;strokeWidth=1;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="260" y="242" width="100" height="20"/>
+    </mxCell>
+    <mxCell id="sl18_vxm" value="" style="text;html=1;fontSize=9;align=center;verticalAlign=middle;fillColor=#e6ffe6;strokeColor=#009900;strokeWidth=1;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="370" y="242" width="80" height="20"/>
+    </mxCell>
+    <mxCell id="sl18_mem_r" value="" style="text;html=1;fontSize=9;align=center;verticalAlign=middle;fillColor=#e6f2ff;strokeColor=#0066cc;strokeWidth=1;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="460" y="242" width="100" height="20"/>
+    </mxCell>
+    <mxCell id="sl18_sxm_r" value="" style="text;html=1;fontSize=9;align=center;verticalAlign=middle;fillColor=#f5e6ff;strokeColor=#9933ff;strokeWidth=1;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="570" y="242" width="80" height="20"/>
+    </mxCell>
+    <mxCell id="sl18_mxm_r" value="" style="text;html=1;fontSize=9;align=center;verticalAlign=middle;fillColor=#fff5e6;strokeColor=#cc8800;strokeWidth=1;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="660" y="242" width="100" height="20"/>
+    </mxCell>
+
+    <!-- SL19 -->
+    <mxCell id="sl19_label" value="SL 19" style="text;html=1;fontSize=10;align=center;verticalAlign=middle;fillColor=#f0f0f0;strokeColor=#ccc;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="10" y="264" width="40" height="20"/>
+    </mxCell>
+    <mxCell id="sl19_mxm_l" value="" style="text;html=1;fontSize=9;align=center;verticalAlign=middle;fillColor=#fff5e6;strokeColor=#cc8800;strokeWidth=1;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="60" y="264" width="100" height="20"/>
+    </mxCell>
+    <mxCell id="sl19_sxm_l" value="" style="text;html=1;fontSize=9;align=center;verticalAlign=middle;fillColor=#f5e6ff;strokeColor=#9933ff;strokeWidth=1;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="170" y="264" width="80" height="20"/>
+    </mxCell>
+    <mxCell id="sl19_mem_l" value="" style="text;html=1;fontSize=9;align=center;verticalAlign=middle;fillColor=#e6f2ff;strokeColor=#0066cc;strokeWidth=1;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="260" y="264" width="100" height="20"/>
+    </mxCell>
+    <mxCell id="sl19_vxm" value="" style="text;html=1;fontSize=9;align=center;verticalAlign=middle;fillColor=#e6ffe6;strokeColor=#009900;strokeWidth=1;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="370" y="264" width="80" height="20"/>
+    </mxCell>
+    <mxCell id="sl19_mem_r" value="" style="text;html=1;fontSize=9;align=center;verticalAlign=middle;fillColor=#e6f2ff;strokeColor=#0066cc;strokeWidth=1;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="460" y="264" width="100" height="20"/>
+    </mxCell>
+    <mxCell id="sl19_sxm_r" value="" style="text;html=1;fontSize=9;align=center;verticalAlign=middle;fillColor=#f5e6ff;strokeColor=#9933ff;strokeWidth=1;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="570" y="264" width="80" height="20"/>
+    </mxCell>
+    <mxCell id="sl19_mxm_r" value="" style="text;html=1;fontSize=9;align=center;verticalAlign=middle;fillColor=#fff5e6;strokeColor=#cc8800;strokeWidth=1;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="660" y="264" width="100" height="20"/>
+    </mxCell>
+
+    <!-- ICU at bottom -->
+    <mxCell id="icu_bar" value="ICU — Instruction Control Unit (&lt;3% die) | 144 Queues | SYNC/NOTIFY/DESKEW" style="text;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#1a1a2e;fontColor=#ffffff;strokeColor=#76b900;strokeWidth=2;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="60" y="292" width="700" height="28"/>
+    </mxCell>
+
+    <!-- Data flow annotations -->
+    <mxCell id="dataflow_arrow" value="Data Flow: East ↔ West (512 B/SL/cycle)" style="text;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#ff6600;fontColor=#fff;strokeColor=#cc4400;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="800" y="150" width="340" height="24"/>
+    </mxCell>
+
+    <!-- Instruction flow arrow -->
+    <mxCell id="instflow_arrow" value="Instruction Flow: North ↑ (1 cycle/SL)" style="text;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#0066cc;fontColor=#fff;strokeColor=#004499;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="800" y="185" width="340" height="24"/>
+    </mxCell>
+
+    <!-- Key -->
+    <mxCell id="key_mxm" value="MXM: Matrix (Systolic Array)" style="text;html=1;fontSize=10;align=left;fillColor=#fff5e6;strokeColor=#cc8800;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="800" y="230" width="220" height="18"/>
+    </mxCell>
+    <mxCell id="key_sxm" value="SXM: Switch (Crossbar/C2C)" style="text;html=1;fontSize=10;align=left;fillColor=#f5e6ff;strokeColor=#9933ff;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="800" y="252" width="220" height="18"/>
+    </mxCell>
+    <mxCell id="key_mem" value="MEM: Memory (5.5 MB SRAM)" style="text;html=1;fontSize=10;align=left;fillColor=#e6f2ff;strokeColor=#0066cc;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="800" y="274" width="220" height="18"/>
+    </mxCell>
+    <mxCell id="key_vxm" value="VXM: Vector (320-lane SIMD)" style="text;html=1;fontSize=10;align=left;fillColor=#e6ffe6;strokeColor=#009900;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="800" y="296" width="220" height="18"/>
+    </mxCell>
+
+    <!-- ============================================================ -->
+    <!-- PAGE 2: Dataflow + Chaining + Wavefront                       -->
+    <!-- ============================================================ -->
+    <mxCell id="page2_title" value="Diagram 2: Orthogonal Dataflow &amp; Chaining Model" style="text;html=1;fontSize=14;fontStyle=1;align=center;verticalAlign=middle;fillColor=#76b900;fontColor=#ffffff;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="20" y="340" width="1260" height="30"/>
+    </mxCell>
+
+    <!-- Dataflow boxes -->
+    <mxCell id="df_mem_l" value="MEM_L&#10;Load A" style="text;html=1;fontSize=10;align=center;verticalAlign=middle;fillColor=#b3d9ff;strokeColor=#0066cc;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="60" y="390" width="100" height="40"/>
+    </mxCell>
+    <mxCell id="df_sxm" value="SXM&#10;Route" style="text;html=1;fontSize=10;align=center;verticalAlign=middle;fillColor=#e6ccff;strokeColor=#9933ff;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="200" y="390" width="80" height="40"/>
+    </mxCell>
+    <mxCell id="df_mxm" value="MXM&#10;Q×K^T" style="text;html=1;fontSize=10;align=center;verticalAlign=middle;fillColor=#ffd699;strokeColor=#cc8800;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="320" y="390" width="100" height="40"/>
+    </mxCell>
+    <mxCell id="df_vxm" value="VXM&#10;Softmax" style="text;html=1;fontSize=10;align=center;verticalAlign=middle;fillColor=#b3ffb3;strokeColor=#009900;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="460" y="390" width="80" height="40"/>
+    </mxCell>
+    <mxCell id="df_mem_r" value="MEM_R&#10;Store" style="text;html=1;fontSize=10;align=center;verticalAlign=middle;fillColor=#b3d9ff;strokeColor=#0066cc;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="580" y="390" width="100" height="40"/>
+    </mxCell>
+
+    <!-- Chain arrows (solid) -->
+    <mxCell id="arrow1" value="" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=1;strokeColor=#ff6600;strokeWidth=2;endArrow=blockThin;endFill=1;" edge="1" parent="1" source="df_mem_l" target="df_sxm"/>
+    <mxCell id="arrow2" value="" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=1;strokeColor=#ff6600;strokeWidth=2;endArrow=blockThin;endFill=1;" edge="1" parent="1" source="df_sxm" target="df_mxm"/>
+    <mxCell id="arrow3" value="" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=1;strokeColor=#ff6600;strokeWidth=2;endArrow=blockThin;endFill=1;" edge="1" parent="1" source="df_mxm" target="df_vxm"/>
+    <mxCell id="arrow4" value="" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=1;strokeColor=#ff6600;strokeWidth=2;endArrow=blockThin;endFill=1;" edge="1" parent="1" source="df_vxm" target="df_mem_r"/>
+
+    <!-- Chaining annotation -->
+    <mxCell id="chaining_note" value="Chaining: Results flow directly between functional units&#10;No register file / SRAM intermediate storage" style="text;html=1;fontSize=10;align=left;verticalAlign=middle;fillColor=#fff3cd;strokeColor=#ffc107;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="720" y="380" width="280" height="40"/>
+    </mxCell>
+
+    <!-- Wavefront propagation -->
+    <mxCell id="wavefront_label" value="Wavefront Propagation:" style="text;html=1;fontSize=11;fontStyle=1;align=left;" vertex="1" parent="1">
+      <mxGeometry x="60" y="450" width="200" height="20"/>
+    </mxCell>
+    <mxCell id="wv_t0" value="t=0: ICU emit → SL0 start" style="text;html=1;fontSize=10;align=left;fillColor=#e6f2ff;strokeColor=#0066cc;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="60" y="475" width="240" height="20"/>
+    </mxCell>
+    <mxCell id="wv_t1" value="t=1: SL0 continues, SL1 starts, data moves" style="text;html=1;fontSize=10;align=left;fillColor=#e6f2ff;strokeColor=#0066cc;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="60" y="498" width="280" height="20"/>
+    </mxCell>
+    <mxCell id="wv_t2" value="t=2: SL0/1/2 all in pipeline" style="text;html=1;fontSize=10;align=left;fillColor=#e6f2ff;strokeColor=#0066cc;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="60" y="521" width="240" height="20"/>
+    </mxCell>
+    <mxCell id="wv_t19" value="t=19: All 20 SLs in pipeline (steady state)" style="text;html=1;fontSize=10;align=left;fillColor=#e6f2ff;strokeColor=#0066cc;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="60" y="544" width="280" height="20"/>
+    </mxCell>
+
+    <!-- Wavefront arrow -->
+    <mxCell id="wf_arrow" value="Ripple effect" style="text;html=1;fontSize=10;align=left;fillColor=#ffc107;strokeColor=#cc8800;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="370" y="520" width="120" height="22"/>
+    </mxCell>
+
+    <!-- ============================================================ -->
+    <!-- PAGE 3: Memory Hierarchy                                      -->
+    <!-- ============================================================ -->
+    <mxCell id="page3_title" value="Diagram 3: Memory Hierarchy — 220-230 MB SRAM-only" style="text;html=1;fontSize=14;fontStyle=1;align=center;verticalAlign=middle;fillColor=#76b900;fontColor=#ffffff;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="20" y="590" width="1260" height="30"/>
+    </mxCell>
+
+    <!-- Top: chip total -->
+    <mxCell id="mem_chip" value="TSP Chip: ~220-230 MB SRAM&#10;80 TB/s Bandwidth&#10;~20% die area" style="text;html=1;fontSize=12;align=center;verticalAlign=middle;fillColor=#1a1a2e;fontColor=#ffffff;strokeColor=#76b900;strokeWidth=2;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="350" y="640" width="260" height="50"/>
+    </mxCell>
+
+    <!-- Level 2: 40 MEM slices -->
+    <mxCell id="mem_slice_label" value="40 MEM Slices (20 SL × 2)" style="text;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#0066cc;fontColor=#fff;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="200" y="720" width="180" height="28"/>
+    </mxCell>
+    <mxCell id="mem_slice_detail" value="Each slice: ~5.5 MB&#10;2 tiles × ~2.75 MB&#10;Dual-port SRAM" style="text;html=1;fontSize=10;align=center;verticalAlign=middle;fillColor=#e6f2ff;strokeColor=#0066cc;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="200" y="752" width="180" height="50"/>
+    </mxCell>
+
+    <!-- Level 3: Tile -->
+    <mxCell id="mem_tile_label" value="20 Tiles / MEM Slice" style="text;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#3366cc;fontColor=#fff;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="440" y="720" width="180" height="28"/>
+    </mxCell>
+    <mxCell id="mem_tile_detail" value="Each tile: ~256 KB&#10;8-16 SRAM banks&#10;2 ports (RD+WR)" style="text;html=1;fontSize=10;align=center;verticalAlign=middle;fillColor=#e6f2ff;strokeColor=#0066cc;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="440" y="752" width="180" height="50"/>
+    </mxCell>
+
+    <!-- Level 4: Bank -->
+    <mxCell id="mem_bank_label" value="6,400+ SRAM Banks" style="text;html=1;fontSize=11;align=center;verticalAlign=middle;fillColor=#6699cc;fontColor=#fff;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="680" y="720" width="180" height="28"/>
+    </mxCell>
+    <mxCell id="mem_bank_detail" value="Each bank: ~32 KB&#10;Parallel access factor: ~4.4×&#10;Bank-level interleaving" style="text;html=1;fontSize=10;align=center;verticalAlign=middle;fillColor=#e6f2ff;strokeColor=#0066cc;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="680" y="752" width="180" height="50"/>
+    </mxCell>
+
+    <!-- Arrows connecting hierarchy -->
+    <mxCell id="mem_arrow1" value="" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=1;strokeColor=#0066cc;strokeWidth=2;endArrow=blockThin;endFill=1;" edge="1" parent="1">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="480" y="690"/>
+        <mxPoint x="290" y="720"/>
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="mem_arrow2" value="" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=1;strokeColor=#0066cc;strokeWidth=2;endArrow=blockThin;endFill=1;" edge="1" parent="1">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="480" y="690"/>
+        <mxPoint x="530" y="720"/>
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="mem_arrow3" value="" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=1;strokeColor=#0066cc;strokeWidth=2;endArrow=blockThin;endFill=1;" edge="1" parent="1">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="480" y="690"/>
+        <mxPoint x="770" y="720"/>
+      </mxGeometry>
+    </mxCell>
+
+    <!-- Bandwidth formula box -->
+    <mxCell id="bw_formula" value="80 TB/s = 40 MEM × 2 ports × 128 B × 900 MHz × ~4.4 (bank factor)" style="text;html=1;fontSize=11;fontStyle=1;align=center;verticalAlign=middle;fillColor=#fff3cd;strokeColor=#ffc107;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="350" y="830" width="440" height="28"/>
+    </mxCell>
+
+    <!-- Comparison -->
+    <mxCell id="mem_cmp_title" value="SRAM vs HBM Comparison" style="text;html=1;fontSize=11;fontStyle=1;align=left;fillColor=#f0f0f0;strokeColor=#ccc;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="60" y="640" width="200" height="24"/>
+    </mxCell>
+    <mxCell id="mem_cmp1" value="SRAM latency: ~2-5 ns vs HBM ~375-500 ns" style="text;html=1;fontSize=10;align=left;" vertex="1" parent="1">
+      <mxGeometry x="60" y="668" width="260" height="18"/>
+    </mxCell>
+    <mxCell id="mem_cmp2" value="SRAM energy: ~0.3 pJ/bit vs HBM ~5-10 pJ/bit" style="text;html=1;fontSize=10;align=left;" vertex="1" parent="1">
+      <mxGeometry x="60" y="688" width="280" height="18"/>
+    </mxCell>
+    <mxCell id="mem_cmp3" value="SRAM/TSP: 80 TB/s vs H100 HBM: 3 TB/s" style="text;html=1;fontSize=10;align=left;" vertex="1" parent="1">
+      <mxGeometry x="60" y="708" width="270" height="18"/>
+    </mxCell>
+
+    <!-- ============================================================ -->
+    <!-- PAGE 4: Multi-TSP Dragonfly Topology                          -->
+    <!-- ============================================================ -->
+    <mxCell id="page4_title" value="Diagram 4: Multi-TSP Dragonfly Topology" style="text;html=1;fontSize=14;fontStyle=1;align=center;verticalAlign=middle;fillColor=#76b900;fontColor=#ffffff;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="20" y="880" width="1260" height="30"/>
+    </mxCell>
+
+    <!-- Group 0 (8 TSPs) -->
+    <mxCell id="group0_box" value="Group (Node) 0 — 8 TSPs fully connected" style="text;html=1;fontSize=11;fontStyle=1;align=center;verticalAlign=middle;fillColor=#fff0e6;strokeColor=#cc6600;strokeWidth=2;rounded=1;dashed=1;" vertex="1" parent="1">
+      <mxGeometry x="80" y="930" width="380" height="180"/>
+    </mxCell>
+    <mxCell id="g0_tsp0" value="TSP 0&#10;11 links" style="text;html=1;fontSize=10;align=center;verticalAlign=middle;fillColor=#ffd699;strokeColor=#cc8800;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="120" y="960" width="70" height="36"/>
+    </mxCell>
+    <mxCell id="g0_tsp1" value="TSP 1" style="text;html=1;fontSize=10;align=center;verticalAlign=middle;fillColor=#ffd699;strokeColor=#cc8800;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="240" y="950" width="60" height="30"/>
+    </mxCell>
+    <mxCell id="g0_tsp2" value="TSP 2" style="text;html=1;fontSize=10;align=center;verticalAlign=middle;fillColor=#ffd699;strokeColor=#cc8800;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="350" y="950" width="60" height="30"/>
+    </mxCell>
+    <mxCell id="g0_tsp3" value="TSP 3" style="text;html=1;fontSize=10;align=center;verticalAlign=middle;fillColor=#ffd699;strokeColor=#cc8800;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="120" y="1030" width="70" height="30"/>
+    </mxCell>
+    <mxCell id="g0_tsp4" value="TSP 4" style="text;html=1;fontSize=10;align=center;verticalAlign=middle;fillColor=#ffd699;strokeColor=#cc8800;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="240" y="1040" width="60" height="30"/>
+    </mxCell>
+    <mxCell id="g0_tsp5" value="TSP 5" style="text;html=1;fontSize=10;align=center;verticalAlign=middle;fillColor=#ffd699;strokeColor=#cc8800;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="350" y="1040" width="60" height="30"/>
+    </mxCell>
+
+    <!-- Group 1 (8 TSPs) -->
+    <mxCell id="group1_box" value="Group (Node) N — 8 TSPs fully connected" style="text;html=1;fontSize=11;fontStyle=1;align=center;verticalAlign=middle;fillColor=#fff0e6;strokeColor=#cc6600;strokeWidth=2;rounded=1;dashed=1;" vertex="1" parent="1">
+      <mxGeometry x="620" y="930" width="380" height="180"/>
+    </mxCell>
+    <mxCell id="g1_tsp0" value="TSP N" style="text;html=1;fontSize=10;align=center;verticalAlign=middle;fillColor=#ffd699;strokeColor=#cc8800;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="660" y="960" width="70" height="36"/>
+    </mxCell>
+    <mxCell id="g1_tsp1" value="TSP N+1" style="text;html=1;fontSize=10;align=center;verticalAlign=middle;fillColor=#ffd699;strokeColor=#cc8800;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="780" y="950" width="70" height="30"/>
+    </mxCell>
+    <mxCell id="g1_tsp2" value="TSP N+2" style="text;html=1;fontSize=10;align=center;verticalAlign=middle;fillColor=#ffd699;strokeColor=#cc8800;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="890" y="950" width="70" height="30"/>
+    </mxCell>
+    <mxCell id="g1_tsp3" value="TSP N+3" style="text;html=1;fontSize=10;align=center;verticalAlign=middle;fillColor=#ffd699;strokeColor=#cc8800;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="660" y="1030" width="70" height="30"/>
+    </mxCell>
+    <mxCell id="g1_tsp4" value="TSP N+4" style="text;html=1;fontSize=10;align=center;verticalAlign=middle;fillColor=#ffd699;strokeColor=#cc8800;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="780" y="1040" width="70" height="30"/>
+    </mxCell>
+    <mxCell id="g1_tsp5" value="TSP N+5" style="text;html=1;fontSize=10;align=center;verticalAlign=middle;fillColor=#ffd699;strokeColor=#cc8800;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="890" y="1040" width="70" height="30"/>
+    </mxCell>
+
+    <!-- Global links between groups -->
+    <mxCell id="global_link1" value="Global Links (4/TSP)" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=1;strokeColor=#ff0000;strokeWidth=2;endArrow=blockThin;endFill=1;fontSize=11;" edge="1" parent="1">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="460" y="978"/>
+        <mxPoint x="620" y="978"/>
+      </mxGeometry>
+    </mxCell>
+
+    <!-- Intra-group connection annotation -->
+    <mxCell id="intra_label" value="Intra-group: 7 local links per TSP&#10;All-to-all within 8 TSPs" style="text;html=1;fontSize=10;align=left;fillColor=#fff3cd;strokeColor=#ffc107;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="80" y="1120" width="220" height="34"/>
+    </mxCell>
+    <mxCell id="global_label" value="Inter-group: 4 global links per TSP&#10;Dragonfly routing: max 5 hops&#10;10,440 TSPs @ 145 racks" style="text;html=1;fontSize=10;align=left;fillColor=#ffe6e6;strokeColor=#ff6666;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="380" y="1120" width="240" height="34"/>
+    </mxCell>
+
+    <!-- Network diameter comparison -->
+    <mxCell id="net_cmp" value="Network Diameter (10,440 nodes): Dragonfly 5 hops vs Fat-Tree 11-13 hops (2.5× better)" style="text;html=1;fontSize=12;fontStyle=1;align=center;verticalAlign=middle;fillColor=#1a1a2e;fontColor=#ffffff;strokeColor=#76b900;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="620" y="1120" width="450" height="28"/>
+    </mxCell>
+
+  </root>
+</mxGraphModel>

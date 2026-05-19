@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm --version)",
+      "Bash(npm install *)",
+      "Bash(codex --version)",
+      "Bash(git *)",
+      "mcp__drawio__open_drawio_xml",
+      "WebSearch",
+      "WebFetch(domain:docs.nvidia.com)",
+      "mcp__drawio__open_drawio_mermaid",
+      "Bash(xxd /Users/vanessa_jwl/Documents/Knowledge/AI2groq/groq_vs_gpu/4.result/Groq_vs_GPU_Comparison_Report_v1.drawio)",
+      "Bash(sed -i '.bak' 's|<rect x=\"30\" y=\"438\" width=\"280\" height=\"26\"/>|<rect x=\"30\" y=\"438\" width=\"280\" height=\"26\" fill=\"#FFFFFF\"/>|' Groq_vs_GPU_Comparison_Report_v1.html)",
+      "Bash(sed -i '.bak' 's|<rect x=\"310\" y=\"438\" width=\"430\" height=\"26\"/>|<rect x=\"310\" y=\"438\" width=\"430\" height=\"26\" fill=\"#FFFFFF\"/>|' Groq_vs_GPU_Comparison_Report_v1.html)",
+      "Bash(sed -i '.bak' 's|<rect x=\"740\" y=\"438\" width=\"430\" height=\"26\"/>|<rect x=\"740\" y=\"438\" width=\"430\" height=\"26\" fill=\"#FFFFFF\"/>|' Groq_vs_GPU_Comparison_Report_v1.html)",
+      "Bash(sed -i '.bak' 's|<rect x=\"30\" y=\"490\" width=\"280\" height=\"26\"/>|<rect x=\"30\" y=\"490\" width=\"280\" height=\"26\" fill=\"#FFFFFF\"/>|' Groq_vs_GPU_Comparison_Report_v1.html)",
+      "Bash(sed -i '.bak' 's|<rect x=\"310\" y=\"490\" width=\"430\" height=\"26\"/>|<rect x=\"310\" y=\"490\" width=\"430\" height=\"26\" fill=\"#FFFFFF\"/>|' Groq_vs_GPU_Comparison_Report_v1.html)",
+      "Bash(python3 -c \"import pymupdf; print\\('pymupdf ok'\\)\")",
+      "Bash(python3 -c \"import fitz; print\\('fitz ok'\\)\")",
+      "Bash(python3 -c \"import PyPDF2; print\\('PyPDF2 ok'\\)\")",
+      "Bash(python3 -c \"import pdfminer; print\\('pdfminer ok'\\)\")",
+      "Bash(python3 -c \"import pdfplumber; print\\('pdfplumber ok'\\)\")",
+      "Bash(python3 *)",
+      "Bash(pip3 install *)",
+      "Bash(gh auth *)",
+      "Bash(gh repo *)"
+    ]
+  }
+}

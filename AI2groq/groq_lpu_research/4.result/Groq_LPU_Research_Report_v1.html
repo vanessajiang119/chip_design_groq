@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Groq LPU Research Report — 架构分析与3天实现计划</title>
+<style>
+  :root {
+    --bg-primary: #FFFFFF;
+    --bg-secondary: #F6F8FA;
+    --bg-tertiary: #F0F2F5;
+    --bg-hover: #EAECEF;
+    --text-primary: #1A1A1A;
+    --text-secondary: #4B5563;
+    --text-muted: #9CA3AF;
+    --accent-green: #76B900;
+    --accent-green-hover: #89C700;
+    --accent-green-dark: #3B5C00;
+    --border: #E5E7EB;
+    --border-strong: #D1D5DB;
+    --border-active: #76B900;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC', Helvetica, Arial, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    line-height: 1.7;
+    font-size: 16px;
+  }
+
+  /* ===== Header ===== */
+  .header {
+    position: sticky; top: 0; z-index: 100;
+    background: var(--bg-primary);
+    border-bottom: 1px solid var(--border);
+    padding: 0 1.5rem;
+    height: 56px;
+    display: flex;
+    align-items: center;
+  }
+  .header-logo {
+    font-weight: 700;
+    font-size: 1rem;
+    letter-spacing: -0.02em;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-primary);
+  }
+  .header-logo svg { width: 22px; height: 22px; }
+  .header-logo em { color: var(--accent-green); font-style: normal; }
+  .header-search {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.375rem 0.75rem;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    cursor: default;
+  }
+  .header-search kbd {
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0 0.4rem;
+    font-family: 'SFMono-Regular', 'SF Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+  }
+  .sidebar-toggle {
+    display: none;
+    background: none; border: none; color: var(--text-primary);
+    font-size: 1.25rem; cursor: pointer; margin-right: 1rem;
+    padding: 0.25rem;
+  }
+
+  /* ===== Layout ===== */
+  .layout { display: flex; max-width: 1160px; margin: 0 auto; }
+  .sidebar {
+    width: 280px;
+    flex-shrink: 0;
+    position: sticky; top: 72px;
+    height: calc(100vh - 72px);
+    overflow-y: auto;
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border);
+    padding: 1.5rem 0;
+  }
+  .sidebar::-webkit-scrollbar { width: 4px; }
+  .sidebar::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 2px; }
+
+  .sidebar-nav { list-style: none; font-size: 0.875rem; }
+  .sidebar-nav li { margin: 0; }
+  .sidebar-nav a {
+    display: block;
+    padding: 6px 16px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    border-left: 3px solid transparent;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    border-radius: 0;
+  }
+  .sidebar-nav a:hover { background: var(--bg-hover); color: var(--text-primary); }
+  .sidebar-nav a.active {
+    color: var(--text-primary);
+    font-weight: 600;
+    border-left-color: var(--accent-green);
+    background: rgba(118,185,0,0.06);
+  }
+  .sidebar-nav .l2 { padding-left: 1.75rem; font-size: 0.8rem; }
+  .sidebar-nav .l3 { padding-left: 2.5rem; font-size: 0.75rem; }
+  .sidebar-section {
+    padding: 1rem 16px 0.5rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+  }
+
+  .main {
+    flex: 1;
+    min-width: 0;
+    max-width: 860px;
+    padding: 2rem 3rem 4rem;
+  }
+
+  /* ===== Hero ===== */
+  .hero { padding: 2.5rem 0 2rem; }
+  .hero h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    margin-bottom: 0.75rem;
+    color: var(--text-primary);
+  }
+  .hero h1 em { color: var(--accent-green); font-style: normal; }
+  .hero p {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    max-width: 640px;
+    margin-bottom: 1.5rem;
+  }
+  .hero-badges { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .badge {
+    display: inline-block;
+    padding: 0.2rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    background: var(--bg-secondary);
+  }
+  .badge-green { border-color: var(--accent-green); color: var(--accent-green-dark); background: rgba(118,185,0,0.06); }
+
+  /* ===== Sections ===== */
+  section {
+    padding-top: 2rem;
+    margin-top: 3rem;
+    border-top: 1px solid var(--border);
+  }
+  section:first-of-type { border-top: none; margin-top: 0; }
+
+  section h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    letter-spacing: -0.01em;
+    color: var(--text-primary);
+  }
+  section h2 .tag {
+    font-size: 0.7rem;
+    font-weight: 500;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    margin-left: 0.75rem;
+    vertical-align: middle;
+    text-transform: uppercase;
+  }
+  section h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    margin-top: 1.5rem;
+    color: var(--text-primary);
+  }
+  section p {
+    color: var(--text-secondary);
+    margin-bottom: 1.25rem;
+  }
+  section a { color: var(--accent-green); text-decoration: underline; }
+  section a:hover { color: var(--accent-green-hover); }
+
+  .heading-link {
+    opacity: 0;
+    color: var(--accent-green);
+    text-decoration: none;
+    font-size: 0.8rem;
+    margin-left: 0.4rem;
+    transition: opacity 0.15s;
+  }
+  h2:hover .heading-link, h3:hover .heading-link { opacity: 1; }
+
+  /* ===== Tables ===== */
+  .table-wrap { width: 100%; overflow-x: auto; margin: 1.5rem 0; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+  }
+  thead { border-bottom: 2px solid var(--border-strong); }
+  th {
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-align: left;
+    padding: 10px 14px;
+    letter-spacing: 0.03em;
+  }
+  td {
+    padding: 10px 14px;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border);
+  }
+  tr:nth-child(even) td { background: var(--bg-secondary); }
+
+  /* ===== Code Blocks ===== */
+  .code-block {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem;
+    margin: 1rem 0;
+    font-family: 'SFMono-Regular', 'SF Mono', 'Fira Code', 'Hack', Consolas, monospace;
+    font-size: 0.85rem;
+    overflow-x: auto;
+    position: relative;
+    color: var(--text-primary);
+  }
+  .code-block .comment { color: #6B7280; font-style: italic; }
+  .code-block .key { color: #2563EB; }
+  .code-block .val { color: #059669; }
+  .code-block .kw { color: #7C3AED; }
+  .code-block .fn { color: #DC2626; }
+
+  /* ===== Cards ===== */
+  .card {
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin: 1.5rem 0;
+    box-shadow: var(--shadow-sm);
+  }
+  .card h3 { margin-top: 0; }
+  .card .sub { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.75rem; }
+  .card ul { list-style: none; padding: 0; }
+  .card ul li {
+    padding: 0.35rem 0;
+    padding-left: 1.2rem;
+    position: relative;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+  }
+  .card ul li::before {
+    content: "›";
+    position: absolute;
+    left: 0;
+    color: var(--accent-green);
+    font-weight: 700;
+  }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+
+  /* ===== Diagram ===== */
+  .diagram-box {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin: 2rem 0;
+  }
+  .diagram-box .label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-bottom: 1rem;
+    text-align: center;
+  }
+  .diagram-box svg { max-width: 100%; height: auto; display: block; margin: 0 auto; }
+  .diagram-box .xml-toggle {
+    font-size: 0.75rem;
+    color: var(--accent-green);
+    cursor: pointer;
+    text-align: center;
+    padding: 0.5rem;
+    user-select: none;
+    border-top: 1px solid var(--border);
+    margin-top: 1rem;
+  }
+  .diagram-box .xml-toggle:hover { color: var(--accent-green-hover); }
+  .diagram-box .xml-source {
+    display: none;
+    margin-top: 0.75rem;
+    max-height: 240px;
+    overflow: auto;
+  }
+  .diagram-box .xml-source.show { display: block; }
+
+  /* ===== Day Cards ===== */
+  .day-card {
+    display: flex;
+    gap: 0;
+    align-items: stretch;
+    margin-bottom: 1rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+  }
+  .day-num {
+    flex-shrink: 0;
+    width: 72px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1rem;
+    color: #fff;
+    writing-mode: vertical-lr;
+    letter-spacing: 0.1em;
+  }
+  .day-body {
+    flex: 1;
+    background: var(--bg-primary);
+    padding: 1.25rem;
+  }
+  .day-body h3 { margin: 0 0 0.25rem; font-size: 1.1rem; }
+  .day-body .sub { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.75rem; }
+  .day-body p { font-size: 0.9rem; margin-bottom: 0.75rem; color: var(--text-secondary); }
+  .day-tags { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+  .day-tags span {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.15rem 0.5rem;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-family: 'SFMono-Regular', monospace;
+  }
+
+  /* ===== Footer ===== */
+  .footer {
+    text-align: center;
+    padding: 2rem 1.5rem;
+    border-top: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 0.8rem;
+  }
+
+  /* ===== Responsive ===== */
+  @media (max-width: 768px) {
+    .sidebar { display: none; }
+    .sidebar.open { display: block; position: fixed; top: 56px; left: 0; right: 0; bottom: 0; z-index: 99; background: var(--bg-primary); padding: 1rem; border-right: none; }
+    .sidebar-toggle { display: block; }
+    .layout { padding: 0; }
+    .main { padding: 1rem 1rem 3rem; }
+    .hero h1 { font-size: 1.5rem; }
+    .grid-2 { grid-template-columns: 1fr; }
+    .day-card { flex-direction: column; }
+    .day-num { width: 100%; writing-mode: horizontal-tb; padding: 0.5rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== Header ===== -->
+<header class="header">
+  <button class="sidebar-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')" aria-label="Toggle navigation">☰</button>
+  <div class="header-logo">
+    <svg viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7v10l10 5 10-5V7L12 2z" fill="#76B900" opacity="0.15"/><path d="M12 6L6 9v6l6 3 6-3V9l-6-3z" fill="#76B900"/></svg>
+    <span>Groq LPU <em>Research</em></span>
+  </div>
+  <div class="header-search">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <span>Search</span><kbd>Ctrl+K</kbd>
+  </div>
+</header>
+
+<!-- ===== Layout ===== -->
+<div class="layout">
+
+<!-- ===== Sidebar ===== -->
+<nav class="sidebar" role="navigation">
+  <div class="sidebar-section">Contents</div>
+  <ul class="sidebar-nav">
+    <li><a href="#arch" class="active">TSP 架构深度分析</a></li>
+    <li><a href="#resources" class="l2">核心论文与开源资源</a></li>
+    <li><a href="#compiler" class="l2">编译器设计分析</a></li>
+    <li><a href="#plan" class="l2">三天执行计划</a></li>
+  </ul>
+  <div class="sidebar-section" style="margin-top:1.5rem;border-top:1px solid var(--border);padding-top:0.75rem;">On this page</div>
+  <ul class="sidebar-nav">
+    <li><a href="#arch" class="l2">TSP 功能切片</a></li>
+    <li><a href="#resources" class="l2">论文与GitHub</a></li>
+    <li><a href="#compiler" class="l2">MLIR + Haskell</a></li>
+    <li><a href="#plan" class="l2">Day 1-3 计划</a></li>
+    <li><a href="#refs" class="l2">参考资料</a></li>
+  </ul>
+</nav>
+
+<!-- ===== Main Content ===== -->
+<main class="main">
+
+<div class="hero">
+  <h1>Groq LPU <em>架构分析与3天实现计划</em></h1>
+  <p>基于 ISCA 2020/2022 核心论文的系统性研究 — 覆盖 TSP 功能切片架构、确定性静态调度、编译器设计与 Transformer 算子的硬件映射方案</p>
+  <div class="hero-badges">
+    <span class="badge badge-green">TSP Architecture</span>
+    <span class="badge badge-green">Systolic Array</span>
+    <span class="badge">Static Scheduling</span>
+    <span class="badge">MLIR Compiler</span>
+    <span class="badge">Transformer Inference</span>
+    <span class="badge">GroqFlow</span>
+  </div>
+</div>
+
+<!-- ==================== 1. TSP 架构分析 ==================== -->
+<section id="arch">
+  <h2>1. TSP 架构深度分析 <span class="tag">Tensor Streaming Processor</span></h2>
+
+  <p>Groq 的 Tensor Streaming Processor（TSP）采用了一种与传统 GPU/CPU 截然不同的架构范式——<strong>确定性计算（Deterministic Computing）</strong>。其核心理念是在硬件层面完全消除所有反应式元件（reactive elements），包括 cache 层次结构、分支预测器、乱序执行引擎、动态仲裁器以及投机执行单元等传统处理器中不可或缺的组件。这些功能全部被前移到编译阶段，由编译器在离线程完成静态调度。这种设计选择使得每一指令的执行时间在编译时即可精确预知到时钟周期级别，彻底消除了传统架构中因动态硬件调度带来的延迟抖动（jitter）问题，这是 Groq LPU 能够实现极低推理延迟的根本原因。</p>
+
+  <p>TSP 最具创新性的设计是其<strong>垂直功能切片（Functional Slicing）</strong>组织方式。芯片被划分为五种不同类型的垂直列（slice）：ICU（Instruction Control Unit，指令控制单元）、MEM（Memory Slice，内存切片）、VXM（Vector Execution Module，向量执行模块）、MXM（Matrix Execution Module，矩阵执行模块）和 SXM（Shift Execution Module，移位执行模块）。数据流沿 East-West 方向在相邻功能切片之间直接传递，而指令流沿 North-South 方向从顶部的 ICU 向下分发到各 slice。每个 slice 类型在芯片上重复排列 20 次（tile），每个 tile 包含 16 条 SIMD 通道，总计 320 条并行通道。数据直接在 producer 和 consumer 之间流动，完全不需要经过寄存器文件或 cache 层次，从而实现了极低的延迟（<49μs 单图推理）和极高的带宽利用率（~80 TB/s SRAM 带宽）。</p>
+
+  <div class="diagram-box">
+    <div class="label">图 1: Groq TSP 功能切片架构 — 5种垂直 slice，数据流 East-West，指令流 North-South</div>
+    <svg viewBox="0 0 820 250" role="img" aria-label="Groq TSP architecture diagram" style="max-width:820px;">
+      <!-- Slices -->
+      <rect x="20" y="55" width="125" height="65" rx="6" fill="#1E88E5"/><text x="82" y="78" fill="#fff" font-size="13" font-weight="700" text-anchor="middle">ICU</text><text x="82" y="94" fill="#fff" font-size="10" text-anchor="middle">Instruction Control</text><text x="82" y="108" fill="#fff" font-size="9" text-anchor="middle">取指 + 指令分发</text>
+      <rect x="180" y="55" width="125" height="65" rx="6" fill="#43A047"/><text x="242" y="78" fill="#fff" font-size="13" font-weight="700" text-anchor="middle">MEM</text><text x="242" y="94" fill="#fff" font-size="10" text-anchor="middle">Memory Slice</text><text x="242" y="108" fill="#fff" font-size="9" text-anchor="middle">SRAM 读写操作</text>
+      <rect x="340" y="55" width="125" height="65" rx="6" fill="#F4511E"/><text x="402" y="78" fill="#fff" font-size="13" font-weight="700" text-anchor="middle">VXM</text><text x="402" y="94" fill="#fff" font-size="10" text-anchor="middle">Vector Execution</text><text x="402" y="108" fill="#fff" font-size="9" text-anchor="middle">向量算术运算</text>
+      <rect x="500" y="55" width="125" height="65" rx="6" fill="#8E24AA"/><text x="562" y="78" fill="#fff" font-size="13" font-weight="700" text-anchor="middle">MXM</text><text x="562" y="94" fill="#fff" font-size="10" text-anchor="middle">Matrix Execution</text><text x="562" y="108" fill="#fff" font-size="9" text-anchor="middle">矩阵乘累加</text>
+      <rect x="660" y="55" width="125" height="65" rx="6" fill="#00897B"/><text x="722" y="78" fill="#fff" font-size="13" font-weight="700" text-anchor="middle">SXM</text><text x="722" y="94" fill="#fff" font-size="10" text-anchor="middle">Shift Execution</text><text x="722" y="108" fill="#fff" font-size="9" text-anchor="middle">移位/旋转</text>
+      <!-- Data flow arrows -->
+      <line x1="145" y1="87" x2="175" y2="87" stroke="#1E88E5" stroke-width="2"/><polygon points="175,83 183,87 175,91" fill="#1E88E5"/>
+      <line x1="305" y1="87" x2="335" y2="87" stroke="#43A047" stroke-width="2"/><polygon points="335,83 343,87 335,91" fill="#43A047"/>
+      <line x1="465" y1="87" x2="495" y2="87" stroke="#F4511E" stroke-width="2"/><polygon points="495,83 503,87 495,91" fill="#F4511E"/>
+      <line x1="625" y1="87" x2="655" y2="87" stroke="#8E24AA" stroke-width="2"/><polygon points="655,83 663,87 655,91" fill="#8E24AA"/>
+      <text x="402" y="45" fill="#4B5563" font-size="11" text-anchor="middle">Data Flow East → West</text>
+      <text x="8" y="90" fill="#9CA3AF" font-size="9" text-anchor="middle" transform="rotate(-90,8,90)">Instr Flow N → S</text>
+      <!-- Specs bar -->
+      <rect x="100" y="145" width="620" height="28" rx="4" fill="#F0F2F5" stroke="#E5E7EB"/>
+      <text x="410" y="164" fill="#4B5563" font-size="11" text-anchor="middle">14nm · 900MHz · ~230MB SRAM · ~80TB/s BW · 144 Instr Queues · 10,440 TSPs max</text>
+      <text x="410" y="200" fill="#9CA3AF" font-size="11" text-anchor="middle">20 Tiles × 16 SIMD Lanes = 320 Parallel Channels</text>
+    </svg>
+    <div class="xml-toggle" onclick="this.nextElementSibling.classList.toggle('show')">📐 Show editable mxGraphModel XML</div>
+    <div class="xml-source">
+      <div class="code-block" style="margin:0;font-size:0.7rem;"><span class="comment">&lt;!-- mxGraphModel for Fig 1: TSP Architecture --&gt;</span>
+&lt;mxGraphModel&gt;
+  &lt;root&gt;
+    &lt;mxCell id="0"/&gt;&lt;mxCell id="1" parent="0"/&gt;
+    &lt;mxCell id="p" value="ICU" style="rounded=1;fillColor=#1E88E5;fontColor=#FFFFFF;" vertex="1"&gt;
+      &lt;mxGeometry x="20" y="55" width="125" height="65"/&gt;&lt;/mxCell&gt;
+    &lt;mxCell id="m" value="MEM" style="rounded=1;fillColor=#43A047;fontColor=#FFFFFF;" vertex="1"&gt;
+      &lt;mxGeometry x="180" y="55" width="125" height="65"/&gt;&lt;/mxCell&gt;
+    &lt;mxCell id="v" value="VXM" style="rounded=1;fillColor=#F4511E;fontColor=#FFFFFF;" vertex="1"&gt;
+      &lt;mxGeometry x="340" y="55" width="125" height="65"/&gt;&lt;/mxCell&gt;
+    &lt;mxCell id="x" value="MXM" style="rounded=1;fillColor=#8E24AA;fontColor=#FFFFFF;" vertex="1"&gt;
+      &lt;mxGeometry x="500" y="55" width="125" height="65"/&gt;&lt;/mxCell&gt;
+    &lt;mxCell id="s" value="SXM" style="rounded=1;fillColor=#00897B;fontColor=#FFFFFF;" vertex="1"&gt;
+      &lt;mxGeometry x="660" y="55" width="125" height="65"/&gt;&lt;/mxCell&gt;
+  &lt;/root&gt;
+&lt;/mxGraphModel&gt;</div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>确定性设计原则</h3>
+      <div class="sub">Eliminating all reactive hardware</div>
+      <ul>
+        <li>去除 cache 层次 — SRAM 直接寻址，编译器静态分配地址空间</li>
+        <li>去除乱序执行 — 144 个独立指令队列由编译器全权控制发射时序</li>
+        <li>去除分支预测 — 采用 predicated execution，无分支预测失败惩罚</li>
+        <li>去除动态仲裁 — 所有路由路径和时序在编译时预计算完成</li>
+        <li>结果：接近 0% 的功耗浪费在硬件调度逻辑上</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Streaming 数据流模型</h3>
+      <div class="sub">Producer-consumer dataflow</div>
+      <ul>
+        <li>320 SIMD lane × 64 逻辑 stream（32 Eastbound + 32 Westbound）</li>
+        <li>Producer-Consumer 模式 — 数据从 MEM slice 产生后直接流向 compute slice</li>
+        <li>无寄存器文件 — 数据在 stream 上流动时即刻被消费</li>
+        <li>Compiler 可 cycle-accurate 追踪每个 stream 在芯片上的精确位置</li>
+        <li>结果：ResNet-50 单 batch <strong>20,400 img/s</strong>，延迟 <strong>&lt;49μs</strong></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 2. 论文与开源资源 ==================== -->
+<section id="resources">
+  <h2>2. 核心论文与开源资源 <span class="tag">Papers &amp; Open Source</span></h2>
+
+  <p>Groq 的技术路线通过两篇 ISCA 论文公开发表：2020 年的 TSP 基础架构论文（"Think Fast: A Tensor Streaming Processor for Accelerating Deep Learning Workloads"）首次阐述了功能切片和确定性调度的核心理念；2022 年的多处理器扩展论文（"A Software-Defined Tensor Streaming Multiprocessor for Large-Scale Machine Learning"）进一步描述了如何通过 Dragonfly 拓扑和软件定义网络将数千个 TSP 组织为单一逻辑计算核心，该论文获得了 ISCA 2022 的会议奖项。在软件层面，Groq 开源了 GroqFlow 编译工具流（基于 MLIR 前端 + Haskell 后端的双层架构），支持将 PyTorch/TensorFlow 模型自动编译为 GroqChip 上可执行的指令序列。</p>
+
+  <p>特别需要指出的是，<strong style="color:var(--accent-green-dark);">Groq 并未开放任何硬件 RTL 代码</strong>（Verilog/VHDL/Chisel），其芯片设计全部为 proprietary 性质。对于希望学习或复现类似架构的研究者而言，最可行的路径是基于开源 systolic array 项目（如 svkocherla/systolic_array 或 vbachh43/Transformer_Accelerator_Based_on_FPGA）结合 ISCA 论文中描述的调度原理，构建一个功能简化但架构理念一致的参考实现。社区项目 LPU-sims 提供了一个基于 Python 的 LPU 推断估算原型，可以作为理解 TSP 调度行为的起点。</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Category</th><th>Resource</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td>📄 Paper</td><td>ISCA 2020 — Think Fast: A TSP</td><td>功能切片架构、确定性调度、streaming 数据流</td></tr>
+        <tr><td>📄 Paper</td><td>ISCA 2022 — SW-defined TSP Multiprocessor</td><td>Multi-TSP Dragonfly 互联（Award-winning）</td></tr>
+        <tr><td>📄 Paper</td><td>ITHERM 2024 — Microjet Cooling</td><td>直接片上微喷散热方案</td></tr>
+        <tr><td>🔧 Official</td><td><a href="https://github.com/groq/groqflow">GroqFlow</a></td><td>ML workload → GroqChip 编译工具流</td></tr>
+        <tr><td>🔧 Official</td><td><a href="https://github.com/groq/groq-python">groq-python</a></td><td>官方 Python API SDK</td></tr>
+        <tr><td>🔧 Community</td><td><a href="https://github.com/tastynoob/LPU-sims">LPU-sims</a></td><td>Python LPU 推断估算原型</td></tr>
+        <tr><td>🔧 Community</td><td><a href="https://github.com/svkocherla/systolic_array">systolic_array</a></td><td>Verilog 参数化 4×4 systolic array</td></tr>
+        <tr><td>🔧 Community</td><td><a href="https://github.com/vbachh43/Transformer_Accelerator_Based_on_FPGA">FPGA Transformer</a></td><td>16×16 systolic array + PYNQ Vivado 项目</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>关键技术演讲与关键人物</h3>
+    <div class="sub">Key contributors</div>
+    <ul>
+      <li><strong>Satnam Singh</strong> (Groq Fellow) — Haskell DSL 硬件设计语言 + temporal logic 形式化验证</li>
+      <li><strong>Andrew Ling</strong> — ML Compiler 负责人，MLIR 前端架构设计</li>
+      <li><strong>Igor Arsovski</strong> — Chief Architect（前 Google TPU / IBM 架构师）</li>
+      <li><strong>Oskar Mencer</strong> — 自定义数值格式（TruePoint Numerics）</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ==================== 3. 编译器设计 ==================== -->
+<section id="compiler">
+  <h2>3. 编译器设计分析 <span class="tag">Compiler Stack</span></h2>
+
+  <p>Groq 的编译器是其技术栈中最为关键、技术含量最高的部分，承担了传统 CPU/GPU 中由硬件完成的所有动态调度工作。编译器采用 <strong>MLIR 前端 + Haskell 后端</strong> 的两层架构：前端负责将 PyTorch/TensorFlow 等框架的模型计算图转换为 MLIR（Multi-Level Intermediate Representation）中间表示，并在此阶段进行算子融合、内存分配等高级优化；后端则使用 Haskell 语言编写的领域特定语言（DSL）进行 cycle-accurate 的指令调度和资源分配。后端需要同时管理 144 个独立指令队列的发射时序、320 条 SIMD lane 上 64 个逻辑 stream 的 East-West 路由路径，以及片间 Dragonfly 拓扑中数千个 TSP 之间的数据传输调度。</p>
+
+  <p>在数值精度管理方面，Groq 提出了 <strong>TruePoint Numerics</strong> 技术：编译器根据每个算子的精度敏感性自动选择最优的数值格式——Attention logits 使用 FP32 保证精度，MoE 权重使用 Block Floating Point 平衡效率与精度，激活层使用 FP8 最大化吞吐。所有中间累加结果使用 100-bit 定点格式保证无损累加，最终输出再截断到目标精度。编译器还集成了形式化验证（temporal logic + model checking）来确保调度结果正确性。</p>
+
+  <div class="diagram-box">
+    <div class="label">图 2: Groq 编译器的分层架构与数据流</div>
+    <svg viewBox="0 0 560 230" role="img" aria-label="Groq compiler stack diagram" style="max-width:560px;">
+      <rect x="160" y="10" width="240" height="38" rx="6" fill="#1E88E5"/><text x="280" y="34" fill="#fff" font-size="13" font-weight="700" text-anchor="middle">PyTorch / TensorFlow Model</text>
+      <line x1="280" y1="48" x2="280" y2="62" stroke="#D1D5DB" stroke-width="2"/>
+      <rect x="160" y="63" width="240" height="38" rx="6" fill="#43A047"/><text x="280" y="87" fill="#fff" font-size="13" font-weight="700" text-anchor="middle">MLIR Frontend</text>
+      <line x1="280" y1="101" x2="280" y2="115" stroke="#D1D5DB" stroke-width="2"/>
+      <rect x="160" y="116" width="240" height="38" rx="6" fill="#8E24AA"/><text x="280" y="140" fill="#fff" font-size="13" font-weight="700" text-anchor="middle">Haskell DSL Backend</text>
+      <line x1="280" y1="154" x2="280" y2="168" stroke="#D1D5DB" stroke-width="2"/>
+      <rect x="160" y="169" width="240" height="38" rx="6" fill="#00897B"/><text x="280" y="193" fill="#fff" font-size="13" font-weight="700" text-anchor="middle">GroqChip Instruction Stream</text>
+      <text x="15" y="140" fill="#9CA3AF" font-size="10">Static scheduling · 144 queues · 320 lanes</text>
+      <text x="15" y="188" fill="#9CA3AF" font-size="10">Formal verification · Temporal logic</text>
+    </svg>
+    <div class="xml-toggle" onclick="this.nextElementSibling.classList.toggle('show')">📐 Show editable mxGraphModel XML</div>
+    <div class="xml-source">
+      <div class="code-block" style="margin:0;font-size:0.7rem;"><span class="comment">&lt;!-- mxGraphModel for Fig 2: Compiler Stack --&gt;</span>
+&lt;mxGraphModel&gt;
+  &lt;root&gt;
+    &lt;mxCell id="0"/&gt;&lt;mxCell id="1" parent="0"/&gt;
+    &lt;mxCell id="l1" value="PyTorch / TF" style="rounded=1;fillColor=#1E88E5;fontColor=#FFFFFF;" vertex="1"&gt;
+      &lt;mxGeometry x="160" y="10" width="240" height="38"/&gt;&lt;/mxCell&gt;
+    &lt;mxCell id="l2" value="MLIR Frontend" style="rounded=1;fillColor=#43A047;fontColor=#FFFFFF;" vertex="1"&gt;
+      &lt;mxGeometry x="160" y="63" width="240" height="38"/&gt;&lt;/mxCell&gt;
+    &lt;mxCell id="l3" value="Haskell DSL Backend" style="rounded=1;fillColor=#8E24AA;fontColor=#FFFFFF;" vertex="1"&gt;
+      &lt;mxGeometry x="160" y="116" width="240" height="38"/&gt;&lt;/mxCell&gt;
+    &lt;mxCell id="l4" value="GroqChip Instr" style="rounded=1;fillColor=#00897B;fontColor=#FFFFFF;" vertex="1"&gt;
+      &lt;mxGeometry x="160" y="169" width="240" height="38"/&gt;&lt;/mxCell&gt;
+  &lt;/root&gt;
+&lt;/mxGraphModel&gt;</div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 4. 3天执行计划 ==================== -->
+<section id="plan">
+  <h2>4. 三天执行计划 <span class="tag">Execution Plan</span></h2>
+
+  <p>以下计划基于"<strong>理解 Groq 设计理念 + 复用开源 systolic array + 聚焦 Transformer 算子</strong>"的核心原则制定。整体思路是从开源 Verilog systolic array 项目出发（其功能对应 TSP 中的 MXM matrix slice），逐步构建一个功能简化但架构理念一致的 mini Groq-like 原型系统。三天分别聚焦硬件基础（Day 1）、编译器原型（Day 2）和系统集成与验证（Day 3），每天产出可独立验证的交付物，最终目标是在模拟器上跑通一个简化版 Transformer 的 Attention 算子。</p>
+
+  <p>鉴于 Groq 的许多技术细节（如 Haskell DSL 的具体实现、144 指令队列的精确仲裁逻辑、TruePoint 100-bit 累加器硬件实现等）属于 proprietary 信息，本计划中的实现方案将采用"<strong>功能等价替代</strong>"原则——即用开源社区已有的成熟组件（如 standard systolic array + PyTorch + Verilator 仿真）构建一个可运行的参考系统，重点验证确定性调度和 streaming dataflow 这两个核心理念。</p>
+
+  <div class="day-card">
+    <div class="day-num" style="background:#1E88E5;">D1</div>
+    <div class="day-body">
+      <h3>架构学习 + RTL 设计</h3>
+      <div class="sub">8-10 h · 交付物: rtl/pe.v, rtl/systolic_array.v, rtl/tb_systolic_array.v</div>
+      <p>上午精读 ISCA 2020 和 2022 两篇核心论文，建立对 TSP 功能切片架构和确定性调度原理的完整理解。下午基于 svkocherla/systolic_array 等开源项目实现参数化 PE（Processing Element）模块和可配置 N×N systolic array（N=4/8/16），采用 weight-stationary 数据流。使用 Verilator 完成仿真验证，并集成 AXI4-Stream 接口方便后续与 CPU 侧通信。</p>
+      <div class="day-tags">
+        <span>ISCA 2020</span><span>ISCA 2022</span><span>Verilator</span><span>svkocherla</span><span>AXI4-Stream</span><span>weight-stationary</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="day-card">
+    <div class="day-num" style="background:#F4511E;">D2</div>
+    <div class="day-body">
+      <h3>编译器原型开发</h3>
+      <div class="sub">8-10 h · 交付物: compiler/scheduler.py, compiler/dsl.py, compiler/test_matmul.py</div>
+      <p>上午安装 GroqFlow（<code>pip install groqflow</code>）并理解其 MLIR → Haskell 的编译流程和数据表示方式。下午在 Python 中实现一个轻量级静态指令调度器（cycle-accurate 资源分配，跟踪每个数据 stream 在 systolic array 中的位置），并设计一个简易 DSL 用于描述 load→compute→store 三阶段 pipeline。将编译生成的指令序列通过 Verilator 加载到 Day 1 的 RTL 模型上运行并验证正确性。</p>
+      <div class="day-tags">
+        <span>GroqFlow</span><span>MLIR</span><span>Python DSL</span><span>static scheduler</span><span>Verilator cosim</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="day-card">
+    <div class="day-num" style="background:#8E24AA;">D3</div>
+    <div class="day-body">
+      <h3>系统集成 + Transformer 算子验证</h3>
+      <div class="sub">8-10 h · 交付物: transformer/attention.sched, demo/run_demo.sh</div>
+      <p>上午完成 RTL + 编译器 + Python 软件栈的系统级联调，确保端到端链路通畅。下午将 Attention 算子的核心计算步骤（Q×K^T MatMul → Softmax → Score×V MatMul）逐一映射到 systolic array 上，实现完整的计算图调度。在一个小型 Transformer 模型（约 4K 参数，1 层，8 个 head，64 dim）上跑通完整推理流程，对比仿真延迟与 Groq 官方公布的性能基线，分析系统瓶颈。</p>
+      <div class="day-tags">
+        <span>Attention mapping</span><span>MatMul systolic</span><span>Softmax VXM</span><span>performance analysis</span><span>demo script</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 5. 参考资料 ==================== -->
+<section id="refs">
+  <h2>5. 参考资料 <span class="tag">References</span></h2>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>📄 学术论文</h3>
+      <ul>
+        <li>ISCA 2020: "Think Fast: A TSP" — DOI: 10.1109/ISCA45697.2020.00023</li>
+        <li>ISCA 2022: "SW-defined TSP Multiprocessor" — DOI: 10.1145/3470496.3527405</li>
+        <li>ITHERM 2024: Microjet Cooling for Groq LPU</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>🔧 开源项目</h3>
+      <ul>
+        <li><a href="https://github.com/groq/groqflow">GroqFlow</a> — 官方编译工具流</li>
+        <li><a href="https://github.com/tastynoob/LPU-sims">LPU-sims</a> — Python LPU 仿真原型</li>
+        <li><a href="https://github.com/vbachh43/Transformer_Accelerator_Based_on_FPGA">FPGA Transformer Accelerator</a></li>
+        <li><a href="https://github.com/svkocherla/systolic_array">systolic_array</a> — Verilog 参数化 SA</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>📝 中文分析文章</h3>
+      <ul>
+        <li>EET China: 深度拆解 Groq LPU 架构</li>
+        <li>36Kr: 揭开 Groq LPU 神秘面纱</li>
+        <li>BAAI: Groq LPU 架构详解</li>
+        <li>FPGA 脉动阵列设计实践指南</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>🎤 关键人物</h3>
+      <ul>
+        <li>Satnam Singh — Haskell DSL + 形式化验证</li>
+        <li>Andrew Ling — ML Compiler 负责人</li>
+        <li>Igor Arsovski — Chief Architect（前 TPU/IBM）</li>
+        <li>Oskar Mencer — TruePoint Numerics</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="code-block" style="margin-top:2rem;">
+    <span class="comment"># planning.yml — 研究配置摘要</span>
+    <span class="key">topic</span>: <span class="val">"Groq LPU architecture research &amp; 3-day implementation plan"</span>
+    <span class="key">max_iterations</span>: <span class="val">3</span>
+    <span class="key">search_sources</span>:
+      - ieee_xplore
+      - github
+      - web_search
+    <span class="key">status</span>: <span class="val">completed</span>
+  </div>
+</section>
+
+</main>
+</div>
+
+<footer class="footer">
+  <p>Groq LPU Research Report v1.0 · Generated 2026-05-18</p>
+  <p>design_research agent · html_chip_design_spec skill · drawio_chip_diagram skill</p>
+</footer>
+
+<script>
+// Heading anchor links
+document.querySelectorAll('h2[id], h3[id]').forEach(function(h) {
+  var a = document.createElement('a');
+  a.className = 'heading-link';
+  a.href = '#' + h.id;
+  a.innerHTML = '#';
+  h.appendChild(a);
+});
+// Sidebar active tracking
+var sidebarLinks = document.querySelectorAll('.sidebar-nav a');
+window.addEventListener('scroll', function() {
+  var fromTop = window.scrollY + 100;
+  var current = null;
+  document.querySelectorAll('section[id]').forEach(function(s) {
+    if (s.offsetTop <= fromTop) current = s.id;
+  });
+  sidebarLinks.forEach(function(a) {
+    a.classList.toggle('active', a.getAttribute('href') === '#' + current);
+  });
+});
+</script>
+
+</body>
+</html>

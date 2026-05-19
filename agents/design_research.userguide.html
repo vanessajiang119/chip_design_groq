@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Design Research Agent — User Guide</title>
+<style>
+:root {
+  --bg-primary: #FFFFFF;
+  --bg-secondary: #F6F8FA;
+  --bg-tertiary: #F0F2F5;
+  --bg-hover: #EAECEF;
+  --text-primary: #1A1A1A;
+  --text-secondary: #4B5563;
+  --text-muted: #9CA3AF;
+  --accent-green: #76B900;
+  --accent-green-hover: #89C700;
+  --accent-green-dark: #3B5C00;
+  --border: #E5E7EB;
+  --border-strong: #D1D5DB;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+  --accent-blue: #1E88E5;
+  --accent-green-soft: #43A047;
+  --accent-orange: #F4511E;
+  --accent-purple: #8E24AA;
+  --accent-teal: #00897B;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC', Helvetica, Arial, sans-serif;
+  font-size: 16px; line-height: 1.7; color: var(--text-primary); background: var(--bg-primary);
+}
+header {
+  position: sticky; top: 0; z-index: 100;
+  background: var(--bg-primary); border-bottom: 1px solid var(--border); height: 56px;
+  display: flex; align-items: center; padding: 0 24px;
+}
+header .logo { font-weight: 700; font-size: 1rem; color: var(--text-primary); display: flex; align-items: center; gap: 8px; }
+header .logo-mark { display: inline-block; width: 20px; height: 20px; background: var(--accent-green); border-radius: 4px; }
+header .breadcrumb { margin-left: 16px; font-size: 0.85rem; color: var(--text-secondary); }
+header .breadcrumb span { color: var(--text-muted); margin: 0 6px; }
+header nav { margin-left: auto; display: flex; gap: 1.5rem; }
+header nav a { color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; }
+header nav a:hover { color: var(--accent-green); }
+.container { max-width: 880px; margin: 0 auto; padding: 3rem 2rem; }
+h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 0.5rem; text-align: center; }
+.subtitle { font-size: 1rem; color: var(--text-secondary); text-align: center; margin-bottom: 2rem; }
+h2 {
+  font-size: 1.5rem; font-weight: 600; color: var(--text-primary);
+  border-top: 1px solid var(--border); padding-top: 2rem; margin-top: 3rem; margin-bottom: 1rem;
+}
+h3 { font-size: 1.2rem; font-weight: 600; margin-top: 1.5rem; margin-bottom: 0.75rem; }
+p { margin-bottom: 1.25rem; }
+.badge {
+  display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 600; margin: 2px;
+}
+.badge-blue { background: rgba(30,136,229,0.12); color: var(--accent-blue); }
+.badge-green { background: rgba(67,160,71,0.12); color: var(--accent-green-soft); }
+.badge-orange { background: rgba(244,81,30,0.12); color: var(--accent-orange); }
+.badge-purple { background: rgba(142,36,170,0.12); color: var(--accent-purple); }
+.badge-teal { background: rgba(0,137,123,0.12); color: var(--accent-teal); }
+.badges { text-align: center; margin-bottom: 3rem; }
+/* Step cards */
+.step-card {
+  display: flex; gap: 1rem; align-items: flex-start;
+  background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px;
+  padding: 1.5rem; margin-bottom: 1rem; box-shadow: var(--shadow-sm);
+}
+.step-num {
+  flex-shrink: 0; width: 40px; height: 40px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 1.1rem; color: #fff;
+}
+.step-content h3 { font-size: 1.1rem; margin-top: 0; margin-bottom: 0.5rem; }
+.step-content p { margin-bottom: 0; font-size: 0.95rem; color: var(--text-secondary); }
+/* Code */
+pre, .code-block {
+  background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 6px;
+  padding: 1rem; font-family: 'SFMono-Regular', 'SF Mono', 'Fira Code', 'Hack', Consolas, monospace;
+  font-size: 0.85rem; overflow-x: auto; margin: 1rem 0;
+}
+code { font-family: 'SFMono-Regular', 'SF Mono', 'Fira Code', 'Hack', Consolas, monospace; font-size: 0.85em; }
+/* Tables */
+table { width: 100%; border-collapse: collapse; margin: 1rem 0 2rem; font-size: 0.9rem; }
+th {
+  border-bottom: 2px solid var(--border-strong);
+  font-size: 0.75rem; font-weight: 600; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.03em; padding: 10px 14px; text-align: left;
+}
+td { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+tr:nth-child(even) td { background: var(--bg-secondary); }
+/* Cards */
+.card {
+  background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px;
+  padding: 1.5rem; box-shadow: var(--shadow-sm); margin-bottom: 1.5rem;
+}
+.card .card-title { font-weight: 600; font-size: 1rem; margin-bottom: 0.75rem; }
+.card .sub { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem; }
+/* Tip box */
+.tip-box {
+  background: #F0FCE8; border: 1px solid var(--accent-green); border-radius: 8px;
+  padding: 1rem 1.25rem; margin: 1.5rem 0;
+}
+.tip-box strong { color: var(--accent-green-dark); }
+/* Grid */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin: 1.5rem 0; }
+/* Diagram */
+.diagram-box {
+  border: 1px solid var(--border); border-radius: 8px; margin: 1.5rem 0; overflow: hidden;
+  background: var(--bg-primary); box-shadow: var(--shadow-sm);
+}
+.diagram-box .label { font-size: 0.8rem; color: var(--text-muted); padding: 8px 16px; background: var(--bg-secondary); border-bottom: 1px solid var(--border); }
+.diagram-box svg { display: block; width: 100%; height: auto; }
+@media (max-width: 768px) {
+  .container { padding: 1.5rem 1rem; }
+  .grid-2 { grid-template-columns: 1fr; }
+  .step-card { flex-direction: column; }
+  header nav { display: none; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><span class="logo-mark"></span> Design Research Agent</div>
+  <div class="breadcrumb">Agent <span>/</span> User Guide</div>
+  <nav>
+    <a href="#intro">Introduction</a>
+    <a href="#quickstart">Quick Start</a>
+    <a href="#workflow">Workflow</a>
+    <a href="#examples">Examples</a>
+    <a href="#config">Configuration</a>
+  </nav>
+</header>
+
+<div class="container">
+  <h1>Design Research Agent<br>用户使用指南</h1>
+  <p class="subtitle">面向芯片设计工程师的多轮迭代研究助手 — 提交课题，自动完成搜索、分析和报告生成</p>
+  <div class="badges">
+    <span class="badge badge-blue">design_research</span>
+    <span class="badge badge-green">v2.0</span>
+    <span class="badge badge-orange">4 Sub-Agents</span>
+    <span class="badge badge-purple">Multi-Round</span>
+    <span class="badge badge-teal">HTML Report</span>
+  </div>
+
+  <section id="intro">
+    <h2>1. 简介</h2>
+    <p>Design Research Agent 是一个专为 <strong>半导体芯片设计</strong> 领域打造的专业研究 Agent。它采用 <strong>Orchestrator + 4 Sub-Agent</strong> 架构，能够自动完成从课题理解、多源搜索、信息分析到最终报告输出的全流程研究工作。无论你是在进行 <strong>DFT 方案选型</strong>、<strong>3D-IC 架构调研</strong>、<strong>AI Accelerator 竞品分析</strong> 还是 <strong>EDA 工具链评估</strong>，只需提供一个研究课题，Agent 就能在多次迭代搜索和分析后，输出一份结构完整、图文并茂的 HTML 研究报告。</p>
+    <p>与普通的搜索引擎或通用 LLM 问答不同，Design Research Agent 采用了 <strong>四阶段多轮迭代收敛</strong> 的研究方法：planning（规划）→ research（搜索）→ working（分析）→ workingresult（输出），research 和 working 之间可循环多轮。每一轮研究都会基于上一轮的分析结果提出更深入的搜索方向，形成"搜索→阅读→思考→再搜索"的类人研究循环。最终报告使用 html_chip_design_spec 技能以 NVIDIA 白色主题风格生成，每节都配有专业的 draw.io 芯片架构图。</p>
+    <div class="tip-box">
+      <strong>适用场景：</strong> 芯片方案技术选型 · 竞品功能对比分析 · EDA 工具评估 · 标准规范梳理 · 架构方案可行性研究 · 论文/专利调研
+    </div>
+  </section>
+
+  <section id="quickstart">
+    <h2>2. 快速开始</h2>
+    <p>使用 Design Research Agent 只需要提供一个研究课题，即可自动启动完整的研究流程。</p>
+
+    <div class="step-card">
+      <div class="step-num" style="background:#1E88E5;">1</div>
+      <div class="step-content">
+        <h3>提交研究需求</h3>
+        <p>在 Claude Code 中输入你的研究课题。例如：<em>"研究 3D-IC 设计中 DFT 方案的业界最佳实践，包括测试架构、EDA 工具支持和 IEEE 标准进展"</em>。Agent 会自动创建 <code>1.planning/</code> 等目录。</p>
+      </div>
+    </div>
+
+    <div class="step-card">
+      <div class="step-num" style="background:#43A047;">2</div>
+      <div class="step-content">
+        <h3>Agent 自动规划</h3>
+        <p><strong>planning</strong> 子 Agent 分析需求，生成 <code>planning.yml</code>（迭代控制配置，默认最多 5 轮）和搜索策略，推荐首轮搜索 URL 列表。</p>
+      </div>
+    </div>
+
+    <div class="step-card">
+      <div class="step-num" style="background:#F4511E;">3</div>
+      <div class="step-content">
+        <h3>自动研究与分析迭代</h3>
+        <p><strong>research</strong> 子 Agent 到多源采集数据 → <strong>working</strong> 子 Agent 分析并决定是否继续。如需要更多信息，自动进入下一轮迭代，搜索新方向。</p>
+      </div>
+    </div>
+
+    <div class="step-card">
+      <div class="step-num" style="background:#8E24AA;">4</div>
+      <div class="step-content">
+        <h3>审查中间结果（可选）</h3>
+        <p>每轮 working 输出的分析报告可供用户审查。如果研究方向偏移，可在此时提供新的搜索方向建议，Agent 会在下一轮迭代中采纳。</p>
+      </div>
+    </div>
+
+    <div class="step-card">
+      <div class="step-num" style="background:#00897B;">5</div>
+      <div class="step-content">
+        <h3>接收最终报告</h3>
+        <p><strong>workingresult</strong> 子 Agent 生成最终 HTML 报告 + .drawio 图文件。研究完成后在 <code>4.result/</code> 目录下获取，可直接用于团队分享或设计评审。</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="workflow">
+    <h2>3. 使用流程</h2>
+    <p>下面的流程图展示了 Design Research Agent 的完整使用流程，从提交课题到最终输出报告的五个主要步骤。整个过程高度自动化：用户只需在步骤 1 提交课题、步骤 4 选择性审查，其余步骤由 Agent 自主完成。</p>
+
+    <div class="diagram-box">
+      <div class="label">User Workflow — 5-Step Research Process</div>
+      <svg viewBox="0 0 800 200" xmlns="http://www.w3.org/2000/svg">
+        <style>
+          .step { rx: 8; ry: 8; }
+          .step-text { fill: #fff; font-size: 11px; text-anchor: middle; font-family: -apple-system,sans-serif; }
+          .step-title { font-weight: bold; font-size: 12px; }
+          .arrow { stroke: #94A3B8; stroke-width: 2; }
+        </style>
+        <rect x="20" y="50" width="120" height="70" rx="8" class="step" fill="#1E88E5"/>
+        <text x="80" y="78" text-anchor="middle" class="step-text step-title">1. Submit Topic</text>
+        <text x="80" y="95" text-anchor="middle" class="step-text">提交研究课题</text>
+
+        <rect x="180" y="50" width="120" height="70" rx="8" class="step" fill="#43A047"/>
+        <text x="240" y="78" text-anchor="middle" class="step-text step-title">2. Agent Plans</text>
+        <text x="240" y="95" text-anchor="middle" class="step-text">生成规划配置</text>
+
+        <rect x="340" y="50" width="120" height="70" rx="8" class="step" fill="#F4511E"/>
+        <text x="400" y="78" text-anchor="middle" class="step-text step-title">3. Auto Research</text>
+        <text x="400" y="95" text-anchor="middle" class="step-text">多轮迭代搜索</text>
+
+        <rect x="500" y="50" width="120" height="70" rx="8" class="step" fill="#8E24AA"/>
+        <text x="560" y="78" text-anchor="middle" class="step-text step-title">4. Review</text>
+        <text x="560" y="95" text-anchor="middle" class="step-text">审查中间结果</text>
+
+        <rect x="660" y="50" width="120" height="70" rx="8" class="step" fill="#00897B"/>
+        <text x="720" y="78" text-anchor="middle" class="step-text step-title">5. Final Report</text>
+        <text x="720" y="95" text-anchor="middle" class="step-text">HTML + 图表</text>
+
+        <line x1="140" y1="85" x2="180" y2="85" class="arrow"/>
+        <polygon points="175,80 185,85 175,90" fill="#94A3B8"/>
+        <line x1="300" y1="85" x2="340" y2="85" class="arrow"/>
+        <polygon points="335,80 345,85 335,90" fill="#94A3B8"/>
+        <line x1="460" y1="85" x2="500" y2="85" class="arrow"/>
+        <polygon points="495,80 505,85 495,90" fill="#94A3B8"/>
+        <line x1="620" y1="85" x2="660" y2="85" class="arrow"/>
+        <polygon points="655,80 665,85 655,90" fill="#94A3B8"/>
+      </svg>
+    </div>
+  </section>
+
+  <section id="examples">
+    <h2>4. 使用示例</h2>
+
+    <div class="card">
+      <div class="card-title">示例 1: DFT 方案调研</div>
+      <p class="sub">输入示例</p>
+      <div class="code-block" style="margin:0.5rem 0;">
+<span style="color:#6B7280;font-style:italic;"># 用户输入</span>
+研究 Tessent MBIST 和第三方 MBIST 方案的对比，
+重点关注：
+- 测试时间与测试覆盖率
+- IEEE 1687 (IJTAG) 集成难度
+- 良率诊断能力
+- 对 3D-IC 的支持程度</div>
+      <p class="sub" style="margin-top:1rem;">预期输出</p>
+      <p style="color:var(--text-secondary);font-size:0.95rem;">Agent 会生成一份包含 MBIST 架构对比图、JTAG 访问机制图、良率诊断流程图的 HTML 研究报告，每项对比维度都附有详细的技术分析和参考来源。</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">示例 2: AI Accelerator 架构调研</div>
+      <p class="sub">输入示例</p>
+      <div class="code-block" style="margin:0.5rem 0;">
+<span style="color:#6B7280;font-style:italic;"># 用户输入</span>
+调研最新发布的 AI Training/Inference chip 的
+architecture，包括：
+- NVLink 互连架构演进
+- 存算一体架构趋势
+- Chiplet 封装方案对比
+- 各家功耗效率数据
+
+请特别关注 2024-2026 年的最新发布</div>
+      <p class="sub" style="margin-top:1rem;">预期输出</p>
+      <p style="color:var(--text-secondary);font-size:0.95rem;">Agent 会输出包含多代架构对比时间线、chiplet 互连方案框图、功耗效率散点图的 HTML 报告，并在参考文献中列出相关 ISSCC/Hot Chips 论文。</p>
+    </div>
+  </section>
+
+  <section id="config">
+    <h2>5. 配置说明</h2>
+    <p>Design Research Agent 的核心配置通过 <code>planning.yml</code> 文件控制。该文件由 planning 子 Agent 在规划阶段生成，用户可以在生成后审查和修改，以影响后续研究的方向和深度。默认配置支持最多 <strong>5 轮</strong> 迭代，搜索来源包括 IEEE Xplore、GitHub、Web 搜索和厂商文档。</p>
+
+    <table>
+      <tr><th>配置项</th><th>类型</th><th>默认值</th><th>说明</th></tr>
+      <tr><td><code>topic</code></td><td>string</td><td>—</td><td>研究课题描述，由用户输入</td></tr>
+      <tr><td><code>max_iterations</code></td><td>int</td><td>5</td><td>最大研究迭代轮次（1-10）</td></tr>
+      <tr><td><code>search_sources</code></td><td>array</td><td>[ieee, github, web]</td><td>数据来源列表，可增删</td></tr>
+      <tr><td><code>first_round_urls</code></td><td>array</td><td>[]</td><td>首轮搜索种子地址</td></tr>
+    </table>
+
+    <div class="code-block">
+<span style="color:#6B7280;font-style:italic;"># 自定义配置示例 — 减少迭代并增加搜索来源</span>
+<span style="color:#7C3AED;font-weight:bold;">topic</span>: <span style="color:#059669;">"GDDR7 vs HBM4 接口标准对比"</span>
+<span style="color:#7C3AED;font-weight:bold;">max_iterations</span>: <span style="color:#2563EB;">3</span>
+<span style="color:#7C3AED;font-weight:bold;">search_sources</span>:
+  - ieee_xplore
+  - github
+  - web_search
+<span style="color:#7C3AED;font-weight:bold;">first_round_urls</span>:
+  - https://ieeexplore.ieee.org/search/gddr7
+  - https://github.com/topics/hbm-controller</div>
+
+    <div class="tip-box">
+      <strong>建议：</strong> 对于范围明确、资料集中的课题，可以将 max_iterations 设为 3；对于探索性、跨领域的研究课题，建议使用 5-8 轮以获得更全面的分析。
+    </div>
+  </section>
+
+  <section id="best-practice">
+    <h2>6. 最佳实践</h2>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">✅ 推荐做法</div>
+        <ul style="padding-left:1.2rem;font-size:0.9rem;">
+          <li>明确指定研究范围和关注重点</li>
+          <li>提供具体的关注维度（性能/面积/功耗/成本）</li>
+          <li>在 Agent 请求审查时及时反馈调整方向</li>
+          <li>对输出报告中的 draw.io 图进行二次编辑优化</li>
+          <li>将高价值的研究报告存档到知识库</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-title">❌ 避免做法</div>
+        <ul style="padding-left:1.2rem;font-size:0.9rem;">
+          <li>提交过于模糊的研究课题（如"研究芯片设计"）</li>
+          <li>期望 Agent 访问付费/墙后内容（需手动提供 PDF）</li>
+          <li>同时在多个线程中启动多个 research agent</li>
+          <li>在迭代过程中频繁修改 topic 方向</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:1.5rem;">
+      <div class="card-title">研究质量提升技巧</div>
+      <p style="color:var(--text-secondary);font-size:0.95rem;">通过以下几个简单技巧可以显著提升 Design Research Agent 的研究质量：首先，在提交课题时附上 1-2 篇相关的参考文献或背景资料，可以帮助 Agent 更准确地理解研究语境和术语。其次，如果对某些搜索来源有特别偏好或排除需求，在输入中明确说明（例如"优先参考 IEEE 论文和 JEDEC 标准，排除商业博客文章"）。最后，在 Agent 完成 2-3 轮迭代后主动审查中间分析报告，此时如果发现遗漏的重要方向，可以及时引导 Agent 调整搜索策略。</p>
+      <p style="color:var(--text-secondary);font-size:0.95rem;">交互式调整（在迭代过程中给 Agent 反馈）比一次性提供完整需求能获得更高质量的研究输出。这是因为随着研究的深入，用户自己对问题的理解也会不断深化，二者形成正向循环。</p>
+    </div>
+
+    <div class="tip-box">
+      <strong>子 Agent 架构：</strong> Design Research Agent v2.0 由 4 个独立子 Agent 组成 — <strong>planning</strong>（规划）、<strong>research</strong>（研究）、<strong>working</strong>（分析）、<strong>workingresult</strong>（输出）。配置文件位于 <code>agents/config/</code> 目录，各子 Agent 可独立维护和升级。
+    </div>
+  </section>
+
+  <section style="border-top:1px solid var(--border);padding-top:2rem;margin-top:2rem;">
+    <p style="text-align:center;color:var(--text-muted);font-size:0.85rem;">Design Research Agent — User Guide v2.0 | Generated by html_chip_design_spec skill | 2026-05-18</p>
+  </section>
+</div>
+
+</body>
+</html>

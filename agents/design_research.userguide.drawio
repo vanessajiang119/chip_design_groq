@@ -1,0 +1,43 @@
+<mxfile>
+  <diagram name="User Workflow" id="uw">
+    <mxGraphModel dx="1000" dy="600" grid="1" guides="1">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="t" value="Design Research Agent — User Workflow" style="text;html=1;fontSize=16;fontStyle=1;align=center;verticalAlign=top;" vertex="1" parent="1" connectable="0">
+          <mxGeometry x="0" y="0" width="800" height="40"/>
+        </mxCell>
+        <mxCell id="s1" value="1. Submit Topic&#10;芯片设计研究方向" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1E88E5;fontColor=#FFFFFF;strokeColor=#1565C0;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="30" y="90" width="140" height="60"/>
+        </mxCell>
+        <mxCell id="s2" value="2. Agent Plans&#10;生成planning.yml" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#43A047;fontColor=#FFFFFF;strokeColor=#2E7D32;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="230" y="90" width="140" height="60"/>
+        </mxCell>
+        <mxCell id="s3" value="3. Auto Research&#10;多轮迭代搜索分析" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F4511E;fontColor=#FFFFFF;strokeColor=#BF360C;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="430" y="90" width="140" height="60"/>
+        </mxCell>
+        <mxCell id="s4" value="4. Review&#10;用户审查中间结果" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#8E24AA;fontColor=#FFFFFF;strokeColor=#6A1B9A;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="630" y="90" width="140" height="60"/>
+        </mxCell>
+        <mxCell id="s5" value="5. Final Report&#10;HTML + Diagrams" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#00897B;fontColor=#FFFFFF;strokeColor=#00695C;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="330" y="210" width="140" height="60"/>
+        </mxCell>
+        <mxCell id="ar1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#1E88E5;strokeWidth=2;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="s1" target="s2">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ar2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#43A047;strokeWidth=2;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="s2" target="s3">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ar3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#F4511E;strokeWidth=2;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="s3" target="s4">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ar4" value="confirm" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#8E24AA;strokeWidth=2;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="s4" target="s5">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="note1" value="Directory structure:&#10;1.planning/  2.research/&#10;3.working/  4.result/" style="shape=note;whiteSpace=wrap;html=1;fillColor=#FFF9C4;strokeColor=#F9A825;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="600" y="210" width="180" height="60"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

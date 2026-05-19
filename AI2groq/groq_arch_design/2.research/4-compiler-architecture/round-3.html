@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Round 3: 内存布局优化、GroqFlow 源码分析与架构对比</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; color: #333; background: #f8f9fa; line-height: 1.6; padding: 20px; }
+  .container { max-width: 1000px; margin: 0 auto; background: #fff; padding: 32px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  h1 { font-size: 24px; color: #1a1a2e; margin: 20px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #76b900; }
+  h2 { font-size: 20px; color: #1a1a2e; margin: 18px 0 10px; padding-bottom: 6px; border-bottom: 1px solid #e0e0e0; }
+  h3 { font-size: 17px; color: #0f3460; margin: 16px 0 8px; }
+  h4 { font-size: 14px; color: #555; margin: 12px 0 6px; }
+  p { margin: 8px 0; color: #444; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  th { background: #1a1a2e; color: white; padding: 8px 12px; text-align: left; font-weight: 600; }
+  td { padding: 7px 12px; border-bottom: 1px solid #e8e8e8; }
+  tr:nth-child(even) { background: #f9f9fb; }
+  tr:hover { background: #f0f7f0; }
+  pre { background: #1a1a2e; color: #e0e0e0; padding: 14px; border-radius: 6px; overflow-x: auto; font-size: 13px; margin: 10px 0; }
+  code { font-family: 'SF Mono', Monaco, 'Andale Mono', monospace; }
+  p > code, li > code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 13px; color: #cc3333; }
+  ul, ol { margin: 8px 0 8px 24px; color: #444; }
+  li { margin: 4px 0; }
+  blockquote { border-left: 4px solid #76b900; padding: 10px 16px; margin: 12px 0; background: #f8ffec; color: #555; }
+  hr { border: none; border-top: 1px solid #e0e0e0; margin: 20px 0; }
+  a { color: #0f3460; text-decoration: none; }
+  a:hover { color: #76b900; text-decoration: underline; }
+  .header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); color: white; padding: 24px 32px; border-radius: 8px 8px 0 0; margin-bottom: 0; }
+  .header h1 { color: white; border: none; margin: 0; padding: 0; font-size: 22px; }
+  .header .meta { font-size: 12px; color: #8899aa; margin-top: 4px; }
+  .nav-path { font-size: 12px; color: #76b900; margin-bottom: 16px; }
+  .footer { text-align: center; padding: 20px 0; color: #888; font-size: 12px; border-top: 1px solid #e0e0e0; margin-top: 20px; }
+</style>
+</head>
+<body>
+<div class="container">
+<div class="header"><h1>Round 3: 内存布局优化、GroqFlow 源码分析与架构对比</h1><div class="meta">2.research/4-compiler-architecture/round-3.md</div></div>
+<div class="nav-path">&larr; <a href="../4.result/3_groq_arch_design_summary_v1.html">Back to Architecture Report</a></div>
+<h1>Round 3: 内存布局优化、GroqFlow 源码分析与架构对比</h1>
+<h2>Memory Layout, GroqFlow Source Analysis & Architecture Comparison</h2>
+<p><strong>Created:</strong> 20260519-1020  </p>
+<p><strong>Author:</strong> Groq Compiler Architecture Expert  </p>
+<p><strong>Status:</strong> Complete</p>
+<hr>
+<h2>1. 编译器驱动的内存布局 / Compiler-Driven Memory Layout</h2>
+<h3>1.1 TSP 内存层次</h3>
+<pre><code>Register-level: Streaming Registers (SR)
+    ↓ 64 streams/lane (32E + 32W), 32 bytes/stream
+    ↓ 编译器管理所有 stream 的生命周期
+Memory-level: 全局共享 SRAM, 220 MB
+    ↓ 无缓存层次，无 TLB
+    ↓ 编译器决定所有数据的物理地址
+Tiling-level: 重量/激活 Tile, 每个 320×320
+    ↓ 矩阵乘法专用的 systolic array buffer
+    ↓ 所有 4 个 weight tile 可在 40 周期内加载</code></pre>
+<h3>1.2 编译器内存管理的关键挑战</h3>
+<h4>挑战 1: Stream 寄存器分配</h4>
+<p>每个通道只有 64 个流 (stream) 寄存器，而 ML 计算图中中间张量可能超过 64 个。编译器必须：</p>
+<pre><code>流分配算法 (推测):
+  1. 构建张量 liveness 区间
+  2. 图着色分配 stream 寄存器
+  3. 超出 64 时插入 spill/reload 到 SRAM
+  4. 优化 spill 位置以最小化延迟
+
+与 CPU register allocation 的对比:
+  CPU:      寄存器数量 ~16-32, 编译器用图着色
+  Groq TSP: stream 寄存器 64/通道, 同样用图着色
+             但 spill 到 SRAM 的开销已知且确定</code></pre>
+<h4>挑战 2: SRAM Bank 冲突避免</h4>
+<p>TSP 的 SRAM 被组织为多 bank 结构。由于无硬件 bank 冲突解决机制，编译器必须静态避免冲突：</p>
+<pre><code>Bank Conflict 场景:
+  同一周期内, 两个 stream 访问同 bank 的不同地址 ⇒ 延迟增加
+  
+编译器对策:
+  1. 分析访问模式 (stride, pattern)
+  2. 调整数据排列 (padding, transposing)
+  3. 交错调度访问 (时间上错开冲突访问)</code></pre>
+<h4>挑战 3: 张量平铺 (Tensor Tiling)</h4>
+<p>对于大矩阵乘法（如 transformer 的 QKV），矩阵必须分块存入 SRAM：</p>
+<pre><code>Tiling 策略:
+  1. 确定 tile 大小: 适配 MXM 的 systolic array (320×320)
+  2. 确定 tile 顺序: 行主序 vs 列主序
+  3. 计算 tile 间依赖: 部分和传递
+  4. 调度 tile 加载: 双缓冲隐藏加载延迟
+  
+编译器生成 "tiling loop nest" 的静态展开版本:
+  for (int i = 0; i &lt; M; i += Ti)
+    for (int j = 0; j &lt; N; j += Tj)
+      for (int k = 0; k &lt; K; k += Tk)
+        // 全部展开为静态指令序列</code></pre>
+<h3>1.3 FP16 与 INT8 量化支持</h3>
+<p>GroqFlow 在 Stage 4 执行 FP16 转换，同时可选 int8 量化：</p>
+<pre><code>FP16 转换:
+  - GroqFlow 自动将 FP32 权重转为 FP16
+  - 精度通常在 1% 以内
+  
+INT8 量化:
+  - 需要校准数据 (quantization_samples)
+  - 后训练量化 (PTQ), 不需要 QAT
+  - 编译器处理 scale/zero-point 的 stream 传输</code></pre>
+<hr>
+<h2>2. GroqFlow 源码结构分析</h2>
+<h3>2.1 仓库概况</h3>
+<table>
+  <thead><tr><th>属性</th><th>值</th></tr></thead>
+  <tbody>
+    <tr><td>仓库</td><td>https://github.com/groq/groqflow</td></tr>
+    <tr><td>语言</td><td>100% Python</td></tr>
+    <tr><td>许可证</td><td>MIT</td></tr>
+    <tr><td>Stars</td><td>~109</td></tr>
+    <tr><td>状态</td><td>2025 年 7 月 31 日归档 (只读)</td></tr>
+  </tbody></table>
+<h3>2.2 关键源码模块分析</h3>
+<h4><code>groqflow/__init__.py</code> — 入口</h4>
+<pre><code># 核心导出
+from groqflow.groqflow import groqit
+from groqflow.groqflow import list_builds, delete_build, GroqModel</code></pre>
+<h4><code>groqflow/common/build.py</code> — Build 配置</h4>
+<p>这个模块定义了 GroqFlow 的核心数据类型：</p>
+<pre><code># 拓扑常量
+DRAGONFLY = "DRAGONFLY"       # 蜻蜓拓扑：适用于跨多芯片的 all-to-all 通信
+ROTATIONAL = "ROTATIONAL"      # 旋转拓扑：适用于流水线并行
+
+# BuildConfig 类
+# - num_chips: int (默认自动检测)
+# - topology: str (DRAGONFLY/ROTATIONAL)
+# - rebuild: str (if_needed/always/never)
+# - compiler_flags: list[str]
+# - assembler_flags: list[str]</code></pre>
+<h4><code>groqflow/stages/</code> — Stage 实现</h4>
+<p>每个 stage 继承自基础 <code>Stage</code> 类，提供 <code>run()</code> 接口：</p>
+<pre><code>Stage 基类:
+  - run()       : 执行 stage
+  - check()     : 检查是否可跳过 (缓存命中)
+  - get_cache() : 返回缓存路径</code></pre>
+<p>具体 stage：</p>
+<ul>
+<li><code>onnx_convert</code> 使用 torch.onnx.export 将模型转为 ONNX</li>
+<li><code>onnx_optimize</code> 使用 onnxruntime 工具优化图</li>
+<li><code>op_check</code> 调用 Groq 内部 API 做算子合规检查</li>
+<li><code>compile</code> 调用 <code>groq-compiler</code> 二进制（闭源 MLIR 前端）</li>
+<li><code>assemble</code> 调用 <code>groq-assembler</code> 二进制（闭源 Haskell 后端）</li>
+<h4><code>groqflow/models/</code> — 模型封装</h4>
+</ul>
+<p><code>GroqModel</code> 封装了编译后的程序：</p>
+<pre><code>class GroqModel:
+    def run(self, *inputs):           # 单次推理
+    def run_abunch(self, *inputs):    # 批量推理 (自动 batching)
+    def estimate_performance(self):   # 预估性能 (延迟、吞吐量)
+    def groqview(self):               # 可视化编译结果
+    def netron(self):                 # Netron 模型图查看</code></pre>
+<h3>2.3 对闭源层的分析</h3>
+<p>GroqFlow 开源的部分止步于 <strong>调用闭源二进制</strong>。<code>compile</code> 和 <code>assemble</code> 两个 stage 只是 shell out 到 GroqWare Suite 中的工具：</p>
+<pre><code>groqit() 
+  → groqflow/stages/compile.py::run()
+    → subprocess.run(["groq-compiler", ...])   # 闭源
+  → groqflow/stages/assemble.py::run()
+    → subprocess.run(["groq-assembler", ...])  # 闭源</code></pre>
+<p>这意味着：</p>
+<ul>
+<li>MLIR 前端使用的 Groq Dialect 定义不在开源仓库中</li>
+<li>Haskell 后端的调度器完全闭源</li>
+<li>汇编器输出的 IOP 二进制格式也闭源</li>
+<hr>
+<h2>3. 架构对比 / Architecture Comparison</h2>
+<h3>3.1 Groq vs GPU (NVIDIA CUDA) 编译器对比</h3>
+<table>
+  <thead><tr><th>维度</th><th>Groq TSP</th><th>NVIDIA GPU (CUDA)</th></tr></thead>
+  <tbody>
+    <tr><td><strong>调度时机</strong></td><td>全部静态 (编译时)</td><td>动态调度 (硬件 warp scheduler)</td></tr>
+    <tr><td><strong>编译器类型</strong></td><td>全静态调度编译器</td><td>JIT 编译 + 动态发射</td></tr>
+    <tr><td><strong>内存模型</strong></td><td>无缓存，编译器分配 SRAM</td><td>复杂缓存层次 + 程序员控制 shared mem</td></tr>
+    <tr><td><strong>并行模型</strong></td><td>144 队列 × 确定性</td><td>SM × warp × 动态线程调度</td></tr>
+    <tr><td><strong>确定性</strong></td><td>相同输入 = 相同周期数</td><td>不确定 (硬件调度波动)</td></tr>
+    <tr><td><strong>延迟可预测性</strong></td><td>精确到 cycle</td><td>统计性</td></tr>
+    <tr><td><strong>编程语言</strong></td><td>Python (GroqFlow) → MLIR → Haskell</td><td>CUDA C++ → PTX → SASS</td></tr>
+    <tr><td><strong>编译器难度</strong></td><td>调度器极其复杂 (NP-hard)</td><td>常规优化 + JIT</td></tr>
+    <tr><td><strong>调试/Profiling</strong></td><td>GroqView (可视化 trace)</td><td>Nsight, nvprof</td></tr>
+  </tbody></table>
+<h3>3.2 Groq vs Cerebras vs SambaNova</h3>
+<table>
+  <thead><tr><th>维度</th><th>Groq</th><th>Cerebras</th><th>SambaNova</th></tr></thead>
+  <tbody>
+    <tr><td><strong>编译器方法</strong></td><td>全静态调度</td><td>图编译器 + 数据并行</td><td>可重构数据流</td></tr>
+    <tr><td><strong>硬件范式</strong></td><td>功能切片 (functional slices)</td><td>晶圆级大规模 2D 阵列</td><td>可重构数据流单元 (RDU)</td></tr>
+    <tr><td><strong>确定性</strong></td><td>是，完全确定</td><td>部分</td><td>是 (数据流图)</td></tr>
+    <tr><td><strong>调度复杂性</strong></td><td>144 队列需 ILP 求解</td><td>图分区 + 映射到 PE</td><td>数据流编译器</td></tr>
+    <tr><td><strong>框架支持</strong></td><td>PyTorch, TF, ONNX</td><td>PyTorch, TF</td><td>PyTorch, TF, ONNX</td></tr>
+    <tr><td><strong>生态成熟度</strong></td><td>较新，闭源工具链</td><td>较成熟</td><td>较成熟</td></tr>
+  </tbody></table>
+<h3>3.3 Groq vs FPGA</h3>
+</ul>
+<p>Groq TSP 可被视作一种 <strong>粗粒度可重构架构</strong>：</p>
+<table>
+  <thead><tr><th>维度</th><th>Groq TSP</th><th>FPGA</th></tr></thead>
+  <tbody>
+    <tr><td><strong>粒度</strong></td><td>功能列 (MXM, VXM 等)</td><td>LUT + DSP + BRAM</td></tr>
+    <tr><td><strong>编程模型</strong></td><td>ML 框架 → MLIR → Haskell</td><td>Verilog/VHDL → HLS</td></tr>
+    <tr><td><strong>重构时机</strong></td><td>静态 (固定硬件)</td><td>可重配置比特流</td></tr>
+    <tr><td><strong>抽象层次</strong></td><td>高 (ML 算子级)</td><td>低 (RTL 级)</td></tr>
+    <tr><td><strong>确定性</strong></td><td>完全确定</td><td>取决于设计</td></tr>
+    <tr><td><strong>编译器复杂度</strong></td><td>极其复杂的调度器</td><td>逻辑综合 + 布局布线</td></tr>
+  </tbody></table>
+<hr>
+<h2>4. 关键洞察与未来方向</h2>
+<h3>4.1 Groq 编译器架构的成败关键</h3>
+<p><strong>成功因素:</strong></p>
+<ol>
+<li>确定性哲学从硬件到编译器的一致性 — 简化了所有层的设计</li>
+<li>功能切片的设计天然匹配 ML 计算图 (典型 ML 模型 = 矩阵乘法 + 向量操作 + 激活)</li>
+<li>Haskell 的类型安全性在调度这种高复杂度问题上具有优势</li>
+</ol>
+<p><strong>风险因素:</strong></p>
+<ol>
+<li>静态调度对不规则计算（控制流密集的任务）效率低下</li>
+<li>编译时间随模型大小超线性增长（ILP 求解的复杂度）</li>
+<li>工具链闭源导致社区生态发展受限</li>
+<li>人才招聘困难（同时精通 Haskell、编译器、硬件的工程师极其稀缺）</li>
+<h3>4.2 技术演进方向</h3>
+<li><strong>MLIR 更深度整合</strong>: 随着 MLIR 社区的 CIRCT、TOSA、StableHLO 等项目的成熟，Groq 可以在 MLIR 层做更多优化</li>
+<li><strong>动态编译探索</strong>: 对于某些动态 shape 的场景，可能引入轻量级 JIT 编译</li>
+<li><strong>精度自适应</strong>: 编译器自动选择 FP16/BF16/int8 的混合精度策略</li>
+<li><strong>自动化图分区</strong>: 跨多芯片的编译器自动并行更加智能化</li>
+<hr>
+</ol>
+<p><strong>完成研究阶段。下一个阶段: Phase 3 — Layer 2 深度展开分析</strong></p>
+<div class="footer">Groq Architecture Research &bull; Generated 2026-05-19</div>
+</div>
+</body>
+</html>

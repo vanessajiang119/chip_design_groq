@@ -1,0 +1,56 @@
+# TSP 微架构深度分析 — Research Plan
+# 创建时间: 2026-05-19
+
+topic: "Groq TSP Microarchitecture Deep Dive — 5 Functional Slices"
+max_iterations: 3
+recursive_depth: 2
+
+modules:
+  - id: "1-icu"
+    name: "ICU — Instruction Control Unit"
+    priority: P0
+    search_terms:
+      - "Groq TSP instruction control unit design"
+      - "Groq TSP instruction queue architecture 144"
+      - "Groq TSP VLIW instruction format"
+      - "Groq TSP fetch decode pipeline"
+      - "Groq deterministic scheduling hardware"
+
+  - id: "2-mem"
+    name: "MEM — Memory Slice"
+    priority: P0
+    search_terms:
+      - "Groq TSP memory slice SRAM tile"
+      - "Groq TSP 230MB SRAM organization"
+      - "Groq memory bandwidth 80TBps architecture"
+      - "Groq TSP cache-less memory hierarchy"
+      - "Groq MEM functional slice details"
+
+  - id: "3-vxm"
+    name: "VXM — Vector Execution Module"
+    priority: P0
+    search_terms:
+      - "Groq TSP vector execution module SIMD"
+      - "Groq TSP 320 lanes SIMD vector unit"
+      - "Groq VXM vector instructions"
+      - "Groq TSP vector register file"
+      - "Groq TSP VXM datapath"
+
+  - id: "4-mxm"
+    name: "MXM — Matrix Execution Module"
+    priority: P0
+    search_terms:
+      - "Groq TSP matrix execution module systolic array"
+      - "Groq MXM systolic array dimensions"
+      - "Groq TSP matrix multiply architecture"
+      - "Groq TSP wavefront dataflow"
+      - "Groq MXM weight stationary"
+
+  - id: "5-sxm"
+    name: "SXM — Shift Execution Module"
+    priority: P0
+    search_terms:
+      - "Groq TSP shift execution module"
+      - "Groq TSP permute rotate operations"
+      - "Groq SXM crossbar interconnect"
+      - "Groq TSP SXM shuffle datapath"

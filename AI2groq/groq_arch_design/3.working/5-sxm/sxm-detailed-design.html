@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SXM — 移位执行模块详细设计分析</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; color: #333; background: #f8f9fa; line-height: 1.6; padding: 20px; }
+  .container { max-width: 1000px; margin: 0 auto; background: #fff; padding: 32px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  h1 { font-size: 24px; color: #1a1a2e; margin: 20px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #76b900; }
+  h2 { font-size: 20px; color: #1a1a2e; margin: 18px 0 10px; padding-bottom: 6px; border-bottom: 1px solid #e0e0e0; }
+  h3 { font-size: 17px; color: #0f3460; margin: 16px 0 8px; }
+  h4 { font-size: 14px; color: #555; margin: 12px 0 6px; }
+  p { margin: 8px 0; color: #444; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  th { background: #1a1a2e; color: white; padding: 8px 12px; text-align: left; font-weight: 600; }
+  td { padding: 7px 12px; border-bottom: 1px solid #e8e8e8; }
+  tr:nth-child(even) { background: #f9f9fb; }
+  tr:hover { background: #f0f7f0; }
+  pre { background: #1a1a2e; color: #e0e0e0; padding: 14px; border-radius: 6px; overflow-x: auto; font-size: 13px; margin: 10px 0; }
+  code { font-family: 'SF Mono', Monaco, 'Andale Mono', monospace; }
+  p > code, li > code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 13px; color: #cc3333; }
+  ul, ol { margin: 8px 0 8px 24px; color: #444; }
+  li { margin: 4px 0; }
+  blockquote { border-left: 4px solid #76b900; padding: 10px 16px; margin: 12px 0; background: #f8ffec; color: #555; }
+  hr { border: none; border-top: 1px solid #e0e0e0; margin: 20px 0; }
+  a { color: #0f3460; text-decoration: none; }
+  a:hover { color: #76b900; text-decoration: underline; }
+  .header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); color: white; padding: 24px 32px; border-radius: 8px 8px 0 0; margin-bottom: 0; }
+  .header h1 { color: white; border: none; margin: 0; padding: 0; font-size: 22px; }
+  .header .meta { font-size: 12px; color: #8899aa; margin-top: 4px; }
+  .nav-path { font-size: 12px; color: #76b900; margin-bottom: 16px; }
+  .footer { text-align: center; padding: 20px 0; color: #888; font-size: 12px; border-top: 1px solid #e0e0e0; margin-top: 20px; }
+</style>
+</head>
+<body>
+<div class="container">
+<div class="header"><h1>SXM — 移位执行模块详细设计分析</h1><div class="meta">3.working/5-sxm/sxm-detailed-design.md</div></div>
+<div class="nav-path">&larr; <a href="../4.result/3_groq_arch_design_summary_v1.html">Back to Architecture Report</a></div>
+<h1>SXM — 移位执行模块详细设计分析</h1>
+<h1>SXM — Shift/Switch Execution Module Detailed Design Analysis</h1>
+<blockquote>创建时间: 2026-05-19T1730</blockquote>
+<blockquote>分析层级: Layer 2 (微架构深度展开)</blockquote>
+<hr>
+<h2>1. 概述 (Overview)</h2>
+<p>SXM (Switch Execution Module) 是 Groq TSP 的数据移动与形状变换引擎。根据 Groq 专利 US20240037064A1，SXM 实现为 <strong>lane switching slice</strong>，可以将数据从任意数据通道路由到任意其他数据通道。SXM 承担了传统芯片中 crossbar、shuffle network、permuter 和部分网络接口的功能。</p>
+<h3>命名变体 (Naming)</h3>
+<table>
+  <thead><tr><th>来源</th><th>名称</th><th>强调功能</th></tr></thead>
+  <tbody>
+    <tr><td>ISCA 2020</td><td>SXM</td><td>Switch Execution Module</td></tr>
+    <tr><td>Groq 专利</td><td>NET / Lane Switching Slice</td><td>网络/通道切换</td></tr>
+    <tr><td>部分分析</td><td>SXM</td><td>Shift Execution Module</td></tr>
+    <tr><td>功能描述</td><td>Permute/Shuffle</td><td>排列/重排</td></tr>
+  </tbody></table>
+<h3>架构位置</h3>
+<pre><code>每个 Super Lane 包含 2 个 SXM:
+  MXM → SXM → MEM → VXM → MEM → SXM → MXM
+          ↑                     ↑
+        SXM_L                 SXM_R
+
+SXM 作为 MEM 和计算单元 (MXM/VXM) 之间的数据路由枢纽</code></pre>
+<hr>
+<h2>2. 功能集 (Function Set)</h2>
+<h3>核心功能</h3>
+<table>
+  <thead><tr><th>功能</th><th>操作</th><th>描述</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Shift</strong></td><td>移位</td><td>向量元素左移/右移，移出位丢弃，空缺填 0</td></tr>
+    <tr><td><strong>Rotate</strong></td><td>旋转</td><td>循环移位，移出位补到另一侧</td></tr>
+    <tr><td><strong>Permute</strong></td><td>排列</td><td>Lane 间任意元素重排</td></tr>
+    <tr><td><strong>Broadcast</strong></td><td>广播</td><td>将单 lane 数据复制到所有/部分 lanes</td></tr>
+    <tr><td><strong>Gather</strong></td><td>收集</td><td>从多个 lane 收集数据到目标 lane</td></tr>
+    <tr><td><strong>Scatter</strong></td><td>散播</td><td>将一个 lane 的数据分发到多个 lane</td></tr>
+    <tr><td><strong>Transpose</strong></td><td>转置</td><td>矩阵转置的 lane 级实现</td></tr>
+    <tr><td><strong>Interleave</strong></td><td>交错</td><td>多数据流的交错合并</td></tr>
+    <tr><td><strong>Select</strong></td><td>选择</td><td>按 mask 选择特定 lanes</td></tr>
+    <tr><td><strong>Pack/Unpack</strong></td><td>打包/解包</td><td>数据格式重组</td></tr>
+  </tbody></table>
+<h3>SXM 数据流角色</h3>
+<pre><code>典型神经网络中的 SXM 应用:
+
+Attention 层:
+  MEM(Q) → SXM(路由/重排) → MXM(Q×Kᵀ) → SXM(转置) → VXM(Softmax)
+  MEM(K) → SXM(路由/重排) ↗               SXM(重排) → MXM(×V)
+  MEM(V) → SXM(路由) ────────────────────────────── ↗
+  MXM(out) → SXM(重排) → MEM(写回)
+
+全连接层:
+  MEM(weights) → SXM(广播) → MXM(矩阵乘) → SXM(收集) → MEM(写回)</code></pre>
+<hr>
+<h2>3. Crossbar 实现 (Crossbar Implementation)</h2>
+<h3>1D Tiled Crossbar 架构</h3>
+<p>基于专利描述，SXM 的 crossbar 实现推测如下:</p>
+<pre><code>SXM Crossbar (20 lanes × 32 bytes/lane):
+                    输出 Lanes
+         ┌──────────────────────────────────────────┐
+         │ Lane 0  Lane 1  Lane 2  ...  Lane 19     │
+         │  ┌─┐    ┌─┐    ┌─┐          ┌─┐         │
+ 输入    │  │ │    │ │    │ │          │ │         │
+ Lane 0 ─┼─┤ ├───►│ │    │ │    ...   │ │         │
+         │  │ │    │ │    │ │          │ │         │
+ Lane 1 ─┼─┤ ├────┤ ├───►│ │    ...   │ │         │
+         │  │ │    │ │    │ │          │ │         │
+ Lane 2 ─┼─┤ ├────┤ ├────┤ ├───►...  │ │         │
+         │  │ │    │ │    │ │          │ │         │
+   ...   │  ...    ...    ...          ...         │
+         │  │ │    │ │    │ │          │ │         │
+Lane 19 ─┼─┤ ├────┤ ├────┤ ├───►...  │ │         │
+         │  └─┘    └─┘    └─┘          └─┘         │
+         └──────────────────────────────────────────┘
+         
+         虚线: 可编程连接 (编译器配置)</code></pre>
+<h3>Crossbar 参数</h3>
+<table>
+  <thead><tr><th>参数</th><th>数值</th></tr></thead>
+  <tbody>
+    <tr><td>输入通道</td><td>320 (20 SL × 16 lanes)</td></tr>
+    <tr><td>输出通道</td><td>320</td></tr>
+    <tr><td>每通道宽度</td><td>32 bytes</td></tr>
+    <tr><td>总 crossbar 宽度</td><td>10,240 bytes (320×32)</td></tr>
+    <tr><td>实现方式</td><td>1D tiled crossbar 或 permuter circuit</td></tr>
+    <tr><td>路由</td><td>编译器静态预配置</td></tr>
+    <tr><td>延迟</td><td>1-2 cycles (推测)</td></tr>
+  </tbody></table>
+<h3>Tiled Crossbar vs 全 Crossbar</h3>
+<table>
+  <thead><tr><th>特性</th><th>全 Crossbar</th><th>Tiled Crossbar (SXM)</th></tr></thead>
+  <tbody>
+    <tr><td>复杂度</td><td>O(N²)</td><td>O(N × tile_size)</td></tr>
+    <tr><td>面积 (N=320)</td><td>~1M 连接点</td><td>~20K 连接点 (tile=16)</td></tr>
+    <tr><td>延迟</td><td>~1 cycle</td><td>~1-2 cycles</td></tr>
+    <tr><td>灵活性</td><td>任意排列</td><td>块内任意, 块间有限</td></tr>
+  </tbody></table>
+<p>实际 SXM 可能实现为混合结构:</p>
+<ul>
+<li>16-lane block 内: 全 crossbar (任意排列)</li>
+<li>Block 间: 固定/有限模式</li>
+<hr>
+<h2>4. Permute 操作详解 (Permute Operations)</h2>
+<h3>基本排列模式</h3>
+<pre><code>1) 恒定移位 (Constant Shift):
+   Input:   [A0, A1, A2, ..., A15]
+   Shift 3: [0,  0,  0,  A0, ..., A12]
+   
+2) 旋转 (Rotate):
+   Input:   [A0, A1, A2, ..., A15]
+   Rot 3:   [A13, A14, A15, A0, A1, A2]
+   
+3) 反向 (Reverse):
+   Input:   [A0, A1, A2, ..., A15]
+   Reverse: [A15, A14, A13, ..., A0]
+   
+4) 广播 (Broadcast):
+   Input:   [A0, A1, A2, ..., A15]
+   Bcast 0: [A0, A0, A0, ..., A0]
+   
+5) 交错 (Interleave):
+   Input A: [A0, A1, A2, ..., A7]
+   Input B: [B0, B1, B2, ..., B7]
+   Interleave: [A0, B0, A1, B1, ..., A7, B7]</code></pre>
+<h3>编译器预配置</h3>
+</ul>
+<p>SXM 的 permute 模式在编译时确定:</p>
+<pre><code>// 伪代码: 编译器配置 SXM
+sxm_config_t config;
+config.lane_map[0] = 3;    // Lane 0 输出从 Lane 3 输入
+config.lane_map[1] = 7;    // Lane 1 输出从 Lane 7 输入
+...
+config.broadcast_enable = 0;
+config.rotate_amount = 0;
+
+// 在程序执行前配置 SXM
+SXM_configure(&amp;config, stream_id);</code></pre>
+<h3>延迟分析</h3>
+<table>
+  <thead><tr><th>操作</th><th>估计延迟 (cycles)</th></tr></thead>
+  <tbody>
+    <tr><td>简单移位</td><td>1</td></tr>
+    <tr><td>Lane 内旋转</td><td>1</td></tr>
+    <tr><td>Lane 间排列 (block 内)</td><td>1</td></tr>
+    <tr><td>Lane 间排列 (block 间)</td><td>1-2</td></tr>
+    <tr><td>广播</td><td>1</td></tr>
+    <tr><td>收集/散播</td><td>1-2</td></tr>
+    <tr><td>全 crossbar</td><td>2</td></tr>
+  </tbody></table>
+<hr>
+<h2>5. 与其他模块的交互 (Inter-module Interaction)</h2>
+<h3>数据流连接</h3>
+<pre><code>SXM 的输入/输出连接:
+
+西侧连接:
+  ← 从西侧 MXM/MEM 接收数据
+  → 向西侧 MXM/MEM 发送数据
+
+东侧连接:
+  ← 从东侧 MXM/MEM 接收数据  
+  → 向东侧 MXM/MEM 发送数据
+
+垂直连接 (C2C/PCIe):
+  ↑ 向上连接到更高 SL 的 SXM
+  ↓ 向下连接到更低 SL 的 SXM
+  
+片外连接:
+  C2C (Chip-to-Chip): 多 TSP 间直连
+  PCIe: 主机通信</code></pre>
+<h3>C2C (Chip-to-Chip) 接口</h3>
+<p>SXM 承担片间通信功能:</p>
+<pre><code>TSP 0                     TSP 1
+┌─────────────────┐      ┌─────────────────┐
+│ ...              │      │              ...│
+│ SXM ──C2C Link──┼──────┼── SXM          │
+│ ...              │      │              ...│
+└─────────────────┘      └─────────────────┘
+
+C2C 特性:
+  - 高带宽片间互联 (推测: 数百 GB/s)
+  - 编译器静态调度通信
+  - 无自适应路由 — 通信模式在编译时已知
+  - DESKEW 指令同步多 TSP</code></pre>
+<hr>
+<h2>6. 典型操作序列 (Typical Operation Sequences)</h2>
+<h3>Sequence 1: 矩阵乘前数据准备</h3>
+<pre><code>操作: 将 MEM 中的数据路由到 MXM 进行矩阵乘
+
+SXM 操作序列:
+1. MEM_L → SXM_L: 读取权重数据
+2. SXM_L: Permute 排列 (将数据排布为 MXM 所需格式)
+3. SXM_L → MXM_L: 将排列后的权重传入 MXM 的权重寄存器
+4. MEM_R → SXM_R: 读取激活值数据
+5. SXM_R → MXM_R: 将激活值传入 MXM
+
+编译器调度:
+  权重加载 &lt; 40 cycles
+  激活值流持续输入</code></pre>
+<h3>Sequence 2: Attention 中的 Softmax 重排</h3>
+<pre><code>操作: Attention score 矩阵的转置 + Softmax
+
+SXM 操作序列:
+1. MXM_L → SXM_L: 接收 Q×Kᵀ 结果
+2. SXM_L: Transpose (矩阵转置)
+3. SXM_L → VXM: 将转置结果传入 VXM
+4. VXM: 执行 Softmax
+5. VXM → SXM_R: 将 attention 权重传入 SXM_R
+6. SXM_R → MXM_R: 将 attention 权重传入 MXM_R × V</code></pre>
+<h3>Sequence 3: 跨 lane 归约</h3>
+<pre><code>操作: 跨 16 lanes 求和归约
+
+SXM 操作序列:
+1. MEM → SXM: 16 lanes 的数据
+2. SXM: Tree Reduction
+   - Level 1: Lane 0+1, 2+3, ..., 14+15 → 8 个部分和
+   - Level 2: 8 → 4 个部分和
+   - Level 3: 4 → 2 个部分和
+   - Level 4: 2 → 1 个最终结果
+3. SXM → MEM: 归约结果写回</code></pre>
+<hr>
+<h2>7. 面积与功耗 (Area & Power)</h2>
+<h3>SXM 面积分解 (推测)</h3>
+<table>
+  <thead><tr><th>子模块</th><th>单个 SXM</th><th>全芯片 (40 SXM)</th></tr></thead>
+  <tbody>
+    <tr><td>Crossbar 网络 (320×32B)</td><td>~4 mm²</td><td>~160 mm²</td></tr>
+    <tr><td>Permuter 逻辑</td><td>~1 mm²</td><td>~40 mm²</td></tr>
+    <tr><td>缓冲/流水线寄存器</td><td>~1 mm²</td><td>~40 mm²</td></tr>
+    <tr><td>C2C/PCIe 接口</td><td>~2 mm²</td><td>~80 mm²</td></tr>
+    <tr><td>控制/配置逻辑</td><td>~0.5 mm²</td><td>~20 mm²</td></tr>
+    <tr><td><strong>SXM 总计</strong></td><td><strong>~8.5 mm²</strong></td><td><strong>~340 mm²</strong></td></tr>
+  </tbody></table>
+<p>注: 实际面积可能更小，因为 crossbar 分为多个 tiled 结构。</p>
+<h3>面积优化</h3>
+<p>Tiled crossbar 显著减少面积:</p>
+<pre><code>全 crossbar 面积: O(N²) = O(320²) ≈ 102,400 交叉点
+Tiled crossbar: O(N × k) = O(320 × 16) ≈ 5,120 交叉点 (每 tile)
+20 tiles × 5,120 ≈ 102,400 — 实际上不会采用全连接
+
+更合理:
+  16×16 tile 内部: 256 交叉点
+  20 tiles: 5,120 交叉点
+  每 tile 32 bytes: 163,840 位交叉点</code></pre>
+<hr>
+<h2>8. 编程模型视角 (Programming Model View)</h2>
+<h3>编译器视角</h3>
+<p>编译器将 SXM 视为可编程数据路由网络:</p>
+<pre><code>// 伪代码: SXM 操作在编译器 IR 中的表示
+Stream s1 = MEM.read(address_A, east);     // MEM → 东向流
+Stream s2 = SXM.permute(s1, pattern_B);    // SXM 重排
+Stream s3 = MXM.matmul(s2, weights);       // MXM 矩阵乘
+Stream s4 = SXM.broadcast(s3, lane_0);     // SXM 广播
+Stream s5 = VXM.activate(s4, RELU);        // VXM 激活
+MEM.write(s5, address_C, west);            // 写回 MEM</code></pre>
+<h3>Stream 模型</h3>
+<pre><code>每个数据流在 SXM 处可以:
+1. Pass-through: 直接通过，无修改
+2. Permute: 一次性重排
+3. Broadcast: 复制到多个 lanes
+4. Gather: 从多个 lane 收集
+5. Route: 改变方向 (E↔W)
+
+编译器在编译时选择最佳的路由和排列方案</code></pre>
+<hr>
+<h2>9. 关键技术挑战 (Technical Challenges)</h2>
+<h3>物理设计挑战</h3>
+<table>
+  <thead><tr><th>挑战</th><th>描述</th><th>TSP 方案</th></tr></thead>
+  <tbody>
+    <tr><td>布线拥塞</td><td>Crossbar 需要大量互连线</td><td>Tiled 结构减少布线</td></tr>
+    <tr><td>延迟</td><td>大 crossbar 延迟高</td><td>1D tiled + 流水线化</td></tr>
+    <tr><td>面积</td><td>Crossbar 面积 O(N²)</td><td>Tiled 结构 O(N×k)</td></tr>
+    <tr><td>功耗</td><td>长互线高动态功耗</td><td>编译器优化减少切换</td></tr>
+  </tbody></table>
+<h3>编译器挑战</h3>
+<table>
+  <thead><tr><th>挑战</th><th>描述</th><th>解决方案</th></tr></thead>
+  <tbody>
+    <tr><td>路由优化</td><td>最小化数据移动延迟</td><td>静态路由规划</td></tr>
+    <tr><td>排列选择</td><td>从多种排列中选最优</td><td>编译时枚举和评估</td></tr>
+    <tr><td>冲突避免</td><td>避免 SXM 资源冲突</td><td>流水线调度</td></tr>
+    <tr><td>片间通信</td><td>多 TSP 同步</td><td>DESKEW + 静态规划</td></tr>
+  </tbody></table>
+<div class="footer">Groq Architecture Research &bull; Generated 2026-05-19</div>
+</div>
+</body>
+</html>

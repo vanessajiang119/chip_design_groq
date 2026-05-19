@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chip Spec Gen Agent — Detailed Design Specification</title>
+<style>
+:root {
+  --bg-primary: #FFFFFF;
+  --bg-secondary: #F6F8FA;
+  --bg-tertiary: #F0F2F5;
+  --bg-hover: #EAECEF;
+  --text-primary: #1A1A1A;
+  --text-secondary: #4B5563;
+  --text-muted: #9CA3AF;
+  --accent-green: #76B900;
+  --accent-green-hover: #89C700;
+  --accent-green-dark: #3B5C00;
+  --border: #E5E7EB;
+  --border-strong: #D1D5DB;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+  --accent-blue: #1E88E5;
+  --accent-green-soft: #43A047;
+  --accent-orange: #F4511E;
+  --accent-purple: #8E24AA;
+  --accent-teal: #00897B;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC', Helvetica, Arial, sans-serif;
+  font-size: 16px; line-height: 1.7; color: var(--text-primary); background: var(--bg-primary);
+}
+header {
+  position: sticky; top: 0; z-index: 100;
+  background: var(--bg-primary); border-bottom: 1px solid var(--border); height: 56px;
+  display: flex; align-items: center; padding: 0 24px;
+}
+header .logo { font-weight: 700; font-size: 1rem; color: var(--text-primary); display: flex; align-items: center; gap: 8px; }
+header .logo-mark { display: inline-block; width: 20px; height: 20px; background: var(--accent-green); border-radius: 4px; }
+header .breadcrumb { margin-left: 16px; font-size: 0.85rem; color: var(--text-secondary); }
+header .breadcrumb span { color: var(--text-muted); margin: 0 6px; }
+header nav { margin-left: auto; display: flex; gap: 1.5rem; }
+header nav a { color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; }
+header nav a:hover { color: var(--accent-green); }
+.wrapper { display: flex; max-width: 1200px; margin: 0 auto; min-height: calc(100vh - 56px); }
+nav.sidebar {
+  width: 260px; min-width: 260px;
+  background: var(--bg-secondary); border-right: 1px solid var(--border);
+  position: sticky; top: 56px; height: calc(100vh - 56px); overflow-y: auto;
+  padding: 1.5rem 0; font-size: 0.875rem;
+}
+nav.sidebar .section { padding: 0 16px; margin-bottom: 1.5rem; }
+nav.sidebar .section-title {
+  font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em;
+  color: var(--text-muted); margin-bottom: 8px; padding: 0 16px;
+}
+nav.sidebar a {
+  display: block; padding: 6px 16px; color: var(--text-secondary);
+  text-decoration: none; border-radius: 4px; border-left: 3px solid transparent;
+  transition: all 0.15s;
+}
+nav.sidebar a:hover { background: var(--bg-hover); color: var(--text-primary); }
+nav.sidebar a.active { border-left-color: var(--accent-green); color: var(--text-primary); font-weight: 600; background: var(--bg-hover); }
+main { flex: 1; max-width: 880px; padding: 3rem 2rem; }
+main h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 0.5rem; }
+main .meta { font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 2rem; }
+main h2 {
+  font-size: 1.5rem; font-weight: 600; color: var(--text-primary);
+  border-top: 1px solid var(--border); padding-top: 2rem; margin-top: 3rem; margin-bottom: 1rem;
+}
+main h3 { font-size: 1.2rem; font-weight: 600; margin-top: 1.5rem; margin-bottom: 0.75rem; }
+main p { margin-bottom: 1.25rem; }
+main p.muted { color: var(--text-secondary); font-size: 0.875rem; }
+main table { width: 100%; border-collapse: collapse; margin: 1rem 0 2rem; font-size: 0.9rem; }
+main th {
+  border-bottom: 2px solid var(--border-strong);
+  font-size: 0.75rem; font-weight: 600; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.03em; padding: 10px 14px; text-align: left;
+}
+main td { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+main tr:nth-child(even) td { background: var(--bg-secondary); }
+.card {
+  background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px;
+  padding: 1.5rem; box-shadow: var(--shadow-sm); margin-bottom: 1.5rem;
+}
+.card .card-title { font-weight: 600; font-size: 1rem; margin-bottom: 0.75rem; }
+pre, .code-block {
+  background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 6px;
+  padding: 1rem; font-family: 'SFMono-Regular', 'SF Mono', 'Fira Code', 'Hack', Consolas, monospace;
+  font-size: 0.85rem; overflow-x: auto; margin: 1rem 0 2rem;
+}
+code { font-family: 'SFMono-Regular', 'SF Mono', 'Fira Code', 'Hack', Consolas, monospace; font-size: 0.85em; }
+.badge {
+  display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 600; margin: 2px;
+}
+.badge-blue { background: rgba(30,136,229,0.12); color: var(--accent-blue); }
+.badge-green { background: rgba(67,160,71,0.12); color: var(--accent-green-soft); }
+.badge-orange { background: rgba(244,81,30,0.12); color: var(--accent-orange); }
+.badge-purple { background: rgba(142,36,170,0.12); color: var(--accent-purple); }
+.badge-teal { background: rgba(0,137,123,0.12); color: var(--accent-teal); }
+.diagram-box {
+  border: 1px solid var(--border); border-radius: 8px; margin: 1.5rem 0; overflow: hidden;
+  background: var(--bg-primary); box-shadow: var(--shadow-sm);
+}
+.diagram-box .label { font-size: 0.8rem; color: var(--text-muted); padding: 8px 16px; background: var(--bg-secondary); border-bottom: 1px solid var(--border); }
+.diagram-box svg { display: block; width: 100%; height: auto; }
+.diagram-toggle {
+  display: block; width: 100%; padding: 8px 16px;
+  background: var(--bg-secondary); border: none; border-top: 1px solid var(--border);
+  font-size: 0.8rem; color: var(--text-secondary); cursor: pointer; text-align: left;
+}
+.diagram-toggle:hover { background: var(--bg-hover); }
+.diagram-xml { display: none; padding: 1rem; background: var(--bg-tertiary); font-size: 0.75rem; max-height: 300px; overflow: auto; }
+.diagram-xml.open { display: block; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin: 1.5rem 0; }
+@media (max-width: 768px) {
+  nav.sidebar { display: none; }
+  main { padding: 1.5rem 1rem; }
+  .grid-2 { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><span class="logo-mark"></span> Chip Spec Gen Agent</div>
+  <div class="breadcrumb">Agent <span>/</span> Spec</div>
+  <nav>
+    <a href="#overview">Overview</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#subagents">Sub-Agents</a>
+    <a href="#workflow">Workflow</a>
+    <a href="#io">Interfaces</a>
+    <a href="#output">Output</a>
+  </nav>
+</header>
+
+<div class="wrapper">
+  <nav class="sidebar">
+    <div class="section">
+      <div class="section-title">Specification</div>
+      <a href="#overview">1. 系统概览</a>
+      <a href="#architecture">2. 架构设计</a>
+      <a href="#subagents">3. 子 Agent 定义</a>
+      <a href="#subagent-planning">├ planning</a>
+      <a href="#subagent-slice">├ slice</a>
+      <a href="#subagent-working">├ working</a>
+      <a href="#subagent-workingresult">└ workingresult</a>
+      <a href="#workflow">4. 工作流程</a>
+      <a href="#io">5. 接口定义</a>
+      <a href="#output">6. 输出规范</a>
+    </div>
+    <hr style="border:none;border-top:1px solid var(--border);margin:1rem 16px;">
+    <div class="section">
+      <div class="section-title">Related</div>
+      <a href="../chip_spec_gen.userguide.html">User Guide</a>
+    </div>
+  </nav>
+
+  <main>
+    <h1>Chip Spec Gen Agent<br>详细设计规格说明书</h1>
+    <p class="meta">Version 1.0 — Multi-Agent Architecture | 2026-05-18</p>
+
+    <section id="overview">
+      <h2>1. 系统概览</h2>
+      <p>Chip Spec Gen Agent（芯片设计规格生成智能体）是一个面向 <strong>SoC / ASIC / IP</strong> 芯片设计领域的专业文档自动化生成系统。该 Agent 的核心使命是：接收用户提供的芯片设计源材料（如 HLD 文档、技术手册、设计说明、架构图片等），通过 <strong>Planning（规划）→ Slice（切片）→ Working（整理）→ WorkingResult（输出）</strong> 四个阶段的多轮迭代，自动完成从原始材料解析到结构化芯片设计规格文档的完整生成流程。</p>
+      <p>系统采用 <strong>Orchestrator + Sub-Agent</strong> 架构模式，由一个主协调器（chip_spec_gen）和四个专用子 Agent 组成。协调器负责任务分发、状态管理和迭代控制；四个子 Agent 分别对应文档生成流程的四个阶段，形成完整的数据处理流水线。各子 Agent 之间通过标准化的文件系统目录进行数据交换，降低耦合度，支持用户在工作流任意阶段介入审查和调整方向。</p>
+      <p>系统以 <code>1.planning/planning.yml</code> 作为迭代控制中枢，默认支持最多 <strong>3 轮</strong> 内容补全迭代（用户可配置）。每一轮迭代中，slice 子 Agent 从源文档中按章节提取文字、图片、表格等原始材料；working 子 Agent 对切片数据进行分析整理，检查各章节的内容完整性，并决定是否需要进入下一轮 slice 迭代寻找补充材料。当所有章节内容完备或达到最大迭代次数后，workingresult 子 Agent 调用 <code>html_chip_design_spec</code> 和 <code>drawio_chip_diagram</code> 技能生成包含架构图的专业 HTML 芯片规格文档和配套的 .drawio 源文件。</p>
+      <p>该系统方案特别适用于芯片设计领域的技术规格文档整理、设计文档标准化迁移、各阶段设计评审材料准备、专利文档编制等需要从原始设计材料中提取并重构结构化文档的场景，能够显著减少芯片设计工程师在文档规范化方面的手动工作量。系统的多轮迭代补全机制模仿了人类工程师"粗读→提取→组织→查漏补缺"的自然文档撰写过程，确保最终输出文档的完整性和专业性。</p>
+
+      <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin:1.5rem 0;">
+        <span class="badge badge-blue">chip_spec_gen</span>
+        <span class="badge badge-green">v1.0</span>
+        <span class="badge badge-orange">4 Sub-Agents</span>
+        <span class="badge badge-purple">Document-Focused</span>
+        <span class="badge badge-teal">HTML + Draw.io</span>
+      </div>
+    </section>
+
+    <section id="architecture">
+      <h2>2. 架构设计</h2>
+      <p>Chip Spec Gen Agent 采用 <strong>Orchestrator（协调器）+ Sub-Agent（子代理）</strong> 的架构模式。主协调器负责任务分发、生命周期管理和迭代控制逻辑，四个专用子 Agent 各自独立执行一个文档处理环节。子 Agent 之间通过约定的文件系统目录进行数据交换，不直接通信，确保系统的可扩展性和可维护性。</p>
+      <p>架构的核心理念是<strong>单一职责</strong>：每个子 Agent 只关注自己阶段的核心任务，降低耦合度。迭代控制逻辑由 orchestrator 根据 working 子 Agent 输出的完整性评估信号和 planning.yml 中的 <code>max_iterations</code> 参数共同决定。各子 Agent 的配置定义在 <code>agents/config/</code> 目录下，支持独立维护和版本管理。</p>
+
+      <div class="diagram-box">
+        <div class="label">Architecture Overview — Chip Spec Gen Agent Sub-Agent Topology</div>
+        <svg viewBox="0 0 900 280" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#4B5563"/></marker>
+            <marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#76B900"/></marker>
+          </defs>
+          <!-- Background -->
+          <rect x="0" y="0" width="900" height="280" fill="#F6F8FA" rx="8"/>
+
+          <!-- Orchestrator -->
+          <rect x="350" y="20" width="200" height="44" rx="8" fill="#FFFFFF" stroke="#76B900" stroke-width="2"/>
+          <text x="450" y="48" text-anchor="middle" font-size="14" font-weight="700" fill="#1A1A1A">chip_spec_gen</text>
+          <text x="450" y="63" text-anchor="middle" font-size="10" fill="#4B5563">Orchestrator（协调器）</text>
+
+          <!-- Arrows: orchestrator down to sub-agents -->
+          <line x1="370" y1="64" x2="100" y2="110" stroke="#4B5563" stroke-width="1.5" marker-end="url(#arrow)"/>
+          <line x1="430" y1="64" x2="300" y2="110" stroke="#4B5563" stroke-width="1.5" marker-end="url(#arrow)"/>
+          <line x1="470" y1="64" x2="550" y2="110" stroke="#4B5563" stroke-width="1.5" marker-end="url(#arrow)"/>
+          <line x1="530" y1="64" x2="780" y2="110" stroke="#4B5563" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+          <!-- Sub-agent boxes -->
+          <rect x="20" y="110" width="160" height="44" rx="6" fill="#FFFFFF" stroke="#1E88E5" stroke-width="1.5"/>
+          <text x="100" y="137" text-anchor="middle" font-size="13" font-weight="600" fill="#1A1A1A">planning</text>
+          <text x="100" y="150" text-anchor="middle" font-size="9" fill="#4B5563">Phase 1: 规划</text>
+
+          <rect x="220" y="110" width="160" height="44" rx="6" fill="#FFFFFF" stroke="#43A047" stroke-width="1.5"/>
+          <text x="300" y="137" text-anchor="middle" font-size="13" font-weight="600" fill="#1A1A1A">slice</text>
+          <text x="300" y="150" text-anchor="middle" font-size="9" fill="#4B5563">Phase 2: 切片</text>
+
+          <rect x="470" y="110" width="160" height="44" rx="6" fill="#FFFFFF" stroke="#F4511E" stroke-width="1.5"/>
+          <text x="550" y="137" text-anchor="middle" font-size="13" font-weight="600" fill="#1A1A1A">working</text>
+          <text x="550" y="150" text-anchor="middle" font-size="9" fill="#4B5563">Phase 3: 整理</text>
+
+          <rect x="710" y="110" width="160" height="44" rx="6" fill="#FFFFFF" stroke="#8E24AA" stroke-width="1.5"/>
+          <text x="790" y="137" text-anchor="middle" font-size="13" font-weight="600" fill="#1A1A1A">workingresult</text>
+          <text x="790" y="150" text-anchor="middle" font-size="9" fill="#4B5563">Phase 4: 输出</text>
+
+          <!-- Arrows between sub-agents -->
+          <line x1="180" y1="132" x2="220" y2="132" stroke="#4B5563" stroke-width="1.5" marker-end="url(#arrow)"/>
+          <line x1="380" y1="132" x2="470" y2="132" stroke="#4B5563" stroke-width="1.5" marker-end="url(#arrow)"/>
+          <line x1="630" y1="132" x2="710" y2="132" stroke="#4B5563" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+          <!-- Directory labels -->
+          <text x="100" y="180" text-anchor="middle" font-size="9" fill="#9CA3AF">1.planning/</text>
+          <text x="300" y="180" text-anchor="middle" font-size="9" fill="#9CA3AF">2.slice/</text>
+          <text x="550" y="180" text-anchor="middle" font-size="9" fill="#9CA3AF">3.working/</text>
+          <text x="790" y="180" text-anchor="middle" font-size="9" fill="#9CA3AF">4.result/</text>
+
+          <!-- Loop arrow: working back to slice -->
+          <path d="M550,154 Q550,200 300,200 Q250,200 300,160" fill="none" stroke="#F4511E" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arrow)"/>
+          <text x="425" y="214" text-anchor="middle" font-size="9" fill="#F4511E" font-style="italic">迭代补全（缺失内容 → 回 Phase 2）</text>
+
+          <!-- Skills references -->
+          <rect x="20" y="230" width="260" height="36" rx="6" fill="#F0F2F5" stroke="#D1D5DB" stroke-width="1"/>
+          <text x="150" y="253" text-anchor="middle" font-size="10" fill="#4B5563">html_chip_design_spec skill</text>
+          <rect x="620" y="230" width="260" height="36" rx="6" fill="#F0F2F5" stroke="#D1D5DB" stroke-width="1"/>
+          <text x="750" y="253" text-anchor="middle" font-size="10" fill="#4B5563">drawio_chip_diagram skill</text>
+        </svg>
+
+        <button class="diagram-toggle" onclick="this.nextElementSibling.classList.toggle('open')">Show / Hide mxGraphModel XML</button>
+        <pre class="diagram-xml">&lt;mxGraphModel&gt;
+  &lt;root&gt;
+    &lt;mxCell id="0"/&gt;
+    &lt;mxCell id="1" parent="0"/&gt;
+    &lt;mxCell id="2" value="chip_spec_gen&lt;br&gt;Orchestrator" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#76B900;strokeWidth=2;fontSize=13;fontStyle=1" vertex="1" parent="1"&gt;
+      &lt;mxGeometry x="350" y="20" width="200" height="44" as="geometry"/&gt;
+    &lt;/mxCell&gt;
+    &lt;mxCell id="3" value="planning&lt;br&gt;Phase 1: 规划" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#1E88E5;fontSize=12" vertex="1" parent="1"&gt;
+      &lt;mxGeometry x="20" y="110" width="160" height="44" as="geometry"/&gt;
+    &lt;/mxCell&gt;
+    &lt;mxCell id="4" value="slice&lt;br&gt;Phase 2: 切片" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#43A047;fontSize=12" vertex="1" parent="1"&gt;
+      &lt;mxGeometry x="220" y="110" width="160" height="44" as="geometry"/&gt;
+    &lt;/mxCell&gt;
+    &lt;mxCell id="5" value="working&lt;br&gt;Phase 3: 整理" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#F4511E;fontSize=12" vertex="1" parent="1"&gt;
+      &lt;mxGeometry x="470" y="110" width="160" height="44" as="geometry"/&gt;
+    &lt;/mxCell&gt;
+    &lt;mxCell id="6" value="workingresult&lt;br&gt;Phase 4: 输出" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#8E24AA;fontSize=12" vertex="1" parent="1"&gt;
+      &lt;mxGeometry x="710" y="110" width="160" height="44" as="geometry"/&gt;
+    &lt;/mxCell&gt;
+  &lt;/root&gt;
+&lt;/mxGraphModel&gt;</pre>
+      </div>
+    </section>
+
+    <section id="subagents">
+      <h2>3. 子 Agent 定义</h2>
+      <p>Chip Spec Gen Agent 系统由 1 个主协调器和 4 个子 Agent 组成。下表概述各子 Agent 的核心配置和职责，后续小节逐个详述。</p>
+
+      <table>
+        <tr><th>Sub-Agent</th><th>Config File</th><th>Phase</th><th>Core Responsibility</th></tr>
+        <tr><td><code>chip_spec_gen.planning</code></td><td>config/chip_spec_gen.planning.md</td><td>Phase 1: 规划</td><td>解析输入文档，转换为 md，生成 planning.yml</td></tr>
+        <tr><td><code>chip_spec_gen.slice</code></td><td>config/chip_spec_gen.slice.md</td><td>Phase 2: 切片</td><td>按章节提取文字、图片、表格到 2.slice/</td></tr>
+        <tr><td><code>chip_spec_gen.working</code></td><td>config/chip_spec_gen.working.md</td><td>Phase 3: 整理</td><td>分析切片，重组章节，检查完整性并迭代</td></tr>
+        <tr><td><code>design_research.workingresult</code></td><td>config/design_research.workingresult.md</td><td>Phase 4: 输出</td><td>生成 HTML + drawio + md 最终报告</td></tr>
+      </table>
+
+      <section id="subagent-planning">
+        <h3>3.1 chip_spec_gen.planning — 规划子 Agent</h3>
+        <p>planning 子 Agent 是整个流程的入口，负责处理用户输入的原始芯片设计源材料。其核心任务是对输入文件进行解析和格式转换，将各种格式（WORD、PDF、markdown、图片等）统一转换为内部 md 格式，并生成规划文件。</p>
+        <p>planning 子 Agent 会创建标准的四阶段目录结构（<code>1.planning/</code>, <code>2.slice/</code>, <code>3.working/</code>, <code>4.result/</code>），并将解析后的源文件和规划文档输出到 <code>1.planning/</code> 目录。其中 <code>planning.yml</code> 是核心配置文件，包含 <code>max_iterations</code>（默认 5）、<code>source_files</code>（源文件列表）、<code>output_requirements</code>（输出章节需求和格式要求）等关键字段，用户可以在该文件中调整迭代次数和输出范围。</p>
+        <p>配置定义在 <code>agents/config/chip_spec_gen.planning.md</code>。该子 Agent 专注于数据采集和需求分析阶段，不涉及内容提取和组织工作，遵循单一职责原则。</p>
+      </section>
+
+      <section id="subagent-slice">
+        <h3>3.2 chip_spec_gen.slice — 切片子 Agent</h3>
+        <p>slice 子 Agent 负责从 <code>1.planning/</code> 中的源文档中按章节提取原始材料。其核心任务包括：识别文档的自然章节划分（基于一级/二级标题），将每章提取为独立的 md 文件，提取并标记图片引用，保留表格结构和代码块格式。</p>
+        <p>切片阶段的关键原则是<strong>只提取不修改</strong>。slice 子 Agent 不润色、不重组、不删减内容，确保原始技术信息的完整性。每张图片都附带上下文标签（描述它在文档中的位置和作用），每个表格都保留行列结构和数据内容。切片后的文件写入 <code>2.slice/</code> 目录，以 <code>slice-01-introduction.md</code> 格式命名。如果源文档包含图片文件，切片 agent 会将其复制到 <code>2.slice/images/</code> 子目录中。</p>
+        <p>配置定义在 <code>agents/config/chip_spec_gen.slice.md</code>。该子 Agent 在迭代过程中可能被 working 子 Agent 要求返回继续提取特定章节的补充材料。</p>
+      </section>
+
+      <section id="subagent-working">
+        <h3>3.3 chip_spec_gen.working — 整理子 Agent</h3>
+        <p>working 子 Agent 是流程的分析决策中心。它读取 <code>2.slice/</code> 中的切片数据，根据 <code>1.planning/planning.yml</code> 中的 <code>output_requirements</code> 确定最终输出文档的章节结构，然后重新组织内容并检查完整性。</p>
+        <p>working 的核心工作模式是"<strong>重组 + 检查 + 迭代</strong>"。首先，它按照输出章节要求排列文字和图片，对已有内容做轻度润色（语法修正、术语一致性调整），并标注每节内容的来源切片文件。然后，逐章检查是否每个章节都有对应的文字描述和必要的图表。如果发现缺失内容且当前迭代次数未达到 <code>max_iterations</code>，则返回 slice 阶段要求补充特定材料。如果所有章节完整或已达到最大迭代次数，则输出完整性评估报告并进入 Phase 4。无法找到的内容标记为"待补充"供用户确认。</p>
+        <p>working 子 Agent 会输出阶段性的分析报告到 <code>3.working/analysis-round-N.md</code>，包含章节覆盖状态、缺失内容清单、完整度百分比等关键指标，供用户审查和决策。</p>
+        <p>配置定义在 <code>agents/config/chip_spec_gen.working.md</code>。</p>
+      </section>
+
+      <section id="subagent-workingresult">
+        <h3>3.4 design_research.workingresult — 结果输出子 Agent</h3>
+        <p>workingresult 子 Agent 是流程的最终产出专家。在 working 阶段迭代完成后，它将经过整理和完整性验证的内容输出为最终文档。输出采用三种形式：自包含的 HTML 报告（NVIDIA 白色主题风格）、可编辑的 .drawio 架构图源文件、以及支持图片引用的辅助 markdown 文件。</p>
+        <p>HTML 报告使用 <code>html_chip_design_spec</code> skill 生成，遵循 NVIDIA 白色主题规范（<code>#FFFFFF</code> 背景、<code>#76B900</code> 标志性绿色、<code>#F6F8FA</code> 侧边栏）。每组图表以三种形式同时存在：内嵌 SVG 渲染（视觉可见）、mxGraphModel XML（可通过 draw.io URL 参数在浏览器中编辑）、以及独立的 .drawio 文件（在桌面端完整编辑）。架构图通过 <code>drawio_chip_diagram</code> skill 生成，遵循芯片领域的时钟域配色规范、正交布线和标准图例。</p>
+        <p>所有输出文件放入 <code>4.result/</code> 目录并附带时间戳（<code>YYYYMMDD-HHMM</code>），确保版本可追溯。辅助 markdown 文件中正确引用图片路径，支持在 Obsidian 等 md 编辑器中直接预览。</p>
+        <p>配置定义在 <code>agents/config/design_research.workingresult.md</code>。</p>
+      </section>
+    </section>
+
+    <section id="workflow">
+      <h2>4. 工作流程</h2>
+      <p>Chip Spec Gen Agent 的工作流程分为 4 个阶段，每个阶段由对应的子 Agent 执行。整个流程呈流水线结构，数据依次通过 <code>1.planning/ → 2.slice/ → 3.working/ → 4.result/</code> 目录传递。在 Phase 3（working）和 Phase 2（slice）之间存在可选的迭代反馈回路。</p>
+
+      <div class="diagram-box">
+        <div class="label">Workflow — 4-Phase Document Generation Pipeline</div>
+        <svg viewBox="0 0 860 180" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="wf-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#4B5563"/></marker>
+            <marker id="wf-arrow-back" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#F4511E"/></marker>
+          </defs>
+          <rect x="0" y="0" width="860" height="180" fill="#F6F8FA" rx="8"/>
+
+          <!-- Phase boxes -->
+          <rect x="20" y="40" width="170" height="60" rx="8" fill="#FFFFFF" stroke="#1E88E5" stroke-width="2"/>
+          <text x="105" y="68" text-anchor="middle" font-size="12" font-weight="700" fill="#1E88E5">Phase 1: 规划</text>
+          <text x="105" y="85" text-anchor="middle" font-size="10" fill="#4B5563">chip_spec_gen.planning</text>
+
+          <rect x="240" y="40" width="170" height="60" rx="8" fill="#FFFFFF" stroke="#43A047" stroke-width="2"/>
+          <text x="325" y="68" text-anchor="middle" font-size="12" font-weight="700" fill="#43A047">Phase 2: 切片</text>
+          <text x="325" y="85" text-anchor="middle" font-size="10" fill="#4B5563">chip_spec_gen.slice</text>
+
+          <rect x="460" y="40" width="170" height="60" rx="8" fill="#FFFFFF" stroke="#F4511E" stroke-width="2"/>
+          <text x="545" y="68" text-anchor="middle" font-size="12" font-weight="700" fill="#F4511E">Phase 3: 整理</text>
+          <text x="545" y="85" text-anchor="middle" font-size="10" fill="#4B5563">chip_spec_gen.working</text>
+
+          <rect x="680" y="40" width="160" height="60" rx="8" fill="#FFFFFF" stroke="#8E24AA" stroke-width="2"/>
+          <text x="760" y="68" text-anchor="middle" font-size="12" font-weight="700" fill="#8E24AA">Phase 4: 输出</text>
+          <text x="760" y="85" text-anchor="middle" font-size="10" fill="#4B5563">design_research.workingresult</text>
+
+          <!-- Forward arrows -->
+          <line x1="190" y1="70" x2="240" y2="70" stroke="#4B5563" stroke-width="2" marker-end="url(#wf-arrow)"/>
+          <line x1="410" y1="70" x2="460" y2="70" stroke="#4B5563" stroke-width="2" marker-end="url(#wf-arrow)"/>
+          <line x1="630" y1="70" x2="680" y2="70" stroke="#4B5563" stroke-width="2" marker-end="url(#wf-arrow)"/>
+
+          <!-- Feedback loop -->
+          <path d="M545,100 Q545,140 325,140 Q325,140 325,104" fill="none" stroke="#F4511E" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#wf-arrow-back)"/>
+          <text x="435" y="155" text-anchor="middle" font-size="10" fill="#F4511E" font-style="italic">迭代回退：内容缺失时回到 Phase 2</text>
+
+          <!-- Input/Output labels -->
+          <text x="105" y="30" text-anchor="middle" font-size="9" fill="#9CA3AF">输入：用户源文档</text>
+          <text x="760" y="120" text-anchor="middle" font-size="9" fill="#9CA3AF">输出：HTML + drawio + md</text>
+        </svg>
+
+        <button class="diagram-toggle" onclick="this.nextElementSibling.classList.toggle('open')">Show / Hide mxGraphModel XML</button>
+        <pre class="diagram-xml">&lt;mxGraphModel&gt;
+  &lt;root&gt;
+    &lt;mxCell id="0"/&gt;
+    &lt;mxCell id="1" parent="0"/&gt;
+    &lt;mxCell id="p1" value="Phase 1: 规划&lt;br&gt;chip_spec_gen.planning" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#1E88E5;strokeWidth=2;fontSize=12;fontStyle=1" vertex="1" parent="1"&gt;
+      &lt;mxGeometry x="20" y="40" width="170" height="60" as="geometry"/&gt;
+    &lt;/mxCell&gt;
+    &lt;mxCell id="p2" value="Phase 2: 切片&lt;br&gt;chip_spec_gen.slice" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#43A047;strokeWidth=2;fontSize=12;fontStyle=1" vertex="1" parent="1"&gt;
+      &lt;mxGeometry x="240" y="40" width="170" height="60" as="geometry"/&gt;
+    &lt;/mxCell&gt;
+    &lt;mxCell id="p3" value="Phase 3: 整理&lt;br&gt;chip_spec_gen.working" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#F4511E;strokeWidth=2;fontSize=12;fontStyle=1" vertex="1" parent="1"&gt;
+      &lt;mxGeometry x="460" y="40" width="170" height="60" as="geometry"/&gt;
+    &lt;/mxCell&gt;
+    &lt;mxCell id="p4" value="Phase 4: 输出&lt;br&gt;design_research.workingresult" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#8E24AA;strokeWidth=2;fontSize=12;fontStyle=1" vertex="1" parent="1"&gt;
+      &lt;mxGeometry x="680" y="40" width="160" height="60" as="geometry"/&gt;
+    &lt;/mxCell&gt;
+  &lt;/root&gt;
+&lt;/mxGraphModel&gt;</pre>
+      </div>
+
+      <h3>4.1 Phase 1 — 规划（Planning）</h3>
+      <p>用户提交源文档后，chip_spec_gen 协调器首先创建四阶段目录结构，然后委托 planning 子 Agent 处理。planning 子 Agent 读取用户输入的各种格式的源文件（WORD、PDF、markdown、图片等），将其统一转换为内部 md 格式，输出到 <code>1.planning/</code> 目录。同时，它生成 <code>planning.yml</code> 配置文件，其中定义 <code>max_iterations</code>（默认 5）、<code>source_files</code>（源文件列表）、<code>output_requirements</code>（输出文档的章节结构和格式需求）。用户可在此时审查并修改规划参数。</p>
+
+      <h3>4.2 Phase 2 — 切片（Slice）</h3>
+      <p>slice 子 Agent 读取 <code>1.planning/</code> 中的源文档，按章节进行切片处理。它对 md 格式的源文档进行标题解析，以一级和二级标题为边界，将文档切分为独立的片段。每个片段保存为独立的 md 文件，文件名为 <code>slice-&lt;章节序号&gt;-&lt;章节名&gt;.md</code>。图片和表格在切片过程中保持完整：图片文件被复制到 <code>2.slice/images/</code> 目录并附带上下文标签，表格保留所有行列和数据。此阶段遵循"只提取不修改"原则，不对内容做任何润色或重组。</p>
+
+      <h3>4.3 Phase 3 — 整理（Working）— 核心迭代逻辑</h3>
+      <p>working 子 Agent 是流程的决策中心，执行"重组→检查→迭代"的核心循环。首先，它读取 <code>2.slice/</code> 中的全部切片数据，按照 <code>output_requirements</code> 中定义的章节结构重新排列文字和图片，对已有内容做轻度润色确保术语一致性。然后逐章检查内容完整性：该章节是否有对应的文字描述？是否需要图表？内容是否充分？如果发现缺失内容且当前迭代次数 N &lt; max_iterations，working 子 Agent 会生成详细的补材需求（说明缺失的章节、需要补充的内容类型），并返回 Phase 2 让 slice 子 Agent 继续从源文档中提取相关材料。如果所有章节完整或 N &gt;= max_iterations，则输出完整性评估报告并进入 Phase 4。无法找到的内容标记为"待补充"。</p>
+
+      <h3>4.4 Phase 4 — 输出（Result）</h3>
+      <p>workingresult 子 Agent 根据 working 阶段整理后的内容，生成最终的芯片设计规格文档。HTML 报告通过 <code>html_chip_design_spec</code> skill 生成，采用 NVIDIA 白色主题风格，包含完整的章节结构、内嵌 SVG 渲染图、可编辑的 mxGraphModel XML 和可点击的目录导航。架构图通过 <code>drawio_chip_diagram</code> skill 生成，遵循芯片领域绘图规范。<strong>等待用户确认</strong>，确认后保存到 <code>4.result/</code> 目录并附带时间戳。辅助 markdown 文件也同时生成，方便用户在 Obsidian 等 md 编辑器中查看和使用。</p>
+    </section>
+
+    <section id="io">
+      <h2>5. 接口定义</h2>
+      <p>子 Agent 之间通过标准化的文件系统目录进行数据交换，不直接通信。这种松耦合的设计使得每个子 Agent 可以独立维护和升级，也方便用户在工作流任意阶段介入审查。</p>
+
+      <table>
+        <tr><th>Interface</th><th>From</th><th>To</th><th>Data</th><th>Directory</th></tr>
+        <tr><td>IF-01</td><td>User</td><td>planning</td><td>源文档（WORD/PDF/md/图片）</td><td>用户指定路径</td></tr>
+        <tr><td>IF-02</td><td>planning</td><td>slice</td><td>md 格式源文档 + planning.yml</td><td>1.planning/ → 2.slice/</td></tr>
+        <tr><td>IF-03</td><td>slice</td><td>working</td><td>章节切片 md + 图片文件</td><td>2.slice/ → 3.working/</td></tr>
+        <tr><td>IF-04</td><td>working</td><td>slice（反馈）</td><td>补材需求说明</td><td>3.working/（由 orchestrator 转发）</td></tr>
+        <tr><td>IF-05</td><td>working</td><td>workingresult</td><td>整理后内容 + 完整性评估</td><td>3.working/ → 4.result/</td></tr>
+        <tr><td>IF-06</td><td>workingresult</td><td>User</td><td>HTML + drawio + md 文件</td><td>4.result/</td></tr>
+      </table>
+
+      <h3>5.1 目录结构规范</h3>
+      <pre class="code-block">&lt;task_dir&gt;/
+├── 1.planning/
+│   ├── planning.yml           # 迭代控制 + 输出需求配置
+│   ├── source-doc-01.md       # 解析后的源文档（md 格式）
+│   └── source-doc-02.md
+├── 2.slice/
+│   ├── slice-01-introduction.md
+│   ├── slice-02-architecture.md
+│   ├── slice-03-interface.md
+│   └── images/
+│       ├── fig-01-block-diagram.png
+│       └── fig-02-timing.png
+├── 3.working/
+│   ├── analysis-round-1.md    # 逐轮分析报告
+│   └── analysis-round-2.md
+└── 4.result/
+    ├── Spec_Report_v1_20260518-1430.html     # 最终 HTML
+    ├── Spec_Report_v1_20260518-1430.drawio   # Draw.io 源文件
+    └── appendix_v1_20260518-1430.md          # 辅助文档</pre>
+    </section>
+
+    <section id="output">
+      <h2>6. 输出规范</h2>
+      <p>Chip Spec Gen Agent 最终输出采用三种文件格式，分别满足不同的使用场景。所有文件统一纳入 <code>4.result/</code> 目录，以时间戳区分版本。</p>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">HTML 报告（主要输出）</div>
+          <p>自包含单文件 HTML，NVIDIA 白色主题。包含完整章节结构、导航目录、内嵌 SVG 架构图，以及可展开的 mxGraphModel XML（支持在浏览器中通过 draw.io URL 参数编辑）。<br><br><span class="badge badge-green">html_chip_design_spec skill</span></p>
+        </div>
+        <div class="card">
+          <div class="card-title">Draw.io 源文件</div>
+          <p>每组架构图对应一个独立的 .drawio 文件，可在 draw.io 桌面应用或 app.diagrams.net 中打开编辑。支持二次修改信号连接、模块布局、标注信息。<br><br><span class="badge badge-blue">drawio_chip_diagram skill</span></p>
+        </div>
+        <div class="card">
+          <div class="card-title">辅助 Markdown 文件</div>
+          <p>支持生成附加的 md 文档（附录、参考手册、数据手册等），内嵌图片引用路径，可在 Obsidian、Typora 等 md 编辑器中直接预览。<br><br><span class="badge badge-purple">Markdown + Images</span></p>
+        </div>
+        <div class="card">
+          <div class="card-title">中英双语规范</div>
+          <p>正文使用中文专业描述（每节 200+ 字），专业术语和缩写使用英文（AXI、CDC、FSM、DFT、PLL 等）。模块名、信号名、代码段保留原始英文。<br><br><span class="badge badge-orange">Bilingual Standard</span></p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+document.querySelectorAll('.sidebar a').forEach(function(el) {
+  el.addEventListener('click', function() {
+    document.querySelectorAll('.sidebar a').forEach(function(a) { a.classList.remove('active'); });
+    this.classList.add('active');
+  });
+});
+// Highlight active sidebar item on scroll
+window.addEventListener('scroll', function() {
+  var sections = document.querySelectorAll('section[id]');
+  var scrollPos = window.scrollY + 100;
+  sections.forEach(function(s) {
+    var top = s.offsetTop;
+    var height = s.offsetHeight;
+    var id = s.getAttribute('id');
+    if (scrollPos >= top && scrollPos < top + height) {
+      document.querySelectorAll('.sidebar a').forEach(function(a) {
+        a.classList.remove('active');
+        if (a.getAttribute('href') === '#' + id) a.classList.add('active');
+      });
+    }
+  });
+});
+</script>
+</body>
+</html>

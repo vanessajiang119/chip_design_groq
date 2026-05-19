@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TSP 微架构深度分析 — Round 3 研究报告：专利与高级功能</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; color: #333; background: #f8f9fa; line-height: 1.6; padding: 20px; }
+  .container { max-width: 1000px; margin: 0 auto; background: #fff; padding: 32px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  h1 { font-size: 24px; color: #1a1a2e; margin: 20px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #76b900; }
+  h2 { font-size: 20px; color: #1a1a2e; margin: 18px 0 10px; padding-bottom: 6px; border-bottom: 1px solid #e0e0e0; }
+  h3 { font-size: 17px; color: #0f3460; margin: 16px 0 8px; }
+  h4 { font-size: 14px; color: #555; margin: 12px 0 6px; }
+  p { margin: 8px 0; color: #444; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  th { background: #1a1a2e; color: white; padding: 8px 12px; text-align: left; font-weight: 600; }
+  td { padding: 7px 12px; border-bottom: 1px solid #e8e8e8; }
+  tr:nth-child(even) { background: #f9f9fb; }
+  tr:hover { background: #f0f7f0; }
+  pre { background: #1a1a2e; color: #e0e0e0; padding: 14px; border-radius: 6px; overflow-x: auto; font-size: 13px; margin: 10px 0; }
+  code { font-family: 'SF Mono', Monaco, 'Andale Mono', monospace; }
+  p > code, li > code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 13px; color: #cc3333; }
+  ul, ol { margin: 8px 0 8px 24px; color: #444; }
+  li { margin: 4px 0; }
+  blockquote { border-left: 4px solid #76b900; padding: 10px 16px; margin: 12px 0; background: #f8ffec; color: #555; }
+  hr { border: none; border-top: 1px solid #e0e0e0; margin: 20px 0; }
+  a { color: #0f3460; text-decoration: none; }
+  a:hover { color: #76b900; text-decoration: underline; }
+  .header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); color: white; padding: 24px 32px; border-radius: 8px 8px 0 0; margin-bottom: 0; }
+  .header h1 { color: white; border: none; margin: 0; padding: 0; font-size: 22px; }
+  .header .meta { font-size: 12px; color: #8899aa; margin-top: 4px; }
+  .nav-path { font-size: 12px; color: #76b900; margin-bottom: 16px; }
+  .footer { text-align: center; padding: 20px 0; color: #888; font-size: 12px; border-top: 1px solid #e0e0e0; margin-top: 20px; }
+</style>
+</head>
+<body>
+<div class="container">
+<div class="header"><h1>TSP 微架构深度分析 — Round 3 研究报告：专利与高级功能</h1><div class="meta">2.research/1-tsp-microarchitecture/round-3-patent-compiler-advanced.md</div></div>
+<div class="nav-path">&larr; <a href="../4.result/3_groq_arch_design_summary_v1.html">Back to Architecture Report</a></div>
+<h1>TSP 微架构深度分析 — Round 3 研究报告：专利与高级功能</h1>
+<h1>TSP Microarchitecture Deep Dive — Round 3: Patents & Advanced Features</h1>
+<blockquote>创建时间: 2026-05-19T1500</blockquote>
+<blockquote>来源: USPTO patents, ACM papers, compiler analysis</blockquote>
+<hr>
+<h2>一、专利技术分析 (Patent Analysis)</h2>
+<h3>US20240037064A1: 指令格式与 ISA</h3>
+<p><strong>核心权利要求</strong>:</p>
+<ol>
+<li><strong>功能切片指令队列</strong>: 每种功能切片类型拥有自己的指令队列</li>
+<li><strong>VLIW 包结构</strong>: 包含多个操作码，每个对应一个功能切片类型</li>
+<li><strong>数据路径交叉开关</strong>: Lane switching slice 可配置为 crossbar 或 permuter</li>
+<li><strong>指令-数据解耦</strong>: 指令流 (垂直) 与数据流 (水平) 完全解耦</li>
+<h3>US20230024670A1: 确定性存储</h3>
+</ol>
+<p><strong>核心原理</strong>:</p>
+<ol>
+<li>编译器生成<strong>确定性内存访问模式</strong></li>
+<li>所有内存操作的时序在编译时已知</li>
+<li>SRAM 阵列的<strong>物理分区</strong>与功能切片对齐</li>
+<li>无缓存一致性协议 — 确定性消除 snoop 开销</li>
+<h3>US12222894B2: 编译器操作</h3>
+</ol>
+<p><strong>编译流程</strong>:</p>
+<ol>
+<li>前端: MLIR → Tensor → Stream IR</li>
+<li>中间: 静态调度 + 资源分配</li>
+<li>后端: 指令包生成 (VLIW)</li>
+<hr>
+<h2>二、静态调度算法分析 (Static Scheduling)</h2>
+<h3>编译器可见资源 (Compiler-Visible Resources)</h3>
+</ol>
+<p>编译器具有完整的硬件可见性:</p>
+<pre><code>320 SIMD channels
+144 instruction queues
+64 logical streams/channel (32E + 32W)
+220 MB SRAM (fully addressable)
+Exact instruction latencies</code></pre>
+<h3>调度约束 (Scheduling Constraints)</h3>
+<ol>
+<li><strong>数据依赖</strong>: 生产者-消费者流之间的相关性</li>
+<li><strong>资源冲突</strong>: 同一功能切片上的操作不能重叠</li>
+<li><strong>流水线延迟</strong>: 指令发射到结果可用的 cycle 数</li>
+<li><strong>带宽限制</strong>: 每 cycle 的数据路径带宽</li>
+<li><strong>同步点</strong>: SYNC/NOTIFY/DESKEW 协调</li>
+<h3>调度策略 (Scheduling Strategy)</h3>
+<pre><code>算法: List Scheduling with Resource Constraints
+输入: DFG (数据流图) + 硬件模型
+输出: 每条指令的精确发射 cycle
+
+步骤:
+1. 构建数据流图 (DFG)
+2. 拓扑排序操作节点
+3. 分配操作到功能切片
+4. 确定数据流路径和 timing
+5. 解决资源冲突 (通过 cycle 偏移)
+6. 插入同步指令
+7. 生成 VLIW 包</code></pre>
+<hr>
+<h2>三、多 TSP 分布式系统 (Multi-TSP System)</h2>
+<h3>Dragonfly 拓扑</h3>
+</ol>
+<p>Groq 使用 <strong>Dragonfly</strong> 拓扑连接多个 TSP:</p>
+<ul>
+<li>每个 TSP 通过 SXM 切片连接</li>
+<li>编译器预调度所有片间通信</li>
+<li>无自适应路由 — 所有路由在编译时确定</li>
+<h3>同步机制</h3>
+<table>
+  <thead><tr><th>指令</th><th>功能</th></tr></thead>
+  <tbody>
+    <tr><td>SYNC</td><td>暂停所有 144 个队列</td></tr>
+    <tr><td>NOTIFY</td><td>广播唤醒信号</td></tr>
+    <tr><td>DESKEW</td><td>等待 HAC (硬件对齐计数器) 溢出</td></tr>
+  </tbody></table>
+</ul>
+<p>DESKEW 在多 TSP 系统中特别重要 — 确保不同 TSP 上的计算对齐在同一个 cycle 边界。</p>
+<hr>
+<h2>四、面积与功耗分布推断 (Area & Power Distribution)</h2>
+<h3>面积分布 (Area Distribution)</h3>
+<table>
+  <thead><tr><th>模块</th><th>面积占比</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td>SRAM (MEM)</td><td>~40-50%</td><td>220 MB + ECC</td></tr>
+    <tr><td>MXM (矩阵)</td><td>~20-25%</td><td>409,600 MACs</td></tr>
+    <tr><td>VXM (向量)</td><td>~10-15%</td><td>5,120 ALUs + 数据路径</td></tr>
+    <tr><td>SXM (开关)</td><td>~10%</td><td>Crossbar 网络</td></tr>
+    <tr><td>ICU (控制)</td><td><3%</td><td>指令队列 + 解码</td></tr>
+    <tr><td>其他 (时钟/布线)</td><td>~10-15%</td><td></td></tr>
+  </tbody></table>
+<h3>时钟频率与电压 (Clock & Voltage)</h3>
+<ul>
+<li>标称频率: 900 MHz</li>
+<li>最高频率: 1.25 GHz (工艺角依赖)</li>
+<li>核心电压: ~0.8-0.9V (14nm 典型)</li>
+<li>TDP: ~300W</li>
+<h3>性能/功耗比</h3>
+<table>
+  <thead><tr><th>工作负载</th><th>性能</th><th>功耗效率</th></tr></thead>
+  <tbody>
+    <tr><td>INT8 矩阵乘</td><td>750-1000 TOPS</td><td>~3 TOPS/W</td></tr>
+    <tr><td>FP16 矩阵乘</td><td>188-205 TFLOPS</td><td>~0.7 TFLOPS/W</td></tr>
+    <tr><td>ResNet-50</td><td>20,400 imgs/s @ batch-1</td><td>—</td></tr>
+  </tbody></table>
+<hr>
+<h2>五、与传统架构的对比 (Comparison with Traditional Architectures)</h2>
+<h3>vs GPU (NVIDIA H100)</h3>
+<table>
+  <thead><tr><th>特性</th><th>Groq TSP</th><th>NVIDIA H100</th></tr></thead>
+  <tbody>
+    <tr><td>制程</td><td>14nm</td><td>4nm</td></tr>
+    <tr><td>片上存储</td><td>230 MB SRAM</td><td>~50 MB cache + 80 GB HBM</td></tr>
+    <tr><td>带宽</td><td>80 TB/s (片上)</td><td>~3 TB/s (HBM)</td></tr>
+    <tr><td>延迟控制</td><td>确定性 (cycle 级)</td><td>统计性</td></tr>
+    <tr><td>调度</td><td>编译器静态</td><td>硬件动态 (+ 编译器)</td></tr>
+    <tr><td>控制逻辑占比</td><td><3%</td><td>~15-20%</td></tr>
+    <tr><td>编程模型</td><td>流式 (Stream)</td><td>SIMT (线程)</td></tr>
+    <tr><td>利用率</td><td>可预测/高</td><td>动态/变化</td></tr>
+  </tbody></table>
+<h3>vs TPU (Google TPUv4)</h3>
+<table>
+  <thead><tr><th>特性</th><th>Groq TSP</th><th>Google TPUv4</th></tr></thead>
+  <tbody>
+    <tr><td>Systolic</td><td>320×320 × 4 planes</td><td>128×128</td></tr>
+    <tr><td>数据流</td><td>Weight-stationary</td><td>Systolic</td></tr>
+    <tr><td>SRAM</td><td>230 MB (全局)</td><td>~32 MB (HBM2)</td></tr>
+    <tr><td>互联</td><td>Dragonfly</td><td>3D Torus</td></tr>
+    <tr><td>确定性</td><td>完全</td><td>有限</td></tr>
+  </tbody></table>
+<hr>
+<h2>六、关键设计决策分析 (Key Design Decisions)</h2>
+<h3>Why SRAM instead of DRAM/HBM?</h3>
+</ul>
+<ol>
+<li><strong>确定性延迟</strong>: DRAM 具有可变延迟 (refresh, row activate/precharge)</li>
+<li><strong>延迟低</strong>: SRAM ~1-2ns vs DRAM ~50-100ns</li>
+<li><strong>带宽高</strong>: 80 TB/s vs HBM3 ~3 TB/s</li>
+<li><strong>功耗效率</strong>: SRAM 每 bit 访问功耗远低于 DRAM + PHY</li>
+<li><strong>代价</strong>: 容量小 (220MB vs 80GB), 密度低, 成本高</li>
+<h3>Why Functional Slicing?</h3>
+<li><strong>控制逻辑共享</strong>: ICU <3% vs 传统每个核心 15-25%</li>
+<li><strong>指令广播</strong>: 同功能 tiles 执行相同指令 → 解码一次</li>
+<li><strong>确定性数据流</strong>: 无交叉核心竞争</li>
+<li><strong>扩展性</strong>: 增加 tile 数即可纵向扩展</li>
+<h3>Why Static Scheduling?</h3>
+<li><strong>无运行时开销</strong>: 无分支预测/重排序</li>
+<li><strong>可预测延迟</strong>: 关键推理场景</li>
+<li><strong>高利用率</strong>: 编译器可全局优化</li>
+<li><strong>简化硬件</strong>: 减少硅面积和功耗</li>
+<hr>
+<h2>参考文献 (References)</h2>
+<li>USPTO 12277444 — "Software-defined Tensor Streaming Multiprocessor"</li>
+<li>US20240037064A1 — "Instruction Format and ISA for TSP"  </li>
+<li>US20230024670A1 — "Deterministic Memory for TSP"</li>
+<li>D. Abts, Stanford EE380 Seminar — "Dataflow for Convergence of AI and HPC"</li>
+<li>Groq Blog — "Inside the LPU: Deconstructing Groq's Speed"</li>
+<li>Zellic Research — "How Is Groq So Fast?"</li>
+</ol>
+<div class="footer">Groq Architecture Research &bull; Generated 2026-05-19</div>
+</div>
+</body>
+</html>

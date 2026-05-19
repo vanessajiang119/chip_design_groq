@@ -1,0 +1,18 @@
+topic: "Groq LPU 芯片架构研究与3天实现计划"
+max_iterations: 3
+search_sources:
+  - ieee_xplore
+  - github
+  - web_search
+  - academic_papers
+first_round_urls:
+  - https://groq.com/isca-2022-paper/
+  - https://github.com/orgs/groq/repositories
+  - https://github.com/tastynoob/LPU-sims
+  - https://ieeexplore.ieee.org/search/groq_lpu
+search_keywords:
+  - "Groq LPU architecture TSP tensor streaming processor"
+  - "Groq chip design open source verilog"
+  - "systolic array transformer accelerator"
+iteration_history: []
+status: completed

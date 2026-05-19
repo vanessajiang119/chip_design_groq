@@ -1,0 +1,105 @@
+<mxfile>
+  <diagram name="Agent Architecture" id="arch">
+    <mxGraphModel dx="1200" dy="800" grid="1" guides="1">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="t" value="Design Research Agent Architecture" style="text;html=1;fontSize=16;fontStyle=1;align=center;verticalAlign=top;" vertex="1" parent="1" connectable="0">
+          <mxGeometry x="0" y="0" width="900" height="40"/>
+        </mxCell>
+        <mxCell id="c" value="design_research (Orchestrator)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1E88E5;fontColor=#FFFFFF;strokeColor=#1565C0;fontSize=14;fontStyle=1;" vertex="1" parent="1" connectable="0">
+          <mxGeometry x="300" y="50" width="280" height="50"/>
+        </mxCell>
+        <mxCell id="p" value="design_research.planning&#10;需求分析 → Plan → 搜索策略" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#43A047;fontColor=#FFFFFF;strokeColor=#2E7D32;fontSize=12;" vertex="1" parent="1" connectable="0">
+          <mxGeometry x="60" y="160" width="170" height="60"/>
+        </mxCell>
+        <mxCell id="r" value="design_research.research&#10;多源搜索 → 数据采集 → MD转换" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F4511E;fontColor=#FFFFFF;strokeColor=#BF360C;fontSize=12;" vertex="1" parent="1" connectable="0">
+          <mxGeometry x="280" y="160" width="170" height="60"/>
+        </mxCell>
+        <mxCell id="w" value="design_research.working&#10;数据分析 → 报告 → 迭代决策" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#8E24AA;fontColor=#FFFFFF;strokeColor=#6A1B9A;fontSize=12;" vertex="1" parent="1" connectable="0">
+          <mxGeometry x="500" y="160" width="170" height="60"/>
+        </mxCell>
+        <mxCell id="wr" value="design_research.workingresult&#10;最终报告 → HTML生成 → 图生成" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#00897B;fontColor=#FFFFFF;strokeColor=#00695C;fontSize=12;" vertex="1" parent="1" connectable="0">
+          <mxGeometry x="720" y="160" width="170" height="60"/>
+        </mxCell>
+        <mxCell id="l1" value="planning.yml&#10;max_iterations: 5" style="shape=note;whiteSpace=wrap;html=1;fillColor=#FFF9C4;strokeColor=#F9A825;fontSize=11;" vertex="1" parent="1" connectable="0">
+          <mxGeometry x="60" y="270" width="140" height="50"/>
+        </mxCell>
+        <mxCell id="l2" value="skills used:&#10;• html_chip_design_spec&#10;• drawio_chip_diagram" style="shape=note;whiteSpace=wrap;html=1;fillColor=#FFF9C4;strokeColor=#F9A825;fontSize=11;" vertex="1" parent="1" connectable="0">
+          <mxGeometry x="720" y="270" width="150" height="60"/>
+        </mxCell>
+        <mxCell id="e1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#1E88E5;strokeWidth=2;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="c" target="p">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e2" value="Phase 1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#43A047;strokeWidth=2;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="p" target="r">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e3" value="Phase 2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#F4511E;strokeWidth=2;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="r" target="w">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e4" value="more rounds?" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#8E24AA;strokeWidth=2;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="w" target="wr">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e5" value="iterate (max N rounds)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#8E24AA;strokeWidth=2;strokeDashArray=8 4;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" edge="1" parent="1" source="w" target="r">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="Iteration Workflow" id="wf">
+    <mxGraphModel dx="1000" dy="700" grid="1" guides="1">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="t" value="Multi-Round Iteration Workflow" style="text;html=1;fontSize=16;fontStyle=1;align=center;verticalAlign=top;" vertex="1" parent="1" connectable="0">
+          <mxGeometry x="0" y="0" width="800" height="40"/>
+        </mxCell>
+        <mxCell id="start" value="User Input / Topic" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1E88E5;fontColor=#FFFFFF;strokeColor=#1565C0;" vertex="1" parent="1">
+          <mxGeometry x="320" y="55" width="140" height="45"/>
+        </mxCell>
+        <mxCell id="p1" value="Phase 1: Planning&#10;需求分析 + 搜索策略" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#43A047;fontColor=#FFFFFF;strokeColor=#2E7D32;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="290" y="140" width="200" height="60"/>
+        </mxCell>
+        <mxCell id="r1" value="Phase 2: Research&#10;多源数据采集 (Round N)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F4511E;fontColor=#FFFFFF;strokeColor=#BF360C;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="290" y="250" width="200" height="60"/>
+        </mxCell>
+        <mxCell id="w1" value="Phase 3: Working Analysis&#10;分析 + 迭代决策" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#8E24AA;fontColor=#FFFFFF;strokeColor=#6A1B9A;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="290" y="360" width="200" height="60"/>
+        </mxCell>
+        <mxCell id="dec" value="Need more&#10;research?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF9C4;strokeColor=#F9A825;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="580" y="355" width="110" height="70"/>
+        </mxCell>
+        <mxCell id="wr1" value="Phase 4: Final Result&#10;HTML报告 + Draw.io图" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#00897B;fontColor=#FFFFFF;strokeColor=#00695C;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="580" y="140" width="200" height="60"/>
+        </mxCell>
+        <mxCell id="end" value="Output Ready" style="ellipse;whiteSpace=wrap;html=1;fillColor=#00897B;fontColor=#FFFFFF;strokeColor=#00695C;" vertex="1" parent="1">
+          <mxGeometry x="610" y="55" width="140" height="45"/>
+        </mxCell>
+        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#1E88E5;strokeWidth=2;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="start" target="p1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#43A047;strokeWidth=2;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="p1" target="r1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#F4511E;strokeWidth=2;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="r1" target="w1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e4" value="yes (N &lt; max)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#8E24AA;strokeWidth=2;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="w1" target="dec">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e5" value="iterate" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#F4511E;strokeWidth=2;strokeDashArray=8 4;exitX=1;exitY=0;entryX=0;entryY=0.5;" edge="1" parent="1" source="dec" target="r1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e6" value="no" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#00897B;strokeWidth=2;exitX=0.5;exitY=0;entryX=0.5;entryY=1;" edge="1" parent="1" source="dec" target="wr1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#00897B;strokeWidth=2;exitX=0.5;exitY=0;entryX=0.5;entryY=1;" edge="1" parent="1" source="wr1" target="end">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="note" value="max_iterations defined in planning.yml&#10;default: 5, user-configurable" style="shape=note;whiteSpace=wrap;html=1;fillColor=#FFF9C4;strokeColor=#F9A825;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="30" y="250" width="180" height="50"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

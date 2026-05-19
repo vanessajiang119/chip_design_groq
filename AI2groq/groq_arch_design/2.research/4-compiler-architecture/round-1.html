@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Round 1: GroqFlow 工具链与 MLIR 前端深度分析</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; color: #333; background: #f8f9fa; line-height: 1.6; padding: 20px; }
+  .container { max-width: 1000px; margin: 0 auto; background: #fff; padding: 32px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  h1 { font-size: 24px; color: #1a1a2e; margin: 20px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #76b900; }
+  h2 { font-size: 20px; color: #1a1a2e; margin: 18px 0 10px; padding-bottom: 6px; border-bottom: 1px solid #e0e0e0; }
+  h3 { font-size: 17px; color: #0f3460; margin: 16px 0 8px; }
+  h4 { font-size: 14px; color: #555; margin: 12px 0 6px; }
+  p { margin: 8px 0; color: #444; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  th { background: #1a1a2e; color: white; padding: 8px 12px; text-align: left; font-weight: 600; }
+  td { padding: 7px 12px; border-bottom: 1px solid #e8e8e8; }
+  tr:nth-child(even) { background: #f9f9fb; }
+  tr:hover { background: #f0f7f0; }
+  pre { background: #1a1a2e; color: #e0e0e0; padding: 14px; border-radius: 6px; overflow-x: auto; font-size: 13px; margin: 10px 0; }
+  code { font-family: 'SF Mono', Monaco, 'Andale Mono', monospace; }
+  p > code, li > code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 13px; color: #cc3333; }
+  ul, ol { margin: 8px 0 8px 24px; color: #444; }
+  li { margin: 4px 0; }
+  blockquote { border-left: 4px solid #76b900; padding: 10px 16px; margin: 12px 0; background: #f8ffec; color: #555; }
+  hr { border: none; border-top: 1px solid #e0e0e0; margin: 20px 0; }
+  a { color: #0f3460; text-decoration: none; }
+  a:hover { color: #76b900; text-decoration: underline; }
+  .header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); color: white; padding: 24px 32px; border-radius: 8px 8px 0 0; margin-bottom: 0; }
+  .header h1 { color: white; border: none; margin: 0; padding: 0; font-size: 22px; }
+  .header .meta { font-size: 12px; color: #8899aa; margin-top: 4px; }
+  .nav-path { font-size: 12px; color: #76b900; margin-bottom: 16px; }
+  .footer { text-align: center; padding: 20px 0; color: #888; font-size: 12px; border-top: 1px solid #e0e0e0; margin-top: 20px; }
+</style>
+</head>
+<body>
+<div class="container">
+<div class="header"><h1>Round 1: GroqFlow 工具链与 MLIR 前端深度分析</h1><div class="meta">2.research/4-compiler-architecture/round-1.md</div></div>
+<div class="nav-path">&larr; <a href="../4.result/3_groq_arch_design_summary_v1.html">Back to Architecture Report</a></div>
+<h1>Round 1: GroqFlow 工具链与 MLIR 前端深度分析</h1>
+<h2>GroqFlow Toolchain & MLIR Frontend — Deep Analysis</h2>
+<p><strong>Created:</strong> 20260519-1000  </p>
+<p><strong>Author:</strong> Groq Compiler Architecture Expert  </p>
+<p><strong>Status:</strong> Complete</p>
+<hr>
+<h2>1. GroqFlow — 用户入口的自动化编译流</h2>
+<h3>1.1 定位与角色 / Role & Positioning</h3>
+<p>GroqFlow 是 Groq 编译器的<strong>用户级 Python 接口</strong>，提供从主流 ML 框架到 GroqChip LPU 的端到端自动化编译流程。其核心设计理念是 <strong>"write once, compile for Groq"</strong>。</p>
+<pre><code>from groqflow import groqit
+gmodel = groqit(model, inputs)  # 编译并返回 GroqModel
+gmodel(**inputs)                # 在 LPU 上执行推理</code></pre>
+<h3>1.2 支持的框架 / Supported Frameworks</h3>
+<table>
+  <thead><tr><th>框架</th><th>输入类型</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td>PyTorch</td><td><code>torch.nn.Module</code></td><td>最常用入口，JIT trace 捕获图</td></tr>
+    <tr><td>Keras/TF</td><td><code>tf.keras.Model</code></td><td>TensorFlow 模型支持</td></tr>
+    <tr><td>TorchScript</td><td><code>torch.jit.ScriptModule</code></td><td>静态图输入</td></tr>
+    <tr><td>ONNX</td><td><code>.onnx</code> 文件路径</td><td>标准中间表示</td></tr>
+    <tr><td>scikit-learn</td><td>RandomForest, SVM, MLP etc.</td><td>经 Hummingbird 转换</td></tr>
+    <tr><td>xgboost</td><td>XGBClassifier, XGBRegressor</td><td>经 Hummingbird 转换</td></tr>
+  </tbody></table>
+<h3>1.3 默认构建流水线 / Default Build Pipeline</h3>
+<p>GroqFlow 按序执行以下 6 个 stage，每个 stage 均可被用户自定义跳过或替换：</p>
+<pre><code>Stage 1: Convert to ONNX          # 模型 → ONNX 中间表示
+    ↓
+Stage 2: Optimize ONNX file       # ONNX 图优化 (常量折叠、算子融合等)
+    ↓
+Stage 3: Check op support         # 算子合规性检查 (是否 TSP 支持)
+    ↓
+Stage 4: Convert to FP16          # 参数精度转换 (FP32 → FP16)
+    ↓
+Stage 5: Compile Model            # Groq Compiler 编译 (MLIR frontend)
+    ↓
+Stage 6: Assemble Model           # Groq Assembler 汇编 (Haskell backend)</code></pre>
+<p><strong>关键设计决策</strong>: GroqFlow 选择 ONNX 作为<strong>框架无关的中间表示</strong>，而非直接使用 PyTorch/TF 的内部 IR。这使得：</p>
+<ul>
+<li>框架适配工作简化为 "任意框架 → ONNX"</li>
+<li>可利用 ONNX 生态的优化工具</li>
+<li>与 Groq IR 的边界清晰</li>
+<h3>1.4 API 关键参数 / Key <code>groqit()</code> Arguments</h3>
+<table>
+  <thead><tr><th>参数</th><th>作用</th><th>商业意义</th></tr></thead>
+  <tbody>
+    <tr><td><code>num_chips</code></td><td>指定使用多少颗 TSP</td><td>多芯片自动并行</td></tr>
+    <tr><td><code>topology</code></td><td><code>DRAGONFLY</code>/<code>ROTATIONAL</code></td><td>多芯片互联拓扑选择</td></tr>
+    <tr><td><code>rebuild</code></td><td>缓存策略 (<code>if_needed</code>/<code>always</code>/<code>never</code>)</td><td>避免重复编译</td></tr>
+    <tr><td><code>quantization_samples</code></td><td>int8 量化校准数据</td><td>低精度推理</td></tr>
+    <tr><td><code>compiler_flags</code></td><td>传递给 Groq Compiler 的自定义 flag</td><td>高级用户调优</td></tr>
+  </tbody></table>
+<h3>1.5 包结构 / Package Structure</h3>
+<pre><code>groqflow/
+├── __init__.py          # 导出 groqit()
+├── common/
+│   └── build.py         # Build 配置：拓扑常量、默认参数
+├── stages/
+│   ├── onnx_convert     # Stage 1: 转换到 ONNX
+│   ├── onnx_optimize    # Stage 2: 图优化
+│   ├── op_check          # Stage 3: op 检查
+│   ├── fp16_convert      # Stage 4: FP16 转换
+│   ├── compile           # Stage 5: 编译
+│   └── assemble          # Stage 6: 汇编
+├── models/
+│   ├── GroqModel         # 基类：run(), run_abunch(), estimate_performance()
+│   ├── PytorchModelWrapper  # 返回 torch.Tensor
+│   └── KerasModelWrapper    # 返回 tf.Tensor
+└── cache/                # 构建缓存管理</code></pre>
+<h3>1.6 构建缓存 / Build Cache</h3>
+</ul>
+<p>GroqFlow 提供 <code>~/.cache/groqflow/</code> 的构建缓存机制，按 <code>build_name</code> 索引。支持：</p>
+<ul>
+<li><code>rebuild="never"</code>: 缓存在时直接加载</li>
+<li><code>rebuild="if_needed"</code>: 模型变更时自动重编译</li>
+<li><code>rebuild="always"</code>: 强制全量编译</li>
+<hr>
+<h2>2. MLIR 前端 — 多级 IR 转换</h2>
+<h3>2.1 MLIR 在 Groq 编译器中的角色</h3>
+</ul>
+<p>Groq 选择 MLIR 作为前端框架的核心原因：</p>
+<ol>
+<li><strong>多级抽象</strong>: 从高层图 IR 逐步 lower 到接近硬件的 IR</li>
+<li><strong>Dialect 扩展性</strong>: 自定义 Groq dialect 表达 TSP 专属语义</li>
+<li><strong>Pass 管理</strong>: MLIR 的 pass pipeline 框架可以直接复用</li>
+<li><strong>跨框架兼容</strong>: MLIR 的 ONNX/TOSA/HLO dialect 覆盖主流框架</li>
+<h3>2.2 IR 转换路径 / IR Lowering Pipeline</h3>
+<pre><code>PyTorch Model / TF Model / ONNX
+         │
+         ▼
+   [ONNX Dialect]     ← 高层图表示 (数学语义)
+         │
+         ▼
+   [TOSA Dialect]     ← 目标无关的算子级 IR (可选，用于验证)
+         │
+         ▼
+   [Groq Dialect]     ← TSP 自定义 dialect (硬件感知)
+         │  (graph-level optimization passes)
+         ▼
+   [Groq Dialect (opt)]  ← 融合、布局变换、常量折叠
+         │
+         ▼
+   [LLVM Dialect / C++ emission]
+         │
+         ▼
+   Haskell Backend (static scheduling + codegen)</code></pre>
+<h3>2.3 Groq Dialect 设计要点</h3>
+</ol>
+<p>根据 Groq Sr. Compiler Engineer 的招聘描述，Dialect 开发的工作包括：</p>
+<ul>
+<li><strong>算子覆盖</strong>: 持续扩展 Groq IR Dialect 以覆盖新的 ML 算子（Transformer、Mamba 等新架构）</li>
+<li><strong>融合规则</strong>: 定义算子融合的 pattern — MXM + VXM 融合、Activation 融合等</li>
+<li><strong>数据类型</strong>: FP16/BF16/int8 等混合精度在 IR 层面的表示</li>
+<li><strong>布局变换</strong>: NHWC/NCHW/自定义布局的转换规则</li>
+<h3>2.4 MLIR Pass Pipeline 推测</h3>
+</ul>
+<p>基于 TSP 硬件特性，可以推断 MLIR 前端的关键 Pass：</p>
+<table>
+  <thead><tr><th>Pass</th><th>作用</th><th>硬件映射</th></tr></thead>
+  <tbody>
+    <tr><td><code>--canonicalize</code></td><td>规范化 (折叠、简化)</td><td>—</td></tr>
+    <tr><td><code>--inline</code></td><td>内联子图</td><td>—</td></tr>
+    <tr><td><code>--grok-fuse-ops</code></td><td>算子融合 (Conv+BN+ReLU)</td><td>减少存中间结果</td></tr>
+    <tr><td><code>--grok-layout-transform</code></td><td>内存布局优化</td><td>匹配 MEM slice 访问模式</td></tr>
+    <tr><td><code>--grok-constant-fold</code></td><td>常量折叠</td><td>减少运行时计算</td></tr>
+    <tr><td><code>--grok-partition</code></td><td>图分区 (跨芯片/跨 queue)</td><td>144 队列的作业分配</td></tr>
+    <tr><td><code>--convert-to-haskell-ir</code></td><td>发射到 Haskell 后端</td><td>输入给调度器</td></tr>
+  </tbody></table>
+<h3>2.5 多芯片编译 / Multi-TSP Compilation</h3>
+<p>MLIR 前端承担的跨芯片编译职责：</p>
+<ol>
+<li><strong>图分区</strong>: 将大模型按层/算子切分到多颗 TSP</li>
+<li><strong>通信注入</strong>: 插入 inter-chip 的 stream 通信指令</li>
+<li><strong>拓扑感知</strong>: 根据 <code>DRAGONFLY</code> 或 <code>ROTATIONAL</code> 拓扑调整通信模式</li>
+<li><strong>负载均衡</strong>: 静态计算各芯片的计算/通信比例</li>
+<hr>
+<h2>3. 关键洞察 / Key Insights</h2>
+<h3>3.1 GroqFlow 的架构权衡</h3>
+</ol>
+<ul>
+<li><strong>ONNX 作为中间格式的取舍</strong>: 优点是框架无关，缺点是 ONNX 算子集正被不断增长的 ML 新算子追赶，Groq 必须持续更新 dialect</li>
+<li><strong>构建缓存的设计</strong>: 反映了编译时间长的现实（全静态调度需要大量计算），缓存策略减少重复编译</li>
+<li><strong>API 简洁性的代价</strong>: <code>groqit()</code> 的一行接口隐藏了极其复杂的编译链，调试时难以定位问题</li>
+<h3>3.2 MLIR 前端的战略意义</h3>
+</ul>
+<p>Groq 选择 MLIR 而非直接构建自定义前端，是<strong>务实的技术决策</strong>：</p>
+<ul>
+<li>MLIR 社区持续发展新 dialect（如 TOSA、StableHLO），Groq 可免费受益</li>
+<li>从 MLIR 到 Haskell 后端的接口比从 ONNX 直接生成更可控</li>
+<li>但这也意味着编译器的关键优化（调度、内存）全部在闭源的 Haskell 后端中</li>
+<hr>
+</ul>
+<p><strong>Next</strong>: <a href="./round-2.md">Round 2 — Haskell 后端与静态调度算法</a></p>
+<div class="footer">Groq Architecture Research &bull; Generated 2026-05-19</div>
+</div>
+</body>
+</html>

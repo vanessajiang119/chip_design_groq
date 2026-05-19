@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Round 3: Scale-out LPU 系统与机架级架构</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; color: #333; background: #f8f9fa; line-height: 1.6; padding: 20px; }
+  .container { max-width: 1000px; margin: 0 auto; background: #fff; padding: 32px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  h1 { font-size: 24px; color: #1a1a2e; margin: 20px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #76b900; }
+  h2 { font-size: 20px; color: #1a1a2e; margin: 18px 0 10px; padding-bottom: 6px; border-bottom: 1px solid #e0e0e0; }
+  h3 { font-size: 17px; color: #0f3460; margin: 16px 0 8px; }
+  h4 { font-size: 14px; color: #555; margin: 12px 0 6px; }
+  p { margin: 8px 0; color: #444; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  th { background: #1a1a2e; color: white; padding: 8px 12px; text-align: left; font-weight: 600; }
+  td { padding: 7px 12px; border-bottom: 1px solid #e8e8e8; }
+  tr:nth-child(even) { background: #f9f9fb; }
+  tr:hover { background: #f0f7f0; }
+  pre { background: #1a1a2e; color: #e0e0e0; padding: 14px; border-radius: 6px; overflow-x: auto; font-size: 13px; margin: 10px 0; }
+  code { font-family: 'SF Mono', Monaco, 'Andale Mono', monospace; }
+  p > code, li > code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 13px; color: #cc3333; }
+  ul, ol { margin: 8px 0 8px 24px; color: #444; }
+  li { margin: 4px 0; }
+  blockquote { border-left: 4px solid #76b900; padding: 10px 16px; margin: 12px 0; background: #f8ffec; color: #555; }
+  hr { border: none; border-top: 1px solid #e0e0e0; margin: 20px 0; }
+  a { color: #0f3460; text-decoration: none; }
+  a:hover { color: #76b900; text-decoration: underline; }
+  .header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); color: white; padding: 24px 32px; border-radius: 8px 8px 0 0; margin-bottom: 0; }
+  .header h1 { color: white; border: none; margin: 0; padding: 0; font-size: 22px; }
+  .header .meta { font-size: 12px; color: #8899aa; margin-top: 4px; }
+  .nav-path { font-size: 12px; color: #76b900; margin-bottom: 16px; }
+  .footer { text-align: center; padding: 20px 0; color: #888; font-size: 12px; border-top: 1px solid #e0e0e0; margin-top: 20px; }
+</style>
+</head>
+<body>
+<div class="container">
+<div class="header"><h1>Round 3: Scale-out LPU 系统与机架级架构</h1><div class="meta">2.research/5-multi-tsp-interconnect/round-3-scaleout-lpu.md</div></div>
+<div class="nav-path">&larr; <a href="../4.result/3_groq_arch_design_summary_v1.html">Back to Architecture Report</a></div>
+<h1>Round 3: Scale-out LPU 系统与机架级架构</h1>
+<blockquote>创建时间: 2026-05-19</blockquote>
+<blockquote>状态: Research Complete</blockquote>
+<h2>一、GroqNode 服务器规格</h2>
+<h3>1.1 GroqNode 4U 服务器</h3>
+<table>
+  <thead><tr><th>参数</th><th>规格</th></tr></thead>
+  <tbody>
+    <tr><td><strong>型号</strong></td><td>GroqNode Server</td></tr>
+    <tr><td><strong>外形</strong></td><td>4U 机架式</td></tr>
+    <tr><td><strong>尺寸</strong></td><td>7.0" (H) × 17.2" (W) × 29" (D)</td></tr>
+    <tr><td><strong>GroqCard 数量</strong></td><td>最多 8 张</td></tr>
+    <tr><td><strong>宿主 CPU</strong></td><td>2× AMD EPYC 7313 (3 GHz, 16C/32T, 155W TDP)</td></tr>
+    <tr><td><strong>宿主内存</strong></td><td>1 TB DDR4-3200 ECC (16× 64GB RDIMMs)</td></tr>
+    <tr><td><strong>电源</strong></td><td>4 × 2000W 冗余 (220-240VAC)</td></tr>
+    <tr><td><strong>网络</strong></td><td>200Gb/s HDR InfiniBand 或 Ethernet NIC</td></tr>
+  </tbody></table>
+<h3>1.2 GroqCard 规格</h3>
+<table>
+  <thead><tr><th>参数</th><th>规格</th></tr></thead>
+  <tbody>
+    <tr><td><strong>型号</strong></td><td>GC1-010B</td></tr>
+    <tr><td><strong>外形</strong></td><td>双宽、全高、3/4 长 PCIe Gen 4 ×16</td></tr>
+    <tr><td><strong>TSP 芯片</strong></td><td>1 × GroqChip (14nm, 900 MHz)</td></tr>
+    <tr><td><strong>计算性能</strong></td><td>750 TOPS (INT8), 188 TFLOPS (FP16)</td></tr>
+    <tr><td><strong>片上 SRAM</strong></td><td>230 MB/chip</td></tr>
+    <tr><td><strong>内存带宽</strong></td><td>80 TB/s (片内)</td></tr>
+    <tr><td><strong>典型功耗</strong></td><td>~240W (典型), 375W (最大)</td></tr>
+    <tr><td><strong>C2C 连接器</strong></td><td>88 个 RealScale C2C 连接器</td></tr>
+  </tbody></table>
+<h2>二、系统部署层级</h2>
+<h3>2.1 GroqRack 配置</h3>
+<pre><code>GroqRack（标准部署）
+├── 1 个管理节点（冗余）
+├── 8 个计算节点
+│   └── 每个节点 8 张 GroqCard
+├── 合计: 72 个 TSP
+├── 总片上 SRAM: 72 × 230 MB = 16.56 GB
+├── 总计算性能: 72 × 750 TOPS = 54,000 TOPS (INT8)
+└── 机架内延迟: 1.6 μs</code></pre>
+<h3>2.2 Argonne ALCF 部署（实际系统）</h3>
+<table>
+  <thead><tr><th>参数</th><th>数值</th></tr></thead>
+  <tbody>
+    <tr><td><strong>节点数</strong></td><td>9 个 GroqNode</td></tr>
+    <tr><td><strong>TSP 数</strong></td><td>72 个</td></tr>
+    <tr><td><strong>网络拓扑</strong></td><td>Dragonfly 多芯片拓扑</td></tr>
+    <tr><td><strong>用途</strong></td><td>AI 推理研究</td></tr>
+    <tr><td><strong>编程方式</strong></td><td>GroqWare 套件 + MLIR 接口</td></tr>
+  </tbody></table>
+<h3>2.3 最大扩展配置</h3>
+<table>
+  <thead><tr><th>参数</th><th>数值</th></tr></thead>
+  <tbody>
+    <tr><td><strong>机架数</strong></td><td>145 个</td></tr>
+    <tr><td><strong>TSP 总数</strong></td><td>10,440 个</td></tr>
+    <tr><td><strong>全局 SRAM</strong></td><td>> 2 TB</td></tr>
+    <tr><td><strong>端到端延迟</strong></td><td>< 3 μs</td></tr>
+    <tr><td><strong>最大网络跳数</strong></td><td>5 跳</td></tr>
+    <tr><td><strong>带宽/TSP</strong></td><td>~14 GB/s (超出 264 TSPs 后)</td></tr>
+  </tbody></table>
+<h2>三、功耗分析</h2>
+<h3>3.1 各级功耗估算</h3>
+<table>
+  <thead><tr><th>层级</th><th>组件功耗</th><th>合计功耗</th></tr></thead>
+  <tbody>
+    <tr><td><strong>单个 TSP</strong></td><td>~40W (典型), 375W (峰值)</td><td>40-375W</td></tr>
+    <tr><td><strong>GroqNode 服务器</strong></td><td>8 TSPs × ~240W + 主机 ~300W</td><td>~2.2 kW (典型)</td></tr>
+    <tr><td><strong>GroqRack（72 TSPs）</strong></td><td>9 × 2.2 kW</td><td>~19.8 kW (典型)</td></tr>
+    <tr><td><strong>最大系统（145 机架）</strong></td><td>145 × 19.8 kW</td><td>~2.87 MW (典型)</td></tr>
+  </tbody></table>
+<p>注：早期 5U GroqNode（2020 版）整机功耗 ~3.3 kW，后续优化降低。</p>
+<h3>3.2 功耗效率对比</h3>
+<table>
+  <thead><tr><th>指标</th><th>Groq TSP</th><th>NVIDIA A100</th><th>NVIDIA H100</th></tr></thead>
+  <tbody>
+    <tr><td><strong>TOPS/W (INT8)</strong></td><td>~3.1 (750/240)</td><td>~1.5 (624/400)</td><td>~2.0 (1979/700)</td></tr>
+    <tr><td><strong>每卡功耗</strong></td><td>~240W (典型)</td><td>~400W (TDP)</td><td>~700W (TDP)</td></tr>
+    <tr><td><strong>内存功耗优势</strong></td><td>无 HBM（纯 SRAM）</td><td>需要 HBM 堆叠</td><td>需要 HBM 堆叠</td></tr>
+    <tr><td><strong>互联功耗</strong></td><td>低（TSP 兼交换机）</td><td>高（额外交换机）</td><td>NVSwitch 额外功耗</td></tr>
+  </tbody></table>
+<h2>四、散热方案</h2>
+<h3>4.1 标准散热：风冷</h3>
+<p>Groq 声明其 LPU/GroqRack <strong>"无需复杂冷却和电力基础设施"</strong>：</p>
+<ul>
+<li>标准风冷设计</li>
+<li>不需要液冷</li>
+<li>4U 机箱内置风扇组</li>
+<li>适合标准数据中心部署</li>
+<h3>4.2 先进散热研究：微喷冷却（Microjet Cooling）</h3>
+</ul>
+<p><strong>IEEE ITherm 2024 论文</strong>（普渡大学 + Groq Inc.）探索了直接片上微喷冷却：</p>
+<blockquote>论文标题: "Direct-On-Chip Hotspot Targeted Microjet Cooling for Ultra-fast Inference at Scale Running on Groq Language Processing Unit (LPU)"</blockquote>
+<table>
+  <thead><tr><th>参数</th><th>效果</th></tr></thead>
+  <tbody>
+    <tr><td><strong>喷嘴配置</strong></td><td>定制入口喷嘴直径、间距、流量</td></tr>
+    <tr><td><strong>热点匹配</strong></td><td>根据芯片功率分布定制喷头</td></tr>
+    <tr><td><strong>温度均匀性</strong></td><td>逻辑芯片上温差 < 4°C</td></tr>
+    <tr><td><strong>热耦合</strong></td><td>显著降低 LPU 与相邻 chiplet 的热耦合</td></tr>
+    <tr><td><strong>适用场景</strong></td><td>未来高密度 LPU 部署</td></tr>
+  </tbody></table>
+<h3>4.3 散热方案路线</h3>
+<pre><code>Gen 1: 标准风冷
+  └── 适用于 ~40W/TSP 典型负载
+  └── 4U 机箱风扇组
+  └── 标准数据中心部署
+
+Gen 2: 增强风冷 + 微喷（研发中）
+  └── 针对热点定向冷却
+  └── 更高功率密度
+  └── &lt; 4°C 芯片温度均匀性
+
+Gen 3: 液冷（未来可能）
+  └── 适应更高密度 TSP
+  └── 更大规模部署的能效优化</code></pre>
+<h2>五、网络接口与扩展</h2>
+<h3>5.1 RealScale C2C 连接</h3>
+<ul>
+<li>每个 GroqNode 有 <strong>88 个 RealScale C2C 连接器</strong></li>
+<li>支持 <strong>32 个 RealScale 外部端口</strong> 用于集群互联</li>
+<li>支持 200Gb/s HDR InfiniBand 作为主机网络</li>
+<h3>5.2 系统弹性</h3>
+<li><strong>8+1 冗余节点设计</strong> — 9 个节点中 1 个为冗余</li>
+<li>编译器可在运行时适应可用 TSP 数量</li>
+<li>无单点故障路径</li>
+<h2>六、Groq LPU 编程栈</h2>
+<table>
+  <thead><tr><th>层级</th><th>组件</th></tr></thead>
+  <tbody>
+    <tr><td><strong>应用框架</strong></td><td>PyTorch, TensorFlow (通过 GroqFlow)</td></tr>
+    <tr><td><strong>编译器</strong></td><td>Groq Compiler（静态调度）</td></tr>
+    <tr><td><strong>中间表示</strong></td><td>MLIR (Multi-Level Intermediate Representation)</td></tr>
+    <tr><td><strong>驱动</strong></td><td>GroqWare 套件</td></tr>
+    <tr><td><strong>硬件</strong></td><td>GroqCard (TSP)</td></tr>
+  </tbody></table>
+<h2>七、关键参考</h2>
+<li>GroqNode Server Specification (groq.sa)</li>
+<li>GroqRack Specification (groq.sa)</li>
+<li>ALCF Argonne Groq System Overview</li>
+<li>IEEE ITherm 2024: "Direct-On-Chip Hotspot Targeted Microjet Cooling for Groq LPU"</li>
+<li>Groq Blog: "Introducing the LPU"</li>
+<li>EET China / EDN China: Groq LPU Architecture Deep Dives</li>
+</ul>
+<div class="footer">Groq Architecture Research &bull; Generated 2026-05-19</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Groq TSP 微架构深度分析 — 最终综合报告</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; color: #333; background: #f8f9fa; line-height: 1.6; padding: 20px; }
+  .container { max-width: 1000px; margin: 0 auto; background: #fff; padding: 32px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  h1 { font-size: 24px; color: #1a1a2e; margin: 20px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #76b900; }
+  h2 { font-size: 20px; color: #1a1a2e; margin: 18px 0 10px; padding-bottom: 6px; border-bottom: 1px solid #e0e0e0; }
+  h3 { font-size: 17px; color: #0f3460; margin: 16px 0 8px; }
+  h4 { font-size: 14px; color: #555; margin: 12px 0 6px; }
+  p { margin: 8px 0; color: #444; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  th { background: #1a1a2e; color: white; padding: 8px 12px; text-align: left; font-weight: 600; }
+  td { padding: 7px 12px; border-bottom: 1px solid #e8e8e8; }
+  tr:nth-child(even) { background: #f9f9fb; }
+  tr:hover { background: #f0f7f0; }
+  pre { background: #1a1a2e; color: #e0e0e0; padding: 14px; border-radius: 6px; overflow-x: auto; font-size: 13px; margin: 10px 0; }
+  code { font-family: 'SF Mono', Monaco, 'Andale Mono', monospace; }
+  p > code, li > code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 13px; color: #cc3333; }
+  ul, ol { margin: 8px 0 8px 24px; color: #444; }
+  li { margin: 4px 0; }
+  blockquote { border-left: 4px solid #76b900; padding: 10px 16px; margin: 12px 0; background: #f8ffec; color: #555; }
+  hr { border: none; border-top: 1px solid #e0e0e0; margin: 20px 0; }
+  a { color: #0f3460; text-decoration: none; }
+  a:hover { color: #76b900; text-decoration: underline; }
+  .header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); color: white; padding: 24px 32px; border-radius: 8px 8px 0 0; margin-bottom: 0; }
+  .header h1 { color: white; border: none; margin: 0; padding: 0; font-size: 22px; }
+  .header .meta { font-size: 12px; color: #8899aa; margin-top: 4px; }
+  .nav-path { font-size: 12px; color: #76b900; margin-bottom: 16px; }
+  .footer { text-align: center; padding: 20px 0; color: #888; font-size: 12px; border-top: 1px solid #e0e0e0; margin-top: 20px; }
+</style>
+</head>
+<body>
+<div class="container">
+<div class="header"><h1>Groq TSP 微架构深度分析 — 最终综合报告</h1><div class="meta">4.result/groq-tsp-microarchitecture-final-analysis.md</div></div>
+<div class="nav-path">&larr; <a href="../4.result/3_groq_arch_design_summary_v1.html">Back to Architecture Report</a></div>
+<h1>Groq TSP 微架构深度分析 — 最终综合报告</h1>
+<h1>Groq TSP Microarchitecture Deep Analysis — Final Synthesis Report</h1>
+<blockquote>创建时间: 2026-05-19T1800</blockquote>
+<blockquote>分析层级: Layer 1 (TSP 微架构) + Layer 2 (五模块详细设计)</blockquote>
+<blockquote>流程: Planning → Research (3 Rounds) → Working (5 Sub-modules) → Result</blockquote>
+<hr>
+<h2>一、执行摘要 (Executive Summary)</h2>
+<p>本报告对 Groq TSP (Tensor Streaming Processor) 芯片的微架构进行了系统性的深度分析。TSP 是一颗 <strong>14nm、900MHz、725mm²</strong> 的 AI 推理加速器，其核心创新是 <strong>功能分片 (Functional Slicing)</strong> 架构 — 将传统处理器核心按功能类型分解为独立的垂直切片 (ICU, MEM, VXM, MXM, SXM)，由编译器完全静态调度。</p>
+<h3>核心数据</h3>
+<table>
+  <thead><tr><th>参数</th><th>数值</th></tr></thead>
+  <tbody>
+    <tr><td>制程</td><td>14nm</td></tr>
+    <tr><td>Die 尺寸</td><td>25mm × 29mm (725 mm²)</td></tr>
+    <tr><td>频率</td><td>900 MHz (最高 1.25 GHz)</td></tr>
+    <tr><td>片上 SRAM</td><td>~220-230 MB</td></tr>
+    <tr><td>内存带宽</td><td>80 TB/s</td></tr>
+    <tr><td>SIMD 通道</td><td>320 (20 SL × 16 lanes)</td></tr>
+    <tr><td>指令队列</td><td>144 (独立)</td></tr>
+    <tr><td>MAC 总数</td><td>409,600 (4 planes × 320 × 320)</td></tr>
+    <tr><td>向量 ALU</td><td>5,120 (320 × 16)</td></tr>
+    <tr><td>流水线深度</td><td>20 级/功能切片</td></tr>
+    <tr><td>TDP</td><td>~300W</td></tr>
+    <tr><td>INT8 性能</td><td>750-1000 TOPS</td></tr>
+    <tr><td>FP16 性能</td><td>188-205 TFLOPS</td></tr>
+  </tbody></table>
+<hr>
+<h2>二、架构总览 (Architecture Overview)</h2>
+<h3>2.1 功能分片架构 (Functional Slicing)</h3>
+<p>TSP 将芯片组织为 2D 网格，列 (slice) 按功能划分，行 (tile/Super Lane) 按数据流划分：</p>
+<pre><code>指令流 (North ↑)           数据流 (East ↔ West)
+                           ←───────────────→
+┌──────┬──────┬──────────┬──────────────────┬──────────┬──────┬──────┐
+│      │      │          │  20 Super Lanes   │          │      │      │
+│ MXM  │ SXM  │   MEM    │   (16 lanes each) │   MEM    │ SXM  │ MXM  │
+│      │      │          │                   │          │      │      │
+│ 矩阵  │ 开关  │  存储    │  VXM (向量引擎)   │  存储    │ 开关  │ 矩阵  │
+│ ×2   │ ×2   │   ×2     │    ×1 (中心)      │   ×2     │ ×2   │ ×2   │
+│      │      │          │                   │          │      │      │
+└──────┴──────┴──────────┴──────────────────┴──────────┴──────┴──────┘
+                                        ↑
+                                   以 VXM 为中心镜像
+                                   两个准独立"半球"
+
+┌──────────────────────────────────────────────────────────────┐
+│                       ICU (指令控制单元)                        │
+│               &lt;3% die area | 144 queues | 集中控制             │
+└──────────────────────────────────────────────────────────────┘</code></pre>
+<h3>2.2 核心设计原则</h3>
+<ol>
+<li><strong>完全确定性执行</strong>: 消除所有响应式硬件 (无缓存、无仲裁器、无分支预测、无乱序执行)</li>
+<li><strong>编译器调度一切</strong>: 编译器在编译时精确调度每条指令和每个数据移动的 cycle</li>
+<li><strong>流式数据模型</strong>: 数据以流的方式在生产者和消费者之间传递，无需寄存器文件中间存储</li>
+<li><strong>功能分片</strong>: 同功能单元垂直堆叠，控制逻辑共享，面积效率最大化</li>
+<li><strong>链式执行</strong>: 结果直接从功能单元流向下一个功能单元</li>
+<hr>
+<h2>三、五模块详细分析 (Five Modules Deep Analysis)</h2>
+<h3>3.1 ICU — 指令控制单元</h3>
+</ol>
+<p><strong>关键参数</strong>:</p>
+<ul>
+<li>面积占比: <3% die (< ~8 mm²)</li>
+<li>指令队列: 144（每队列 32-64 条指令深度）</li>
+<li>指令格式: VLIW 包 (含所有功能切片的操作字段)</li>
+<li>同步机制: SYNC (暂停) / NOTIFY (恢复) / DESKEW (多 TSP 对齐)</li>
+</ul>
+<p><strong>工作原理</strong>:</p>
+<p>ICU 位于芯片底部，作为水平条带控制所有功能切片。指令从 ICU 出发，沿垂直方向 (North) 向上传播，每 cycle 传播一个 Super Lane。从 ICU 到顶层 SL 19 需要 20 cycles。ICU 内部的 144 个独立指令队列由编译器静态管理 — 编译器在编译时已精确决定了每个 queue 在每个 cycle 应该发射什么指令。</p>
+<p><strong>关键创新</strong>:</p>
+<ul>
+<li>集中控制逻辑节省了大量芯片面积 (传统设计中每个核心 15-25% 用于控制)</li>
+<li>144 队列并行发射实现高指令级并行 (ILP)</li>
+<li>MIMD 风格：不同功能切片可同时执行不同指令</li>
+<hr>
+<h3>3.2 MEM — 存储切片</h3>
+</ul>
+<p><strong>关键参数</strong>:</p>
+<ul>
+<li>总容量: 220-230 MB SRAM</li>
+<li>MEM 切片: 40 (20 SL × 2)</li>
+<li>每切片容量: ~5.5 MB (2 tiles × ~2.75 MB)</li>
+<li>总带宽: 80 TB/s</li>
+<li>存储层次: 单级 SRAM (无缓存、无 DRAM)</li>
+<li>地址管理: 编译器静态分配 (无 MMU/TLB)</li>
+</ul>
+<p><strong>工作原理</strong>:</p>
+<p>每个 Super Lane 包含 2 个 MEM 切片 (左右对称)。数据通过 Stream ID (0-31) + 方向 (E/W) 进行寻址，而非传统的内存地址。MEM 切片作为数据流的生产者和消费者 — 读操作将 SRAM 数据加载到数据流中，写操作将流数据存储回 SRAM。</p>
+<p><strong>80 TB/s 带宽的实现</strong>:</p>
+<ul>
+<li>88 MEM tiles × 2 ports × 32 bytes × 900 MHz × 2 (RD+WR) ≈ 10 TB/s 基础带宽</li>
+<li>乘以细粒度 bank 级并行 (每 tile 8-16 banks) → 80 TB/s</li>
+</ul>
+<p><strong>与 GPU 对比</strong>:</p>
+<ul>
+<li>TSP: 230 MB SRAM, 80 TB/s, ~5-10ns 延迟, 完全确定性</li>
+<li>H100: 80 GB HBM + ~50 MB cache, ~3 TB/s, ~100-200ns, 统计性</li>
+<hr>
+<h3>3.3 VXM — 向量执行模块</h3>
+</ul>
+<p><strong>关键参数</strong>:</p>
+<ul>
+<li>每 Super Lane: 16 ALU × 32 bytes/lane</li>
+<li>全芯片: 320 ALU × 16 子单元 = 5,120 运算单元</li>
+<li>向量宽度: 320 elements/cycle (全芯片 SIMD)</li>
+<li>流水线深度: 20 级</li>
+<li>支持精度: INT8/INT16/FP16/BF16/FP32/FP8</li>
+<li>专有技术: TruePoint Numerics (100-bit 中间累加)</li>
+</ul>
+<p><strong>工作原理</strong>:</p>
+<p>VXM 位于每个 Super Lane 的中心，作为向量运算引擎。所有 16 lanes 在每 cycle 执行同一条指令 (SIMD)。VXM 从东西方向的数据流接收操作数，执行向量运算后，结果直接流向 MEM (存储) 或 MXM/SXM (进一步处理)，无需寄存器文件中间步骤。</p>
+<p><strong>TruePoint Numerics</strong>:</p>
+<p>Groq 的专有精度技术，使用 100-bit 累加器保证无精度损失。权重和激活值可用 INT8/FP16 低精度存储，累加时扩展为 100-bit，输出时按需量化。相比 BF16 精度无损且速度提升 2-4×。</p>
+<hr>
+<h3>3.4 MXM — 矩阵执行模块</h3>
+<p><strong>关键参数</strong>:</p>
+<ul>
+<li>架构: Weight-stationary systolic array</li>
+<li>每 MXM: 4 planes × 320×320 = 409,600 MACs</li>
+<li>每 Super Lane: 2 MXM (左右)</li>
+<li>数据流: Weight-stationary (权重固定，激活值流过)</li>
+<li>权重加载: 4 planes × 102,400 weights/plane < 40 cycles</li>
+<li>Systolic 子单元: 16×16 supercell</li>
+</ul>
+<p><strong>工作原理</strong>:</p>
+<p>MXM 采用经典的 systolic array 架构，权重预加载到 4 个 320×320 MAC 平面中保持不动 (weight-stationary)，输入激活值从数据流进入并在阵列中流动，部分和在 vertical 方向传播累加。</p>
+<p><strong>4 Planes 的用途</strong>:</p>
+<ol>
+<li><strong>大矩阵分解</strong>: 4 个 320×320 块独立运算</li>
+<li><strong>FP16 精度</strong>: 4 planes 分别处理高低字节后组合</li>
+<li><strong>批量并行</strong>: 4 个 batch 共享权重</li>
+</ol>
+<p><strong>与传统对比</strong>:</p>
+<table>
+  <thead><tr><th>特性</th><th>TSP MXM</th><th>Google TPU</th><th>NVIDIA Tensor Core</th></tr></thead>
+  <tbody>
+    <tr><td>矩阵维度</td><td>320×320</td><td>128×128</td><td>16×16</td></tr>
+    <tr><td>数据流方式</td><td>Weight-stationary</td><td>Systolic</td><td>SIMT warp-level</td></tr>
+    <tr><td>编译器控制</td><td>完全</td><td>部分</td><td>动态</td></tr>
+  </tbody></table>
+<hr>
+<h3>3.5 SXM — 移位/交换执行模块</h3>
+<p><strong>关键参数</strong>:</p>
+<ul>
+<li>每 Super Lane: 2 SXM (左右)</li>
+<li>全芯片 SXM: 40</li>
+<li>核心实现: Tiled 1D crossbar / permuter circuit</li>
+<li>延迟: 1-2 cycles (大部分操作)</li>
+<li>额外功能: C2C 片间通信, PCIe 接口</li>
+</ul>
+<p><strong>工作原理</strong>:</p>
+<p>SXM 实现了 lane 之间的任意数据重排。数据从 16 lanes 进入 SXM，通过 tiled crossbar 重新排列后输出。编译器在编译时配置排列模式 (permute pattern) — 模式一旦设置即可在该数据流传输期间保持不变。</p>
+<p><strong>核心功能</strong>:</p>
+<ul>
+<li>Shift/Rotate (移位/旋转)、Permute (任意排列)、Broadcast (广播)</li>
+<li>Gather/Scatter (收集/散播)、Transpose (转置)、Interleave (交错)</li>
+<li>多 TSP 互联的 C2C 接口</li>
+</ul>
+<p><strong>关键技术实现</strong>:</p>
+<p>Crossbar 采用 tiled 结构减少面积: 每 16×16 lane block 内实现全 crossbar，block 间使用有限连接。这种设计在灵活性和面积之间取得平衡。</p>
+<hr>
+<h2>四、数据流模型详解 (Dataflow Model)</h2>
+<h3>4.1 正交数据流 (Orthogonal Dataflow)</h3>
+<p>TSP 最独特的设计是<strong>指令流和数据流的正交</strong>:</p>
+<pre><code>          指令流 (垂直, North ↑)
+          每个 cycle 一个 SL
+          ┌───┐
+SL 19 ◄───┤   │───► 数据流
+          └───┘
+           ...
+          ┌───┐
+SL 1 ◄────┤   │───►
+          └───┘
+          ┌───┐
+SL 0 ◄────┤   │───►
+          └───┘
+          ┌──────────────────────┐
+          │  ICU (指令发射)       │
+          └──────────────────────┘
+          
+数据流: 水平 (East ↔ West), 32 bytes/lane/cycle
+指令流: 垂直 (North), 所有 SL 接收同一指令</code></pre>
+<h3>4.2 Wavefront 传播</h3>
+<pre><code>时间 t=0:  ICU 发射指令到 SL 0
+           SL 0 MXM 开始计算
+
+时间 t=1:  ICU 发射到下一条指令到 SL 0
+           SL 0 MXM 继续, SL 1 MXM 开始
+
+时间 t=2:  SL 0、SL 1、SL 2 同时在流水线中
+           ...
+时间 t=19: 所有 20 个 SL 同时在流水线中
+           
+→ 稳态: 每个 SL 处于流水线的不同阶段
+→ 类似"波纹"wavefront 在垂直方向传播</code></pre>
+<h3>4.3 链式执行 (Chaining)</h3>
+<pre><code>MEM(加载A) → SXM(路由) → MXM(Q×K) → VXM(Softmax) → ...
+  ↑            ↑            ↑           ↑
+  数据源       数据重排     矩阵乘      激活函数
+
+关键: 中间结果从不写入存储器 — 直接在功能单元间流动</code></pre>
+<hr>
+<h2>五、编译器角色 (Compiler Role)</h2>
+<h3>5.1 编译器可见资源</h3>
+<pre><code>编译器在编译时具有完全的硬件可见性:
+├── 320 SIMD 通道
+├── 144 个独立指令队列
+├── 64 个逻辑流/通道 (32E + 32W)
+├── 220 MB SRAM 地址空间
+├── 所有指令的精确延迟
+├── 所有功能切片的资源冲突
+└── 所有数据流的路由路径</code></pre>
+<h3>5.2 静态调度算法</h3>
+<pre><code>Input: 神经网络计算图 (ONNX/TensorFlow/MLIR)
+Output: 每条指令的精确 cycle 级时间表
+
+步骤:
+1. 前端: MLIR 降级 → Tensor → Stream IR
+2. 计算图 → 数据流图 (DFG)
+3. 拓扑排序 + 资源分配
+4. 静态列表调度 (List Scheduling):
+   - 每个操作分配执行时间
+   - 解决资源冲突 (cycle 偏移)
+   - 分配流 ID 和方向
+5. 插入同步指令 (SYNC/NOTIFY/DESKEW)
+6. 生成 VLIW 指令包
+7. 生成 SRAM 地址映射</code></pre>
+<h3>5.3 与动态调度的对比</h3>
+<table>
+  <thead><tr><th>特性</th><th>TSP (静态调度)</th><th>GPU (动态调度)</th></tr></thead>
+  <tbody>
+    <tr><td>调度时机</td><td>编译时</td><td>运行时</td></tr>
+    <tr><td>调度器</td><td>编译器</td><td>硬件 warp scheduler</td></tr>
+    <tr><td>资源冲突解决</td><td>编译时预测</td><td>硬件仲裁</td></tr>
+    <tr><td>适应性</td><td>固定程序最优</td><td>动态变化适应</td></tr>
+    <tr><td>硬件占用</td><td>无调度硬件开销</td><td>~10-20% area</td></tr>
+    <tr><td>可预测性</td><td>Cycle 级精确</td><td>统计性</td></tr>
+  </tbody></table>
+<hr>
+<h2>六、面积与功耗分布 (Area & Power Distribution)</h2>
+<h3>面积分布 (725 mm² total)</h3>
+<table>
+  <thead><tr><th>模块</th><th>估算面积</th><th>占比</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td>SRAM (MEM)</td><td>~290-360 mm²</td><td>~40-50%</td><td>230 MB + ECC + 冗余</td></tr>
+    <tr><td>MXM (矩阵乘)</td><td>~145-180 mm²</td><td>~20-25%</td><td>409,600 MACs</td></tr>
+    <tr><td>VXM (向量)</td><td>~72-108 mm²</td><td>~10-15%</td><td>5,120 ALUs + 数据路径</td></tr>
+    <tr><td>SXM (交叉开关)</td><td>~72 mm²</td><td>~10%</td><td>Crossbar + C2C + PCIe</td></tr>
+    <tr><td>ICU (控制)</td><td>~4-8 mm²</td><td><3%</td><td>指令队列 + 解码</td></tr>
+    <tr><td>其他 (时钟/布线/I/O)</td><td>~72-108 mm²</td><td>~10-15%</td><td></td></tr>
+  </tbody></table>
+<h3>功耗分布 (300W TDP)</h3>
+<table>
+  <thead><tr><th>模块</th><th>估算功耗</th><th>占比</th></tr></thead>
+  <tbody>
+    <tr><td>SRAM 阵列</td><td>~120-150W</td><td>~40-50%</td></tr>
+    <tr><td>MXM MAC 阵列</td><td>~60-75W</td><td>~20-25%</td></tr>
+    <tr><td>VXM ALU</td><td>~30-45W</td><td>~10-15%</td></tr>
+    <tr><td>SXM Crossbar</td><td>~30W</td><td>~10%</td></tr>
+    <tr><td>ICU</td><td>~3-5W</td><td>~1-2%</td></tr>
+    <tr><td>时钟/布线/漏电</td><td>~30-45W</td><td>~10-15%</td></tr>
+  </tbody></table>
+<hr>
+<h2>七、关键设计决策权衡 (Key Trade-offs)</h2>
+<h3>7.1 SRAM-only vs DRAM</h3>
+<table>
+  <thead><tr><th>权衡</th><th>SRAM (选择)</th><th>DRAM (放弃)</th></tr></thead>
+  <tbody>
+    <tr><td>确定性</td><td>固定延迟 ✓</td><td>可变延迟 ✗</td></tr>
+    <tr><td>带宽</td><td>80 TB/s ✓</td><td>~3 TB/s ✗</td></tr>
+    <tr><td>延迟</td><td>5-10ns ✓</td><td>100-200ns ✗</td></tr>
+    <tr><td>容量</td><td>230 MB ✗</td><td>80 GB ✓</td></tr>
+    <tr><td>成本</td><td>高昂 ✗</td><td>便宜 ✓</td></tr>
+  </tbody></table>
+<h3>7.2 功能分片 vs 传统多核</h3>
+<table>
+  <thead><tr><th>权衡</th><th>功能分片</th><th>传统多核</th></tr></thead>
+  <tbody>
+    <tr><td>控制逻辑效率</td><td><3% ✓</td><td>15-25% ✗</td></tr>
+    <tr><td>同构性</td><td>列内同构 ✓</td><td>核内异构</td></tr>
+    <tr><td>扩展性</td><td>增加 tile 数</td><td>增加核数</td></tr>
+    <tr><td>灵活性</td><td>流式模型受限 ✗</td><td>通用 ✓</td></tr>
+  </tbody></table>
+<h3>7.3 编译时调度 vs 运行时调度</h3>
+<table>
+  <thead><tr><th>权衡</th><th>编译时</th><th>运行时</th></tr></thead>
+  <tbody>
+    <tr><td>可预测性</td><td>Cycle 级 ✓</td><td>统计性 ✗</td></tr>
+    <tr><td>硬件效率</td><td>高 (无调度硬件) ✓</td><td>中 (有调度硬件) ✗</td></tr>
+    <tr><td>灵活性</td><td>固定程序最优 ✗</td><td>动态适应 ✓</td></tr>
+    <tr><td>编译器复杂度</td><td>极高 ✗</td><td>低 ✓</td></tr>
+  </tbody></table>
+<hr>
+<h2>八、性能特征 (Performance Characteristics)</h2>
+<h3>8.1 延迟分析</h3>
+<table>
+  <thead><tr><th>操作</th><th>延迟 (cycles)</th><th>延迟 (ns@900MHz)</th></tr></thead>
+  <tbody>
+    <tr><td>SRAM 读</td><td>2-3</td><td>2.2-3.3</td></tr>
+    <tr><td>SIMD 向量 ADD</td><td>1-2</td><td>1.1-2.2</td></tr>
+    <tr><td>FP16 向量 MUL</td><td>2-3</td><td>2.2-3.3</td></tr>
+    <tr><td>FP32 向量 FMA</td><td>4-5</td><td>4.4-5.6</td></tr>
+    <tr><td>矩阵乘 (320×320)</td><td>320+</td><td>355+</td></tr>
+    <tr><td>指令垂直传播 (SL 0→19)</td><td>20</td><td>22.2</td></tr>
+    <tr><td>片内总延迟 (LD→结果)</td><td>~30-50</td><td>~33-56</td></tr>
+    <tr><td>片间 C2C 传播</td><td>50-100</td><td>~55-111</td></tr>
+  </tbody></table>
+<h3>8.2 吞吐量</h3>
+<table>
+  <thead><tr><th>模型</th><th>批处理</th><th>吞吐量</th><th>延迟</th></tr></thead>
+  <tbody>
+    <tr><td>ResNet-50</td><td>batch-1</td><td>20,400 img/s</td><td><49 μs</td></tr>
+    <tr><td>BERT-base</td><td>batch-1</td><td>—</td><td>130 μs tail</td></tr>
+    <tr><td>Mixtral 8×7B</td><td>—</td><td>480 tokens/s</td><td>—</td></tr>
+  </tbody></table>
+<hr>
+<h2>九、局限性与未来方向 (Limitations & Future)</h2>
+<h3>当前局限</h3>
+<ol>
+<li><strong>SRAM 容量限制</strong>: 230 MB 无法容纳大模型 (如 Llama 2 70B 需 ~140 GB)</li>
+<li><strong>编译器负担</strong>: 静态调度对编译器要求极高，编译时间长</li>
+<li><strong>灵活性不足</strong>: 不规则控制流效率低</li>
+<li><strong>成本</strong>: 14nm SRAM 高昂，转换为更先进制程存在挑战</li>
+<li><strong>多芯片扩展</strong>: 需要高效的多 TSP 互联来弥补单芯片容量不足</li>
+<h3>未来方向</h3>
+<li><strong>更小制程</strong>: 7nm/5nm 可大幅提升 SRAM 密度和频率</li>
+<li><strong>HBM 混合</strong>: 结合 SRAM 的确定性和 HBM 的大容量</li>
+<li><strong>编译器自动化</strong>: ML-driven 静态调度加速</li>
+<li><strong>稀疏性支持</strong>: 利用结构化/非结构化稀疏性提升效率</li>
+<li><strong>训练支持</strong>: 扩展确定性模型支持反向传播、梯度累积</li>
+<hr>
+<h2>十、结论 (Conclusion)</h2>
+</ol>
+<p>Groq TSP 通过<strong>功能分片</strong>和<strong>完全确定性执行</strong>实现了独特的架构创新:</p>
+<ol>
+<li><strong>面积效率</strong>: ICU <3% 控制逻辑占比，释放更多面积用于计算和存储</li>
+<li><strong>确定性</strong>: 编译器可精确预测每个程序的执行时间 — 这在传统架构中不可能实现</li>
+<li><strong>高带宽</strong>: 80 TB/s 纯 SRAM 带宽，远超 HBM</li>
+<li><strong>低延迟</strong>: 5-10ns 内存访问延迟，比 HBM 低 20×</li>
+<li><strong>高利用率</strong>: 编译器全局优化实现高硬件利用率</li>
+</ol>
+<p>这种设计特别适合<strong>延迟敏感的推理场景</strong> (如 LLM 推理)，但在需要大容量存储或动态控制流的场景中受限于 SRAM 容量和确定性约束。</p>
+<hr>
+<h2>附录：关键数据汇总 (Key Data Summary)</h2>
+<h3>A. 芯片物理参数</h3>
+<table>
+  <thead><tr><th>参数</th><th>值</th></tr></thead>
+  <tbody>
+    <tr><td>制程</td><td>14nm FinFET</td></tr>
+    <tr><td>Die 尺寸</td><td>25mm × 29mm</td></tr>
+    <tr><td>Die 面积</td><td>~725 mm²</td></tr>
+    <tr><td>晶体管数</td><td>~数亿</td></tr>
+    <tr><td>频率</td><td>900 MHz (nominal)</td></tr>
+    <tr><td>TDP</td><td>~300W</td></tr>
+  </tbody></table>
+<h3>B. 存储系统</h3>
+<table>
+  <thead><tr><th>参数</th><th>值</th></tr></thead>
+  <tbody>
+    <tr><td>SRAM 总容量</td><td>220-230 MB</td></tr>
+    <tr><td>MEM 切片数</td><td>40 (20 SL × 2)</td></tr>
+    <tr><td>每切片容量</td><td>~5.5 MB</td></tr>
+    <tr><td>总带宽</td><td>80 TB/s</td></tr>
+    <tr><td>访问延迟</td><td>2-3 cycles</td></tr>
+    <tr><td>并发度</td><td>176 路访问 (88 × 2)</td></tr>
+  </tbody></table>
+<h3>C. 计算能力</h3>
+<table>
+  <thead><tr><th>精度</th><th>峰值性能</th><th>MAC 利用率</th></tr></thead>
+  <tbody>
+    <tr><td>INT8</td><td>750-1000 TOPS</td><td>409,600/cycle</td></tr>
+    <tr><td>FP16</td><td>188-205 TFLOPS</td><td>409,600/cycle</td></tr>
+    <tr><td>FP32 (VXM)</td><td>~5 GFLOPS</td><td>5,120 ops/cycle</td></tr>
+  </tbody></table>
+<h3>D. 控制系统</h3>
+<table>
+  <thead><tr><th>参数</th><th>值</th></tr></thead>
+  <tbody>
+    <tr><td>指令队列</td><td>144</td></tr>
+    <tr><td>每队列发射</td><td>1+ 指令/cycle</td></tr>
+    <tr><td>总发射带宽</td><td>144+ 指令/cycle</td></tr>
+    <tr><td>同步机制</td><td>SYNC/NOTIFY/DESKEW</td></tr>
+    <tr><td>控制面积</td><td><3% die</td></tr>
+  </tbody></table>
+<hr>
+<h2>参考文献 (References)</h2>
+<ol>
+<li>Abts, D. et al., "Think Fast: A Tensor Streaming Processor (TSP) for Accelerating Deep Learning Workloads", ISCA 2020</li>
+<li>Singh, S. et al., "The Virtuous Cycles of Determinism: Programming Groq's Tensor Streaming Processor", ISCA 2022</li>
+<li>US20240037064A1 — "Instruction Format and Instruction Set Architecture for TSP", Groq Inc.</li>
+<li>US20230024670A1 — "Deterministic Memory for Tensor Streaming Processors", Groq Inc.</li>
+<li>US12277444B2 — "Software-defined Tensor Streaming Multiprocessor for Large-scale ML", Groq Inc.</li>
+<li>Groq Blog — "Inside the LPU: Deconstructing Groq's Speed"</li>
+<li>Zellic Research — "How Is Groq So Fast? An Overview of Groq's TSP Architecture"</li>
+<li>D. Abts, Stanford EE380 — "Dataflow for Convergence of AI and HPC: GroqChip"</li>
+<li>EET China — "深度拆解 Groq LPU 架构"</li>
+<li>36Kr — "揭开 Groq LPU 神秘面纱"</li>
+</ol>
+<div class="footer">Groq Architecture Research &bull; Generated 2026-05-19</div>
+</div>
+</body>
+</html>

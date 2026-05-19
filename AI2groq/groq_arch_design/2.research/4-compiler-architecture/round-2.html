@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Round 2: Haskell 后端与静态调度算法深度分析</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; color: #333; background: #f8f9fa; line-height: 1.6; padding: 20px; }
+  .container { max-width: 1000px; margin: 0 auto; background: #fff; padding: 32px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  h1 { font-size: 24px; color: #1a1a2e; margin: 20px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #76b900; }
+  h2 { font-size: 20px; color: #1a1a2e; margin: 18px 0 10px; padding-bottom: 6px; border-bottom: 1px solid #e0e0e0; }
+  h3 { font-size: 17px; color: #0f3460; margin: 16px 0 8px; }
+  h4 { font-size: 14px; color: #555; margin: 12px 0 6px; }
+  p { margin: 8px 0; color: #444; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  th { background: #1a1a2e; color: white; padding: 8px 12px; text-align: left; font-weight: 600; }
+  td { padding: 7px 12px; border-bottom: 1px solid #e8e8e8; }
+  tr:nth-child(even) { background: #f9f9fb; }
+  tr:hover { background: #f0f7f0; }
+  pre { background: #1a1a2e; color: #e0e0e0; padding: 14px; border-radius: 6px; overflow-x: auto; font-size: 13px; margin: 10px 0; }
+  code { font-family: 'SF Mono', Monaco, 'Andale Mono', monospace; }
+  p > code, li > code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 13px; color: #cc3333; }
+  ul, ol { margin: 8px 0 8px 24px; color: #444; }
+  li { margin: 4px 0; }
+  blockquote { border-left: 4px solid #76b900; padding: 10px 16px; margin: 12px 0; background: #f8ffec; color: #555; }
+  hr { border: none; border-top: 1px solid #e0e0e0; margin: 20px 0; }
+  a { color: #0f3460; text-decoration: none; }
+  a:hover { color: #76b900; text-decoration: underline; }
+  .header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); color: white; padding: 24px 32px; border-radius: 8px 8px 0 0; margin-bottom: 0; }
+  .header h1 { color: white; border: none; margin: 0; padding: 0; font-size: 22px; }
+  .header .meta { font-size: 12px; color: #8899aa; margin-top: 4px; }
+  .nav-path { font-size: 12px; color: #76b900; margin-bottom: 16px; }
+  .footer { text-align: center; padding: 20px 0; color: #888; font-size: 12px; border-top: 1px solid #e0e0e0; margin-top: 20px; }
+</style>
+</head>
+<body>
+<div class="container">
+<div class="header"><h1>Round 2: Haskell 后端与静态调度算法深度分析</h1><div class="meta">2.research/4-compiler-architecture/round-2.md</div></div>
+<div class="nav-path">&larr; <a href="../4.result/3_groq_arch_design_summary_v1.html">Back to Architecture Report</a></div>
+<h1>Round 2: Haskell 后端与静态调度算法深度分析</h1>
+<h2>Haskell Backend & Static Scheduling Algorithm — Deep Analysis</h2>
+<p><strong>Created:</strong> 20260519-1010  </p>
+<p><strong>Author:</strong> Groq Compiler Architecture Expert  </p>
+<p><strong>Status:</strong> Complete</p>
+<hr>
+<h2>1. Haskell 后端 — 为何选择 Haskell？</h2>
+<h3>1.1 历史背景 / Historical Context</h3>
+<p>Groq 编译器团队由 <strong>Satnam Singh</strong>（Groq Fellow）领导，他此前在 Xilinx 领导 Haskell 硬件设计工具（Lava DSL）的开发，在 Google 参与了 MLIR 的设计，在 Facebook 参与了 PyTorch 编译器工作。这套编译器完全反映了他的技术路线。</p>
+<h3>1.2 Haskell 的选择理由</h3>
+<table>
+  <thead><tr><th>维度</th><th>解释</th></tr></thead>
+  <tbody>
+    <tr><td><strong>类型安全</strong></td><td>硬件调度不容出错 — Haskell 的类型系统在编译时捕获调度冲突</td></tr>
+    <tr><td><strong>纯函数式</strong></td><td>不可变数据 + 无副作用 = 确定性编译，与 TSP 的确定性哲学一致</td></tr>
+    <tr><td><strong>DSL 能力</strong></td><td>EDSL (Embedded DSL) 模式可以用 do-notation 描述硬件流水线</td></tr>
+    <tr><td><strong>Lava 传承</strong></td><td>Haste DSL 继承自 Xilinx Lava，是经过验证的硬件描述方法</td></tr>
+    <tr><td><strong>并发建模</strong></td><td>用 monad 建模 144 个指令队列的并行行为</td></tr>
+    <tr><td><strong>形式化验证</strong></td><td>Haskell 生态支持模型检查 (model checking) 和时序逻辑验证</td></tr>
+  </tbody></table>
+<h3>1.3 编译器架构</h3>
+<pre><code>MLIR Frontend (Groq Dialect IR)
+         │
+         │  IR emitted as Haskell AST / textual format
+         ▼
+┌─────────────────────────────────────┐
+│       Haskell Backend               │
+│                                     │
+│  ┌──────────┐   ┌──────────────┐   │
+│  │ Scheduler │   │  Allocator   │   │
+│  │ (调度器)  │   │ (资源分配器)  │   │
+│  └────┬─────┘   └──────┬───────┘   │
+│       │                 │           │
+│       ▼                 ▼           │
+│  ┌─────────────────────────────┐   │
+│  │    Haste DSL / CodeGen      │   │
+│  └──────────┬──────────────────┘   │
+│             │                       │
+│  ┌──────────▼──────────────────┐   │
+│  │   Assembler (TSP machine code) │
+│  └─────────────────────────────┘   │
+└─────────────────────────────────────┘
+         │
+         ▼
+   TSP Instruction Binary (IOP format)</code></pre>
+<hr>
+<h2>2. Haste DSL — 硬件编程语言</h2>
+<h3>2.1 Haste 的设计理念</h3>
+<p>Haste 是 Groq 的 <strong>Haskell 嵌入式领域专用语言</strong>（EDSL），用于直接编程 TSP。它在 ICFP 2023 的 FHPNC 分会上首次公开。</p>
+<p>核心特性：</p>
+<ul>
+<li><strong>Lava-like combinators</strong>: 用高阶函数组合硬件流水线</li>
+<li><strong>线性代数原生</strong>: 直接表达矩阵乘法、卷积等运算</li>
+<li><strong>时序精确</strong>: 每条 Haskell 表达式对应确定数量的 TSP 周期</li>
+<li><strong>类型级约束</strong>: 用 Haskell 类型系统保证流水线宽度/深度匹配</li>
+<h3>2.2 Haste 示例结构（概念性）</h3>
+<pre><code>-- 概念性示例：一个简单的矩阵乘法在 Haste 中的描述
+matmul :: MXMSlice -&gt; MEMSlice -&gt; Stream (Matrix Float) -&gt; Stream (Matrix Float) -&gt; Haskell ()
+matmul mxm mem a b = do
+    -- 从 MEM 加载矩阵 A 和 B
+    a_stream &lt;- memLoad mem a_addr
+    b_stream &lt;- memLoad mem b_addr
+    
+    -- 在 MXM slice 上执行矩阵乘法
+    result &lt;- mxmMultiply mxm a_stream b_stream
+    
+    -- 将结果存回 MEM
+    memStore mem result_addr result
+    
+    -- 同步所有队列
+    sync</code></pre>
+</ul>
+<p><em>注: 这是概念性代码，实际 Haste API 细节未公开。</em></p>
+<h3>2.3 Haste 与 MLIR 的关系</h3>
+<p>Haste 并非替代 MLIR 前端，而是作为<strong>硬件代码生成的目标</strong>：</p>
+<ul>
+<li>MLIR 前端处理框架无关的高层优化</li>
+<li>Haskell 后端接收 lower 后的 IR，用 Haste 描述 TSP 指令序列</li>
+<li>调度器在 Haskell 中实现，直接操作 Haste AST</li>
+<hr>
+<h2>3. 静态调度算法 — 核心技术</h2>
+<h3>3.1 调度问题的规模 / Scale of the Scheduling Problem</h3>
+<table>
+  <thead><tr><th>资源</th><th>数量</th><th>调度约束</th></tr></thead>
+  <tbody>
+    <tr><td>独立指令队列</td><td>144</td><td>每个队列有自己的 PC，编译器控制其顺序</td></tr>
+    <tr><td>SIMD 通道</td><td>320 (20 tiles × 16 lanes)</td><td>通道间数据可交换</td></tr>
+    <tr><td>逻辑流 (Streams)</td><td>64/通道 (32E + 32W)</td><td>有限的流寄存器命名空间</td></tr>
+    <tr><td>共享 SRAM</td><td>220 MB</td><td>无缓存，编译器分配所有内存</td></tr>
+    <tr><td>功能列</td><td>5 种 (ICU/MEM/VXM/MXM/SXM)</td><td>每种操作绑定到特定列类型</td></tr>
+  </tbody></table>
+<h3>3.2 调度算法核心思想</h3>
+</ul>
+<p><strong>核心原则: "Software-defined hardware" — 编译器在编译时决定一切。</strong></p>
+<h4>3.2.1 静态 ILP 调度 (Static Instruction-Level Parallelism)</h4>
+<p>传统 CPU 在硬件中做 ILP（指令级并行）调度（Tomasulo 算法、重排序缓冲区）。Groq 将其完全移动到编译器：</p>
+<pre><code>CPU 方法:                    Groq 方法:
+  乱序发射 (硬件)        ⟹     编译时分配发射周期
+  寄存器重命名 (硬件)     ⟹     编译时分配流寄存器
+  分支预测 (硬件)        ⟹     无分支/预测在编译时确定
+  缓存一致性 (硬件)      ⟹     SRAM 静态分配</code></pre>
+<h4>3.2.2 List Scheduling 变体</h4>
+<p>基于对 TSP ISA 的研究可以推断，调度器核心是某种 <strong>改进的 List Scheduling</strong>：</p>
+<pre><code>输入: DAG of operations (来自 MLIR 前端的 Groq IR)
+   
+1. 拓扑排序: 按依赖关系确定操作优先级
+2. 资源检查: 每个操作要占用哪个 function slice (MXM/VXM/MEM/SXM)
+3. 队列分配: 分配到 144 个队列中的某个
+4. 周期分配: 确定指令的精确发射周期
+5. 流分配: 分配 stream 寄存器 (64/通道)
+6. 冲突检测: 检测 resource hazard + data hazard
+7. 回退/重试: 冲突时调整发射周期
+
+输出: 每个队列的指令序列 + 精确周期表</code></pre>
+<h4>3.2.3 模调度 (Modulo Scheduling) 推测</h4>
+<p>对于 ML 推理中的循环体（如矩阵乘法 tiling、卷积 sliding window），编译器几乎必然使用 <strong>模调度</strong> 来流水化循环执行：</p>
+<pre><code>经典模调度概念 (Modulo Scheduling):
+  Iteration 0:  [LD][MAC][ST]
+  Iteration 1:       [LD][MAC][ST]
+  Iteration 2:            [LD][MAC][ST]
+  
+  Initiation Interval (II) = 1 cycle (每个周期启动一个新 iteration)
+
+Groq TSP 的模调度优势:
+  - 无缓存，无内存冲突 ⇒ 可预测的 II
+  - 144 个队列 ⇒ 更多的并行模展开空间
+  - 所有数据流 timing 已知 ⇒ 精确的模调度公式</code></pre>
+<h4>3.2.4 ILP 求解器辅助调度</h4>
+<p>对于调度中的关键部分（如多芯片通信、资源竞争热点），编译器可能使用 <strong>ILP (Integer Linear Programming)</strong> 求解器找到最优解：</p>
+<ul>
+<li><strong>目标函数</strong>: 最小化总执行周期数</li>
+<li><strong>约束条件</strong>: 资源上限、依赖边、队列容量、流寄存器上限</li>
+<li><strong>求解规模</strong>: 由于硬件确定性，约束是线性的而非动态的，ILP 高效</li>
+<h3>3.3 144 个队列的协同调度</h3>
+</ul>
+<p>这是 Groq 调度器最具挑战性的部分。不同于传统 VLIW 处理器（通常 4-8 个 issue slots），Groq 有 144 个队列：</p>
+<pre><code>每个队列 = 一个独立的功能列 × 一个 tile 行
+
+布局:
+  列类型: ICU  MEM  VXM  MXM  SXM    (5 种)
+  行数:    20  (tiles)
+  总计:    5 × 20 = 100 (但 MEM 更多，总计 144)
+
+调度器需要保证:
+  1. 同一指令在同一个队列连续发射
+  2. 不同队列的指令间满足 data/control 依赖
+  3. 所有队列按 SYNC 指令对齐</code></pre>
+<p><strong>同步机制</strong>:</p>
+<ul>
+<li><code>SYNC</code>/<code>NOTIFY</code>: 单芯片内 144 队列的对齐指令</li>
+<li><code>HAC</code> (Hardware Alignment Counters): 多芯片间的时钟同步</li>
+<li><code>DESKEW</code>/<code>RUNTIME_DESKEW</code>: 时钟漂移补偿</li>
+<h3>3.4 内存布局优化 / Memory Layout Optimization</h3>
+</ul>
+<p>编译器负责所有 SRAM 分配，没有硬件缓存来弥补次优布局：</p>
+<pre><code>优化目标:
+  1. 减少 bank conflict
+  2. 匹配 stream 访问模式
+  3. 最小化内存碎片
+
+优化手段:
+  - 张量平铺 (Tensor Tiling): 将大矩阵切分为 SRAM bank 友好的小块
+  - 布局转换 (Layout Transform): NHWC ↔ NCHW ↔ 自定义格式
+  - 双缓冲 (Double Buffering): 计算/加载重叠
+  - Liveness 分析: 精确的生命周期分析以减少内存占用</code></pre>
+<hr>
+<h2>4. 形式化验证 / Formal Verification</h2>
+<p>Satnam Singh 在 2024 年演讲中特别提到：</p>
+<blockquote><em>"Applying formal verification techniques using temporal logic and model checking to verify the functionality of our chip designs."</em></blockquote>
+<p>这反映在编译器后端：</p>
+<ul>
+<li><strong>类型级证明</strong>: Haskell 类型系统保证调度不违反硬件约束</li>
+<li><strong>模型检查</strong>: 用时序逻辑验证 144 队列间的死锁自由</li>
+<li><strong>等价性检查</strong>: 验证调度后的代码在数学上等价于原始 IR</li>
+<hr>
+<h2>5. 关键洞察 / Key Insights</h2>
+<h3>5.1 Haskell 后端的不可替代性</h3>
+</ul>
+<p>Groq 编译器最核心的竞争力 — 静态调度器 — 全部在 Haskell 中实现。这意味着：</p>
+<ul>
+<li><strong>竞争对手无法复用</strong>（闭源 + 小众语言）</li>
+<li><strong>人才壁垒高</strong>（Haskell + 编译器 + 硬件的大牛极其稀缺）</li>
+<li><strong>调试困难</strong>（MLIR 前端 + Haskell 后端 = 两层 black box）</li>
+<h3>5.2 调度算法的计算复杂度</h3>
+</ul>
+<p>全静态调度 144 个队列是一个 <strong>NP-hard</strong> 问题。Groq 的解法:</p>
+<ol>
+<li>硬件确定性简化了约束（无需考虑动态行为）</li>
+<li>功能切片减少了调度维度（每个操作只能到特定列）</li>
+<li>图结构规则（ML 计算图是 DAG）使 ILP 求解可行</li>
+<li>可能使用启发式 + ILP 求解的混合方案</li>
+<h3>5.3 确定性哲学的一致性</h3>
+</ol>
+<p>从硬件设计到编译器，到 DSL 设计，再到形式化验证，"确定性"贯穿始终。这不是偶然 — 它是 Groq 相对于 GPU（CUDA 全动态调度）的根本差异化。</p>
+<hr>
+<p><strong>Next</strong>: <a href="./round-3.md">Round 3 — 内存布局与深度源码分析</a></p>
+<div class="footer">Groq Architecture Research &bull; Generated 2026-05-19</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Round 2: TSP 间通信与编译器网络调度</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; color: #333; background: #f8f9fa; line-height: 1.6; padding: 20px; }
+  .container { max-width: 1000px; margin: 0 auto; background: #fff; padding: 32px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  h1 { font-size: 24px; color: #1a1a2e; margin: 20px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #76b900; }
+  h2 { font-size: 20px; color: #1a1a2e; margin: 18px 0 10px; padding-bottom: 6px; border-bottom: 1px solid #e0e0e0; }
+  h3 { font-size: 17px; color: #0f3460; margin: 16px 0 8px; }
+  h4 { font-size: 14px; color: #555; margin: 12px 0 6px; }
+  p { margin: 8px 0; color: #444; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  th { background: #1a1a2e; color: white; padding: 8px 12px; text-align: left; font-weight: 600; }
+  td { padding: 7px 12px; border-bottom: 1px solid #e8e8e8; }
+  tr:nth-child(even) { background: #f9f9fb; }
+  tr:hover { background: #f0f7f0; }
+  pre { background: #1a1a2e; color: #e0e0e0; padding: 14px; border-radius: 6px; overflow-x: auto; font-size: 13px; margin: 10px 0; }
+  code { font-family: 'SF Mono', Monaco, 'Andale Mono', monospace; }
+  p > code, li > code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 13px; color: #cc3333; }
+  ul, ol { margin: 8px 0 8px 24px; color: #444; }
+  li { margin: 4px 0; }
+  blockquote { border-left: 4px solid #76b900; padding: 10px 16px; margin: 12px 0; background: #f8ffec; color: #555; }
+  hr { border: none; border-top: 1px solid #e0e0e0; margin: 20px 0; }
+  a { color: #0f3460; text-decoration: none; }
+  a:hover { color: #76b900; text-decoration: underline; }
+  .header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); color: white; padding: 24px 32px; border-radius: 8px 8px 0 0; margin-bottom: 0; }
+  .header h1 { color: white; border: none; margin: 0; padding: 0; font-size: 22px; }
+  .header .meta { font-size: 12px; color: #8899aa; margin-top: 4px; }
+  .nav-path { font-size: 12px; color: #76b900; margin-bottom: 16px; }
+  .footer { text-align: center; padding: 20px 0; color: #888; font-size: 12px; border-top: 1px solid #e0e0e0; margin-top: 20px; }
+</style>
+</head>
+<body>
+<div class="container">
+<div class="header"><h1>Round 2: TSP 间通信与编译器网络调度</h1><div class="meta">2.research/5-multi-tsp-interconnect/round-2-tsp-comm-compiler.md</div></div>
+<div class="nav-path">&larr; <a href="../4.result/3_groq_arch_design_summary_v1.html">Back to Architecture Report</a></div>
+<h1>Round 2: TSP 间通信与编译器网络调度</h1>
+<blockquote>创建时间: 2026-05-19</blockquote>
+<blockquote>状态: Research Complete</blockquote>
+<h2>一、TSP 间通信机制</h2>
+<h3>1.1 通信模型：Producer-Consumer Stream</h3>
+<p>Groq 将单 TSP 的 <strong>producer-consumer 流式编程模型</strong> 扩展到全局多 TSP 系统：</p>
+<ul>
+<li><strong>数据以流（stream）形式在 TSP 间传递</strong></li>
+<li><strong>编译器预先协调</strong> send/receive 指令，消除 request/response 往返延迟</li>
+<li><strong>无硬件流控</strong> — 完全由软件调度避免溢出/欠载</li>
+<li>使用 <strong>ISA 级 "deskew" 指令</strong> 对齐多链路数据，保持分布式 TSP 的同步锁步编程模型</li>
+<h3>1.2 消息格式</h3>
+<table>
+  <thead><tr><th>参数</th><th>数值</th></tr></thead>
+  <tbody>
+    <tr><td><strong>负载（payload）</strong></td><td>320 字节向量（对齐 TSP 的 320-lane SIMD 宽度）</td></tr>
+    <tr><td><strong>编码开销</strong></td><td>仅 ~2.5%（最小头部/尾部标记）</td></tr>
+    <tr><td><strong>无数据包头</strong></td><td>因为路由由编译器静态决定</td></tr>
+    <tr><td><strong>无握手协议</strong></td><td>send/receive 按时序执行</td></tr>
+  </tbody></table>
+<h3>1.3 数据包结构（推测）</h3>
+</ul>
+<p>由于完全软件调度，Groq 的 C2C 链路传输可能采用极简格式：</p>
+<pre><code>┌──────────────────────────────────────────┐
+│  Control Bits (~2.5%)                     │
+│  ┌──────────────┬──────────┬──────────┐   │
+│  │ Stream ID    │ Sequence │ ECC/CRC  │   │
+│  └──────────────┴──────────┴──────────┘   │
+├──────────────────────────────────────────┤
+│  Payload: 320-byte Vector Data            │
+│  ┌──────────────────────────────────┐     │
+│  │ 320 × FP8/INT8/FP16 elements     │     │
+│  └──────────────────────────────────┘     │
+└──────────────────────────────────────────┘</code></pre>
+<h2>二、同步机制</h2>
+<h3>2.1 Hardware Alignment Counter（HAC）</h3>
+<p>每个 TSP 拥有独立的 <strong>硬件对齐计数器</strong>，用于多芯片同步：</p>
+<ol>
+<li><strong>HAC 校准</strong> — 当两个 TSP 互联时，一方发送 HAC 值，对方回显，差值即为链路延迟</li>
+<li><strong>Parent-Child 关系</strong> — Parent 周期发送 HAC 值，Child 调整自身 HAC 抵消时钟漂移</li>
+<li><strong>生成树协议</strong> — 可跨多跳网络建立 spanning tree，扩展至整个系统</li>
+<h3>2.2 DESKEW 指令</h3>
+<pre><code>DESKEW:
+  功能: 停止处理后续指令，直到 HAC 溢出
+  用途: 跨 TSP 对齐执行时间
+  变体: RUNTIME_DESKEW — 运行时重新同步本地时间与全局时间</code></pre>
+<h3>2.3 SYNC/NOTIFY 指令（单 TSP 内）</h3>
+</ol>
+<ul>
+<li><strong>SYNC</strong>: 暂停所有 144 个指令队列</li>
+<li><strong>NOTIFY</strong>: 广播到所有队列恢复同步执行</li>
+<h3>2.4 Plesiosynchronous 操作</h3>
+</ul>
+<p>Groq 系统 <strong>并非真正全局同步</strong>，而是提供 <strong>伪同步（plesiosynchronous）</strong> 的假象：</p>
+<ul>
+<li>每个 TSP 有独立的时钟源</li>
+<li>HAC + SAC（Software Alignment Counter）检测和补偿时钟漂移</li>
+<li>结果是所有 TSP 仿佛在 lockstep 中运行</li>
+<li>"提供了一种大型单核同步系统的假象"</li>
+<h2>三、编译器网络调度</h2>
+<h3>3.1 静态路由分配</h3>
+</ul>
+<p>Groq 编译器的网络调度是其核心创新：</p>
+<pre><code>Compiler 静态调度流程：
+1. 分析计算图（ML model graph）
+2. 为每个张量分配产生 TSP + 消费 TSP
+3. 计算全局数据流路径
+4. 为每段通信分配精确时间槽
+5. 生成 send/receive 指令序列（精确到 cycle）</code></pre>
+<h3>3.2 Source-Based Routing（源路由）</h3>
+<ul>
+<li><strong>所有路由决策在编译时由编译器决定</strong></li>
+<li>源 TSP 的指令流确定每个数据包的路径和时间</li>
+<li>无运行时路由决策，无数据包头，无握手机制</li>
+<li>编译器拥有 <strong>全局视图</strong>，可进行全网络负载均衡</li>
+<h3>3.3 编译器调度的优势</h3>
+<table>
+  <thead><tr><th>方面</th><th>传统网络</th><th>Groq 编译器调度</th></tr></thead>
+  <tbody>
+    <tr><td>路由决策</td><td>运行时（自适应路由）</td><td>编译时（静态）</td></tr>
+    <tr><td>链路冲突</td><td>动态避免（重传/退避）</td><td>编译时完全消除</td></tr>
+    <tr><td>控制开销</td><td>高（包头 + 握手）</td><td>极低（~2.5%）</td></tr>
+    <tr><td>带宽利用率</td><td>受拥塞影响下降</td><td>75-90% 峰值利用率</td></tr>
+    <tr><td>延迟抖动</td><td>有（排队延迟）</td><td>零（确定性）</td></tr>
+    <tr><td>路径多样性</td><td>保守使用</td><td>可同时使用 A→B→C 和 A→C</td></tr>
+  </tbody></table>
+<h3>3.4 链路负载均衡策略</h3>
+</ul>
+<p>编译器的全局视图使其能够实现传统网络无法达到的负载均衡：</p>
+<ul>
+<li><strong>同时利用多条路径</strong> — 例如同时使用直达路径 A→C 和间接路径 A→B→C</li>
+<li><strong>动态网络会保守地不使用 A→B→C</strong>，因为担心干扰 B 的带宽</li>
+<li><strong>编译器可以精确计算每条链路的占用率</strong>，做到零冲突的完美调度</li>
+<h3>3.5 确定性定时保证</h3>
+<li>编译器 <strong>精确知道每个程序段的执行周期数</strong></li>
+<li>数据无关的执行时间（不依赖输入数据值）</li>
+<li>所有 TSP 在 lockstep 中执行</li>
+<li>数据传输使用 <strong>指令指针作为隐式时间戳</strong> — 不需要 request/response</li>
+<h2>四、路由与死锁避免</h2>
+<h3>4.1 Groq 的死锁避免策略</h3>
+</ul>
+<p>由于 <strong>所有路由由编译器静态决定</strong>，Groq 采用与通用 Dragonfly 不同的死锁避免方法：</p>
+<ul>
+<li><strong>确定性路由（Deterministic routing）</strong> — 编译器选择的路由路径保证无环</li>
+<li><strong>无需 VC（Virtual Channel）隔离</strong> — 传统 Dragonfly 需要 VC shifting 来避免死锁</li>
+<li><strong>编译器保证无循环依赖</strong> — 从调度层面消除死锁可能</li>
+<li><strong>无自适应路由</strong> — 简化了死锁避免的复杂度</li>
+<h3>4.2 与传统 Dragonfly 死锁避免对比</h3>
+<table>
+  <thead><tr><th>方法</th><th>传统 Dragonfly</th><th>Groq Dragonfly</th></tr></thead>
+  <tbody>
+    <tr><td>VC shifting</td><td>需要</td><td>不需要（编译器保证）</td></tr>
+    <tr><td>Escape VC</td><td>需要</td><td>不需要</td></tr>
+    <tr><td>自适应路由</td><td>常见</td><td>不使用</td></tr>
+    <tr><td>死锁检测</td><td>硬件机制</td><td>编译时验证</td></tr>
+    <tr><td>非最小路由</td><td>Valiant 需要特殊处理</td><td>编译器可控</td></tr>
+  </tbody></table>
+<h2>五、性能数据</h2>
+<h3>5.1 通信延迟</h3>
+<table>
+  <thead><tr><th>操作</th><th>延迟</th><th>对比</th></tr></thead>
+  <tbody>
+    <tr><td>8 TSPs AllReduce</td><td>2.1 μs</td><td>快于 NVIDIA A100 (同等配置)</td></tr>
+    <tr><td>端到端系统（任意 TSP 对）</td><td>< 3 μs</td><td>10,440 TSPs 规模</td></tr>
+    <tr><td>单机架延迟</td><td>1.6 μs</td><td>8 个计算节点</td></tr>
+  </tbody></table>
+<h3>5.2 计算性能</h3>
+<table>
+  <thead><tr><th>应用</th><th>性能</th></tr></thead>
+  <tbody>
+    <tr><td>分布式矩阵乘法（650k×650k, 100 TSPs）</td><td>~100x 加速 vs NVIDIA V100 集群</td></tr>
+    <tr><td>BERT-Large 推理</td><td>平均 1,225 μs 延迟，近线性吞吐扩展</td></tr>
+    <tr><td>Cholesky 分解</td><td>1.5× 性能提升，22.4 FP16 TFLOPS/节点</td></tr>
+  </tbody></table>
+<h2>六、关键参考</h2>
+<li>ISCA 2022: "A Software-defined Tensor Streaming Multiprocessor for Large-scale Machine Learning"</li>
+<li>ISCA 2020: "Groq: A TSP for Deep Learning"</li>
+<li>Stanford EE380 Talk (Dennis Abts, Groq Chief Architect)</li>
+<li>SC23 Supercomputing: "Strong Scaling of State-of-the-Art LLM Inference with Groq"</li>
+<li>Groq Patent 12277444: "Software-defined Tensor Streaming"</li>
+</ul>
+<div class="footer">Groq Architecture Research &bull; Generated 2026-05-19</div>
+</div>
+</body>
+</html>
