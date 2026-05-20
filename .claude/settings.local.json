@@ -41,7 +41,9 @@
       "Bash(echo \"=== $m ===\")",
       "Read(//team_work/qingyun/chip_design_groq/spi2apb/work_dir.config_regs/**)",
       "Skill(update-config)",
-      "Bash(jq:*)"
+      "Bash(jq:*)",
+      "Bash(tesseract --version)",
+      "Bash(apt-get install:*)"
     ]
   },
   "hooks": {
