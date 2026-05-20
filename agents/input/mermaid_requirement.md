@@ -1,7 +1,6 @@
 # Skill 定义
 
 将以下需求，转换为一个专业芯片的skill：mermaid_chip_diagram
-skill 路径在放在./agents/skills
 
 # mermaid 图片要求：
 
