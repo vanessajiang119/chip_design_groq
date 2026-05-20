@@ -37,6 +37,7 @@ description: Multi-phase chip design spec generator — dual-mode orchestrator. 
 
 - 创建任务目录 `1.planning/`, `2.slice/`, `3.working/`, `4.result/`
 - 委托 `chip_spec_gen.planning` 分析输入文件、生成规划
+- **询问用户是否启动 design_research agent**，自动到网上寻找缺失章节；
 
 ### Phase 2: Slice → 委托 `chip_spec_gen.slice`
 
