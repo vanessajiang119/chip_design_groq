@@ -43,7 +43,9 @@
       "Skill(update-config)",
       "Bash(jq:*)",
       "Bash(tesseract --version)",
-      "Bash(apt-get install:*)"
+      "Bash(apt-get install:*)",
+      "Bash(python3 -c \":*)",
+      "Bash(pip list:*)"
     ]
   },
   "hooks": {
