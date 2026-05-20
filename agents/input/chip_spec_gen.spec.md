@@ -48,6 +48,7 @@ description: Multi-phase chip design spec generator — dual-mode orchestrator. 
 ### Phase 3: Working (Round N) → 委托 `chip_spec_gen.working`
 
 - 委托 `chip_spec_gen.working` 分析 slice 数据、按需组织章节
+- 对于block，请用HLD和LLD两种输出文件分开整理和输出; 对于 SOC，请用HLD格式整理和输出资料；
 - 判断这是一个SOC 还是 一个内部block：
   - **SOC**: 按照 02_soc_arch.HLD.md 组织章节和内容（单文件）
   - **内部 Block**: 按照 03_block_arch.HLD.md 和 04_block_micro.LLD.md **分别**组织章节和内容，生成**两份独立的文档**（HLD + LLD）
