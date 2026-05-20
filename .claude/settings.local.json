@@ -23,7 +23,23 @@
       "Bash(python3 *)",
       "Bash(pip3 install *)",
       "Bash(gh auth *)",
-      "Bash(gh repo *)"
+      "Bash(gh repo *)",
+      "Bash(for m:*)",
+      "Bash(do mkdir:*)",
+      "Bash(cp -r /team_work/qingyun/chip_design_groq/chip_design_agent/* work_dir.$m/)",
+      "Bash(done)",
+      "Bash(ls -d work_dir.*/)",
+      "Bash(pip install:*)",
+      "Bash(chip-pipeline init:*)",
+      "Bash(cd:*)",
+      "Bash(chip-pipeline run:*)",
+      "Bash(echo \"==EXIT:$?=\")",
+      "Bash(chip-pipeline report:*)",
+      "Bash(echo \"===EXIT:$?==\")",
+      "Bash(do)",
+      "Bash(rtl_dir=\"/team_work/qingyun/chip_design_groq/spi2apb/work_dir.$m/artifacts/s3_rtl_design/outputs/rtl\")",
+      "Bash(echo \"=== $m ===\")",
+      "Read(//team_work/qingyun/chip_design_groq/spi2apb/work_dir.config_regs/**)"
     ]
   }
 }

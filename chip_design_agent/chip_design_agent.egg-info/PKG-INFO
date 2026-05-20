@@ -1,0 +1,9 @@
+Metadata-Version: 2.4
+Name: chip-design-agent
+Version: 1.0.0
+Summary: 芯片研发管理自动化流水线 Agent — 从规格书到 GDS
+Requires-Python: >=3.9
+Requires-Dist: pyyaml>=6.0
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary

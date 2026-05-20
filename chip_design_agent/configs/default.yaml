@@ -1,0 +1,80 @@
+# configs/default.yaml — 默认流水线配置模板
+pipeline:
+  name: "chip-design-flow"
+  version: "1.0"
+
+  project:
+    name: ""
+    tech_node: "28nm"
+    top_module: ""
+
+  stages:
+    - id: s1_spec_analysis
+      name: "规格书分析"
+      enabled: true
+      input: ["spec_doc"]
+      output: ["arch_spec", "parameter_list"]
+      tool: null
+      timeout: 3600
+
+    - id: s2_architecture
+      name: "架构设计"
+      enabled: true
+      input: ["arch_spec"]
+      output: ["block_diagram", "interface_def"]
+      tool: null
+      timeout: 7200
+
+    - id: s3_rtl_design
+      name: "RTL 编码"
+      enabled: true
+      input: ["arch_spec", "block_diagram", "interface_def"]
+      output: ["rtl_files", "constraints", "rtl_file_list"]
+      tool: null
+      timeout: 14400
+
+    - id: s4_verification
+      name: "验证"
+      enabled: true
+      input: ["rtl_files"]
+      output: ["verification_report"]
+      tool: vcs
+      timeout: 28800
+
+    - id: s5_synthesis
+      name: "综合与DFT"
+      enabled: true
+      input: ["rtl_files", "constraints"]
+      output: ["netlist", "synthesis_report"]
+      tool: dc_shell
+      timeout: 28800
+      tool_setup:
+        - "source dc_setup.tcl"
+
+    - id: s6_physical_design
+      name: "物理设计"
+      enabled: true
+      input: ["netlist", "constraints"]
+      output: ["placed_netlist", "routed_netlist", "physical_report"]
+      tool: icc2_shell
+      timeout: 86400
+
+    - id: s7_timing_closure
+      name: "时序收敛"
+      enabled: true
+      input: ["routed_netlist", "constraints"]
+      output: ["timing_report"]
+      tool: pt_shell
+      timeout: 43200
+
+    - id: s8_gds_signoff
+      name: "GDS签核"
+      enabled: true
+      input: ["routed_netlist"]
+      output: ["gds", "signoff_report"]
+      tool: icv
+      timeout: 43200
+
+  checkpoints:
+    auto_save: true
+    dir: ".checkpoints"

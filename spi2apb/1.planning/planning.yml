@@ -1,0 +1,52 @@
+project:
+  name: spi2apb_bridge
+  tech_node: 待补充
+  top_module: spi2apb_bridge_top
+  description: >
+    QSPI-to-APB bridge IP. QSPI slave interface up to 200MHz,
+    APB 2.0 master interface with 40-bit address and 128-bit data.
+    Supports SPI mode 0/3 configurable.
+
+modules:
+  - name: qspi_slave
+    type: 接口
+    description: >
+      QSPI 从机接口模块，最高 200MHz 时钟域。
+      支持 SPI mode 0/3 可配，解析 SPI 命令/地址/数据。
+      Quad SPI (4-bit I/O) 模式。
+    interface: QSPI (Quad SPI)
+
+  - name: cmd_decoder
+    type: Ctrl FSM
+    description: >
+      命令解码器，解析 SPI 命令 (READ/WRITE/FAST_READ/Quad IO)，
+      生成 APB 传输控制信号和地址。
+    interface: 内部 (qspi_slave ↔ apb_master)
+
+  - name: async_fifo
+    type: FIFO
+    description: >
+      异步 FIFO 跨时钟域桥接，SPI 时钟域 (200MHz) ↔ APB 时钟域，
+      处理写数据 FIFO 和读数据 FIFO。
+    interface: 内部 (双向)
+
+  - name: apb_master
+    type: 接口
+    description: >
+      APB 2.0 标准 Master 接口模块，
+      地址 40bit，数据 128bit，支持 PSLVERR/PREADY 握手。
+    interface: APB 2.0
+
+  - name: config_regs
+    type: 配置接口
+    description: >
+      配置寄存器模块，包含 SPI 配置寄存器、
+      状态寄存器、中断控制寄存器。
+    interface: APB Slave (内部)
+
+max_iterations: 3
+
+search_sources:
+  - web_search
+  - vendor_docs
+  - github
