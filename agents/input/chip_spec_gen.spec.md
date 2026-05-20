@@ -37,11 +37,12 @@ description: Multi-phase chip design spec generator — dual-mode orchestrator. 
 
 - 创建任务目录 `1.planning/`, `2.slice/`, `3.working/`, `4.result/`
 - 委托 `chip_spec_gen.planning` 分析输入文件、生成规划
+- 询问用户是否启动design_research agent，自动到网上寻找缺失章节；
 
 ### Phase 2: Slice → 委托 `chip_spec_gen.slice`
 
 - 委托 `chip_spec_gen.slice` 从源文档中按章节提取内容
-- 提取图片、表格、代码块并打标签
+- 提取图片、表格、代码块并打标签; 图片打标签，主要依据它在上下文中的位置；其次使用ocr解析后根据的内容；
 - 结果写入 `2.slice/`
 
 ### Phase 3: Working (Round N) → 委托 `chip_spec_gen.working`
@@ -49,7 +50,7 @@ description: Multi-phase chip design spec generator — dual-mode orchestrator. 
 - 委托 `chip_spec_gen.working` 分析 slice 数据、按需组织章节
 - 判断这是一个SOC 还是 一个内部block，如果是SOC，则按照02_soc_arch.HLD.md重新组织章节和内容；如果是内部block，则按照03_block_arch.HLD.md和04_block_micro.LLD.md 重新组织章节和内容；
 - 检查各章节内容完整性：
-  - **缺少内容** → 回到 Phase 2 要求补充特定材料
+  - **缺少内容** → 回到 Phase 2 要求补充特定材料；更近planning阶段的配置，判断是否启动design_research agent，自动到网上寻找缺失章节内容；
   - **内容完整** → 轻度润色后进入 Phase 4
 - 迭代次数由 `planning.yml` 中的 `max_iterations` 控制
 
@@ -57,7 +58,8 @@ description: Multi-phase chip design spec generator — dual-mode orchestrator. 
 
 - 生成完成后，**等待用户确认**，确认后保存到 `4.result/` 目录并附带时间戳
 - 如果是SOC，则按照02_soc_arch.HLD.md 生成输出文档；如果是内部block，则按照03_block_arch.HLD.md和04_block_micro.LLD.md生成输出文档；
-- 委托 `design_research.workingresult` 使用 `html_chip_design_spec` skill生成最终 HTML 报告、drawio 图
+- 委托 `design_research.workingresult` 使用 `html_chip_design_spec` skill生成最终 HTML 报告、drawio 图；
+- 当html_chip_design_spec中需要图片时，首选到2.slice中找到合适的原图片，如果实在没有，则根据html_chip_design_spec中的要求，启动绘图软件绘图;
 - 使用 `html_chip_design_spec` skill + `drawio_chip_diagram` skill
 
 ---
