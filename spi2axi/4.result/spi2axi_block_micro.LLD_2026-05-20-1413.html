@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPI2AXI Bridge — 模块微架构规格书 (LLD)</title>
+<style>
+:root {
+  --bg-primary: #FFFFFF;
+  --bg-secondary: #F6F8FA;
+  --bg-tertiary: #F0F2F5;
+  --bg-hover: #EAECEF;
+  --text-primary: #1A1A1A;
+  --text-secondary: #4B5563;
+  --text-muted: #9CA3AF;
+  --accent-green: #76B900;
+  --accent-green-hover: #89C700;
+  --accent-green-dark: #3B5C00;
+  --border: #E5E7EB;
+  --border-strong: #D1D5DB;
+  --border-active: #76B900;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans SC',Helvetica,Arial,sans-serif;
+  font-size:16px;line-height:1.7;color:var(--text-primary);background:var(--bg-primary);
+}
+.top-header{
+  position:sticky;top:0;z-index:100;background:var(--bg-primary);
+  border-bottom:1px solid var(--border);height:56px;display:flex;align-items:center;padding:0 24px;
+}
+.header-inner{max-width:1200px;width:100%;margin:0 auto;display:flex;align-items:center;gap:12px;}
+.header-logo{width:24px;height:24px;background:var(--accent-green);border-radius:4px;flex-shrink:0;}
+.header-breadcrumb{font-size:0.85rem;color:var(--text-secondary);}
+.header-breadcrumb span{color:var(--text-primary);font-weight:600;}
+.badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:0.75rem;font-weight:600;}
+.badge-green{background:#E8F5D8;color:var(--accent-green-dark);}
+.badge-draft{background:#FEF3C7;color:#92400E;}
+.layout{display:flex;max-width:1200px;margin:0 auto;min-height:calc(100vh-56px);}
+.sidebar{
+  width:280px;flex-shrink:0;background:var(--bg-secondary);border-right:1px solid var(--border);
+  padding:1.5rem 0;position:sticky;top:56px;height:calc(100vh-56px);overflow-y:auto;
+}
+.sidebar-title{font-size:0.7rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;padding:0 16px 8px;}
+.sidebar-item{
+  display:block;padding:6px 16px;font-size:0.85rem;color:var(--text-secondary);
+  text-decoration:none;border-left:3px solid transparent;
+}
+.sidebar-item:hover{background:var(--bg-hover);color:var(--text-primary);}
+.sidebar-item.active{border-left-color:var(--accent-green);color:var(--text-primary);font-weight:600;}
+.sidebar-item.sub{padding-left:32px;font-size:0.8rem;}
+.main-content{flex:1;min-width:0;padding:3rem 2rem;max-width:860px;}
+h1{font-size:2rem;font-weight:700;letter-spacing:-0.02em;margin-bottom:0.5rem;}
+h2{
+  font-size:1.5rem;font-weight:600;border-top:1px solid var(--border);
+  padding-top:2rem;margin-top:3rem;margin-bottom:1rem;
+}
+h3{font-size:1.25rem;font-weight:600;margin-top:2rem;margin-bottom:0.75rem;}
+h4{font-size:1.05rem;font-weight:600;margin-top:1.5rem;margin-bottom:0.5rem;}
+p{margin-bottom:1.25rem;}
+.meta{font-size:0.875rem;color:var(--text-secondary);margin-bottom:2rem;}
+table{width:100%;border-collapse:collapse;margin:1rem 0 1.5rem;font-size:0.9rem;}
+th{
+  border-bottom:2px solid var(--border-strong);padding:10px 14px;
+  font-size:0.75rem;font-weight:600;color:var(--text-muted);
+  text-transform:uppercase;letter-spacing:0.03em;text-align:left;
+}
+td{padding:10px 14px;border-bottom:1px solid var(--border);}
+tr:nth-child(even) td{background:var(--bg-secondary);}
+pre,code{font-family:'SFMono-Regular','SF Mono','Fira Code','Hack',Consolas,monospace;}
+pre{
+  background:var(--bg-tertiary);border:1px solid var(--border);border-radius:6px;
+  padding:1rem;font-size:0.85rem;overflow-x:auto;margin:1rem 0 1.5rem;position:relative;
+}
+code{font-size:0.85rem;background:var(--bg-tertiary);padding:2px 6px;border-radius:3px;}
+pre code{background:none;padding:0;border-radius:0;}
+.card{
+  background:var(--bg-primary);border:1px solid var(--border);border-radius:8px;
+  padding:1.5rem;box-shadow:var(--shadow-sm);margin:1rem 0 1.5rem;
+}
+.info-box{
+  background:var(--bg-secondary);border-left:4px solid var(--accent-green);
+  padding:1rem 1.25rem;border-radius:0 6px 6px 0;margin:1rem 0 1.5rem;font-size:0.9rem;
+}
+.warn-box{
+  background:#FFFBEB;border-left:4px solid #F59E0B;
+  padding:1rem 1.25rem;border-radius:0 6px 6px 0;margin:1rem 0 1.5rem;font-size:0.9rem;
+}
+.img-container{margin:1rem 0 1.5rem;text-align:center;}
+.img-container img{max-width:100%;border:1px solid var(--border);border-radius:6px;}
+.img-caption{font-size:0.8rem;color:var(--text-muted);margin-top:0.5rem;}
+.footer{border-top:1px solid var(--border);padding:2rem 0;margin-top:4rem;font-size:0.85rem;color:var(--text-muted);text-align:center;}
+ul,ol{margin:0.5rem 0 1.25rem 1.5rem;}
+li{margin-bottom:0.25rem;}
+@media(max-width:768px){.sidebar{display:none;}.main-content{padding:1.5rem 1rem;}}
+.fsm-table td{font-family:'SFMono-Regular',monospace;font-size:0.8rem;}
+</style>
+</head>
+<body>
+<header class="top-header"><div class="header-inner">
+  <div class="header-logo"></div>
+  <div class="header-breadcrumb">Chip Design / <span>SPI2AXI Bridge LLD</span></div>
+</div></header>
+<div class="layout">
+<nav class="sidebar">
+  <div class="sidebar-title">LLD Contents</div>
+  <a class="sidebar-item active" href="#c1">1. Module Overview</a>
+  <a class="sidebar-item" href="#c2">2. Interface Specification</a>
+  <a class="sidebar-item sub" href="#c2-1">2.1 Port Signal Table</a>
+  <a class="sidebar-item sub" href="#c2-2">2.2 Cycle-Level Timing</a>
+  <a class="sidebar-item sub" href="#c2-3">2.3 Backpressure</a>
+  <a class="sidebar-item" href="#c3">3. Sub-Module Partition</a>
+  <a class="sidebar-item" href="#c4">4. FSM Specification</a>
+  <a class="sidebar-item sub" href="#c4-1">4.1 SPI Receive FSM</a>
+  <a class="sidebar-item sub" href="#c4-2">4.2 AXI Master FSM</a>
+  <a class="sidebar-item" href="#c5">5. Pipeline Specification</a>
+  <a class="sidebar-item" href="#c6">6. Datapath Specification</a>
+  <a class="sidebar-item" href="#c7">7. CSR Register Map</a>
+  <a class="sidebar-item" href="#c8">8. Clock & Reset</a>
+  <a class="sidebar-item" href="#c9">9. Timing Constraints (SDC)</a>
+  <a class="sidebar-item" href="#c10">10. Implementation Notes</a>
+  <a class="sidebar-item" href="#c11">11. Verification Guidance</a>
+  <a class="sidebar-item" href="#c12">12. DFT Requirements</a>
+  <a class="sidebar-item" href="#c13">13. Delivery Checklist</a>
+  <a class="sidebar-item" href="#c14">14. Revision History</a>
+</nav>
+
+<main class="main-content">
+
+<h1>SPI2AXI Bridge — 模块微架构规格书 (LLD)</h1>
+<div class="meta">
+  <strong>模块名称:</strong> SPI2AXI Bridge &nbsp;|&nbsp; <strong>版本:</strong> V2.0 &nbsp;|&nbsp; <strong>日期:</strong> 2026-05-20 &nbsp;|&nbsp; <strong>状态:</strong> <span class="badge badge-draft">Draft</span>
+</div>
+
+<!-- ===== Chapter 1: Module Overview ===== -->
+<section id="c1">
+<h2>1. Module Overview</h2>
+<h3>1.1 Module Identity</h3>
+<table>
+  <tr><td><strong>模块全名</strong></td><td>SPI2AXI Bridge</td></tr>
+  <tr><td><strong>层次路径</strong></td><td><code>top.chip.subsystem.spi2axi</code></td></tr>
+  <tr><td><strong>工艺 / PVT</strong></td><td>N/A (RTL IP)</td></tr>
+  <tr><td><strong>目标频率</strong></td><td>SPI_CLK ≤ 50MHz, AXI_CLK ≥ 100MHz</td></tr>
+  <tr><td><strong>面积预算</strong></td><td>~31 kgates</td></tr>
+</table>
+
+<h3>1.2 Top-Level Ports Summary</h3>
+<table>
+  <tr><th>Port Group</th><th>Direction</th><th>Width</th><th>Description</th></tr>
+  <tr><td><code>spi_sclk</code></td><td>input</td><td>1</td><td>SPI 串行时钟 @ ≤ 50MHz</td></tr>
+  <tr><td><code>spi_cs_n</code></td><td>input</td><td>1</td><td>SPI 片选 (低有效)</td></tr>
+  <tr><td><code>spi_sdi</code></td><td>input</td><td>4</td><td>SPI 数据输入 (QSPI)</td></tr>
+  <tr><td><code>spi_sdo</code></td><td>output</td><td>4</td><td>SPI 数据输出 (QSPI)</td></tr>
+  <tr><td><code>axi_clk</code></td><td>input</td><td>1</td><td>AXI 系统时钟 @ ≥ 100MHz</td></tr>
+  <tr><td><code>axi_rst_n</code></td><td>input</td><td>1</td><td>AXI 异步复位, 低有效</td></tr>
+  <tr><td><code>axi_*</code></td><td>in/out</td><td>32+</td><td>AXI4-Lite 总线信号组 (5 通道)</td></tr>
+</table>
+
+<h3>1.3 Module Features</h3>
+<ul>
+  <li>SPI Slave 接口 (标准 SPI 1-line + QSPI 4-line)</li>
+  <li>AXI4-Lite Master 接口 (5 通道, single transfer)</li>
+  <li>双时钟域异步 FIFO CDC (Gray-code + 2-flop 同步器)</li>
+  <li>可配置地址环绕 (Wrap)</li>
+  <li>可编程 Dummy Cycle (1~33 cycles)</li>
+  <li>8-bit Opcode 命令译码 (0x00=Write, 0x01=Read)</li>
+  <li>5 个 32-bit CSR (CTRL, STATUS, WRAP_CFG, DUMMY_CFG, SPI_DATA)</li>
+</ul>
+</section>
+
+<!-- ===== Chapter 2: Interface Specification ===== -->
+<section id="c2">
+<h2>2. Interface Specification</h2>
+
+<h3 id="c2-1">2.1 Port Signal Table</h3>
+<table>
+  <tr><th>Signal Name</th><th>Direction</th><th>Width</th><th>Clock Domain</th><th>Description</th></tr>
+  <tr><td><code>spi_sclk</code></td><td>input</td><td>1</td><td>—</td><td>SPI 串行时钟, max 50MHz</td></tr>
+  <tr><td><code>spi_cs_n</code></td><td>input</td><td>1</td><td>spi_sclk</td><td>SPI 片选 (低有效)</td></tr>
+  <tr><td><code>spi_sdi[3:0]</code></td><td>input</td><td>4</td><td>spi_sclk</td><td>SPI 数据输入</td></tr>
+  <tr><td><code>spi_sdo[3:0]</code></td><td>output</td><td>4</td><td>spi_sclk</td><td>SPI 数据输出</td></tr>
+  <tr><td><code>axi_clk</code></td><td>input</td><td>1</td><td>—</td><td>AXI 系统时钟, 100MHz+</td></tr>
+  <tr><td><code>axi_rst_n</code></td><td>input</td><td>1</td><td>axi_clk</td><td>AXI 异步复位</td></tr>
+  <tr><td><code>axi_awaddr[31:0]</code></td><td>output</td><td>32</td><td>axi_clk</td><td>AXI 写地址</td></tr>
+  <tr><td><code>axi_awvalid</code></td><td>output</td><td>1</td><td>axi_clk</td><td>AXI 写地址有效</td></tr>
+  <tr><td><code>axi_awready</code></td><td>input</td><td>1</td><td>axi_clk</td><td>AXI 写地址就绪</td></tr>
+  <tr><td><code>axi_wdata[31:0]</code></td><td>output</td><td>32</td><td>axi_clk</td><td>AXI 写数据</td></tr>
+  <tr><td><code>axi_wstrb[3:0]</code></td><td>output</td><td>4</td><td>axi_clk</td><td>AXI 写选通</td></tr>
+  <tr><td><code>axi_wvalid</code></td><td>output</td><td>1</td><td>axi_clk</td><td>AXI 写数据有效</td></tr>
+  <tr><td><code>axi_wready</code></td><td>input</td><td>1</td><td>axi_clk</td><td>AXI 写数据就绪</td></tr>
+  <tr><td><code>axi_bresp[1:0]</code></td><td>input</td><td>2</td><td>axi_clk</td><td>AXI 写响应</td></tr>
+  <tr><td><code>axi_bvalid</code></td><td>input</td><td>1</td><td>axi_clk</td><td>AXI 写响应有效</td></tr>
+  <tr><td><code>axi_bready</code></td><td>output</td><td>1</td><td>axi_clk</td><td>AXI 写响应就绪</td></tr>
+  <tr><td><code>axi_araddr[31:0]</code></td><td>output</td><td>32</td><td>axi_clk</td><td>AXI 读地址</td></tr>
+  <tr><td><code>axi_arvalid</code></td><td>output</td><td>1</td><td>axi_clk</td><td>AXI 读地址有效</td></tr>
+  <tr><td><code>axi_arready</code></td><td>input</td><td>1</td><td>axi_clk</td><td>AXI 读地址就绪</td></tr>
+  <tr><td><code>axi_rdata[31:0]</code></td><td>input</td><td>32</td><td>axi_clk</td><td>AXI 读数据</td></tr>
+  <tr><td><code>axi_rresp[1:0]</code></td><td>input</td><td>2</td><td>axi_clk</td><td>AXI 读响应</td></tr>
+  <tr><td><code>axi_rvalid</code></td><td>input</td><td>1</td><td>axi_clk</td><td>AXI 读数据有效</td></tr>
+  <tr><td><code>axi_rready</code></td><td>output</td><td>1</td><td>axi_clk</td><td>AXI 读数据就绪</td></tr>
+</table>
+
+<h3 id="c2-2">2.2 Cycle-Level Timing Diagrams</h3>
+<h4>2.2.1 SPI Write Timing (Mode 0: CPOL=0, CPHA=0)</h4>
+<pre>SCLK Cycle:      T0    T1    T2    T3    T4    T5    T6    T7    T8    T9    T10
+spi_sclk       █▁█▁█▁█▁█▁█▁█▁█▁█▁█▁█▁█▁█▁█▁█▁█▁█▁█▁█▁█
+spi_cs_n       ████▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁████
+spi_sdi[0]     XXXX&lt;Opcode&gt;X&lt;Addr_bit&gt;XX&lt;Data_bit&gt;XXXXXXXX
+               ↑采样    ↑采样    ↑采样    ↑采样</pre>
+<div class="img-caption">Cycle Description: T0: CS 拉低; T0~T7: 8-bit Opcode; T8~T39: 32-bit Address; T40~T71: 32-bit Data; T72: CS 拉高</div>
+
+<h4>2.2.2 SPI Read Timing (Mode 0 with Dummy Cycles)</h4>
+<pre>SCLK Cycle:      T0~T7     T8~T39      T40~T71       T72~T103
+                ┌───────┬──────────┬────────────────┬─────────────────┐
+                │ Opcode │ Address  │ Dummy Cycles   │   Read Data     │
+                │ Phase  │  Phase   │  (Turnaround)  │    Phase        │
+spi_sclk       █▁█...█▁█▁█...█▁█▁█...█▁█▁█...█▁█▁█...█▁█
+spi_cs_n       ▁▁...▁▁▁...▁▁▁...▁▁▁...▁▁▁...▁▁██████████████
+spi_sdi        &lt;Opcode &gt;&lt;Address &gt;&lt;Hi-Z&gt;            &lt;Hi-Z&gt;
+spi_sdo        &lt;Hi-Z&gt;           &lt;Hi-Z&gt;              &lt;RData &gt;</pre>
+<div class="img-caption">Dummy Cycle Timing: 默认 32 cycles, 可编程 (DUMMY_CFG + 1). Turnaround 在 Dummy 首个 cycle</div>
+
+<h4>2.2.3 AXI4-Lite Write Timing</h4>
+<pre>Cycle:            T0        T1        T2        T3        T4
+axi_clk         █▁█▁█▁█▁█▁█▁█▁█▁█▁█▁█▁█▁█▁█
+awvalid         __________████████████████████
+awaddr          XXXXXXXX&lt;ADDR&gt;XXXXXXXXXXXXXXXX
+awready         ____________________██████████
+wvalid          ________________██████████████
+wdata           XXXXXXXXXXXXXXXX&lt;WDATA&gt;XXXXXXX
+wready          ________________________██████
+bvalid          ________________________________██████
+bresp           XXXXXXXXXXXXXXXX&lt;BRESP&gt;XXXXXXXXXXXX
+bready          ________________________________██████</pre>
+<div class="img-caption">Write Cycle: T0~T1: AW 通道; T2~T3: W 通道; T4: B 通道, 完成写事务</div>
+
+<h3 id="c2-3">2.3 Backpressure Behavior</h3>
+<table>
+  <tr><th>Condition</th><th>Backpressure Action</th><th>RTL Implementation</th></tr>
+  <tr><td>RX FIFO 满</td><td>SPI 侧无法接收新命令</td><td><code>fifo_full → stall SPI FSM</code></td></tr>
+  <tr><td>TX FIFO 空</td><td>SPI 读数据 phase 等待</td><td><code>fifo_empty → sdo=Hi-Z</code></td></tr>
+  <tr><td>AXI awready=0</td><td>AW 通道等待 1~N cycles</td><td><code>state=WR_ADDR</code></td></tr>
+  <tr><td>AXI wready=0</td><td>W 通道等待 1~N cycles</td><td><code>state=WR_DATA</code></td></tr>
+  <tr><td>AXI bvalid=0</td><td>B 通道等待 1~N cycles</td><td><code>state=WR_RESP</code></td></tr>
+  <tr><td>AXI arready=0</td><td>AR 通道等待 1~N cycles</td><td><code>state=RD_ADDR</code></td></tr>
+  <tr><td>AXI rvalid=0</td><td>R 通道等待 1~N cycles</td><td><code>state=RD_DATA</code></td></tr>
+</table>
+</section>
+
+<!-- ===== Chapter 3: Sub-Module Partition ===== -->
+<section id="c3">
+<h2>3. Sub-Module Partition</h2>
+
+<h3>3.1 Block Diagram</h3>
+<div class="img-container">
+  <svg viewBox="0 0 820 360" xmlns="http://www.w3.org/2000/svg" style="max-width:100%;height:auto;border:1px solid var(--border);border-radius:6px;">
+    <rect x="240" y="30" width="340" height="300" fill="none" stroke="#76B900" stroke-width="2" rx="8"/>
+    <text x="410" y="22" text-anchor="middle" font-size="13" fill="#4B5563">SPI2AXI Bridge</text>
+    <rect x="250" y="45" width="150" height="260" fill="#F0F2F5" rx="4"/>
+    <text x="325" y="60" text-anchor="middle" font-size="10" fill="#6B7280">SPI CLK Domain</text>
+    <rect x="420" y="45" width="150" height="260" fill="#F0F2F5" rx="4"/>
+    <text x="495" y="60" text-anchor="middle" font-size="10" fill="#6B7280">AXI CLK Domain</text>
+    <rect x="260" y="80" width="130" height="38" fill="#FFF" stroke="#76B900" stroke-width="1.5" rx="4"/>
+    <text x="325" y="103" text-anchor="middle" font-size="11" fill="#1A1A1A">SPI Slave I/F</text>
+    <text x="325" y="115" text-anchor="middle" font-size="8" fill="#9CA3AF">(移位寄存器)</text>
+    <rect x="260" y="130" width="130" height="30" fill="#FFF" stroke="#D1D5DB" stroke-width="1.5" rx="4"/>
+    <text x="325" y="150" text-anchor="middle" font-size="10" fill="#1A1A1A">Bit Counter</text>
+    <rect x="260" y="175" width="130" height="30" fill="#FFF" stroke="#D1D5DB" stroke-width="1.5" rx="4"/>
+    <text x="325" y="195" text-anchor="middle" font-size="10" fill="#1A1A1A">Cmd Decoder</text>
+    <rect x="260" y="220" width="130" height="30" fill="#FFF" stroke="#D1D5DB" stroke-width="1.5" rx="4"/>
+    <text x="325" y="240" text-anchor="middle" font-size="10" fill="#1A1A1A">Dummy Cnt</text>
+    <rect x="425" y="80" width="70" height="35" fill="#E8F5D8" stroke="#76B900" rx="4"/>
+    <text x="460" y="101" text-anchor="middle" font-size="10" fill="#1A1A1A">RX FIFO</text>
+    <rect x="425" y="130" width="70" height="35" fill="#E8F5D8" stroke="#76B900" rx="4"/>
+    <text x="460" y="151" text-anchor="middle" font-size="10" fill="#1A1A1A">TX FIFO</text>
+    <rect x="425" y="185" width="135" height="38" fill="#FFF" stroke="#76B900" rx="4"/>
+    <text x="492" y="205" text-anchor="middle" font-size="11" fill="#1A1A1A">AXI Master FSM</text>
+    <text x="492" y="218" text-anchor="middle" font-size="8" fill="#9CA3AF">(7 状态)</text>
+    <rect x="425" y="240" width="135" height="30" fill="#FFF" stroke="#D1D5DB" rx="4"/>
+    <text x="492" y="260" text-anchor="middle" font-size="10" fill="#1A1A1A">Wrap Addr Ctrl</text>
+    <rect x="425" y="280" width="135" height="30" fill="#FFF" stroke="#D1D5DB" rx="4"/>
+    <text x="492" y="300" text-anchor="middle" font-size="10" fill="#1A1A1A">CSR Block</text>
+    <!-- External -->
+    <rect x="30" y="120" width="130" height="50" fill="#F6F8FA" stroke="#D1D5DB" rx="4"/>
+    <text x="95" y="140" text-anchor="middle" font-size="11" fill="#4B5563">SPI Master</text>
+    <text x="95" y="158" text-anchor="middle" font-size="9" fill="#9CA3AF">(External)</text>
+    <rect x="620" y="120" width="130" height="50" fill="#F6F8FA" stroke="#D1D5DB" rx="4"/>
+    <text x="685" y="140" text-anchor="middle" font-size="11" fill="#4B5563">AXI4-Lite Bus</text>
+    <text x="685" y="158" text-anchor="middle" font-size="9" fill="#9CA3AF">(SoC Fabric)</text>
+    <line x1="160" y1="145" x2="258" y2="100" stroke="#4B5563" stroke-width="1.5" marker-end="url(#arr)"/>
+    <line x1="390" y1="97" x2="423" y2="97" stroke="#4B5563" stroke-width="1.5" marker-end="url(#arr)"/>
+    <line x1="560" y1="200" x2="618" y2="145" stroke="#4B5563" stroke-width="1.5" marker-end="url(#arr)"/>
+    <defs><marker id="arr" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10Z" fill="#4B5563"/></marker></defs>
+  </svg>
+  <div class="img-caption">图 3-1: SPI2AXI Bridge 子模块结构 (8 个子模块, 双时钟域)</div>
+</div>
+
+<h3>3.2 Sub-Module Responsibilities</h3>
+<table>
+  <tr><th>Sub-Module</th><th>Input From</th><th>Output To</th><th>Width</th><th>Function</th></tr>
+  <tr><td>SPI Slave I/F</td><td>SPI pins</td><td>Cmd Decoder, RX FIFO</td><td>4/32</td><td>串行转并行, 移位寄存器, 位计数器</td></tr>
+  <tr><td>Command Decoder</td><td>SPI Slave I/F</td><td>AXI Master FSM</td><td>8</td><td>Opcode 解析(0x00/0x01), 读/写路由</td></tr>
+  <tr><td>Dummy Cycle Counter</td><td>SPI Slave I/F</td><td>SPI Slave I/F</td><td>6</td><td>读操作 dummy cycle 计数(1~33)</td></tr>
+  <tr><td>RX FIFO</td><td>SPI Slave I/F</td><td>AXI Master FSM</td><td>64</td><td>SPI→AXI CDC, 深度 8, Gray-code</td></tr>
+  <tr><td>TX FIFO</td><td>AXI Master FSM</td><td>SPI Slave I/F</td><td>32</td><td>AXI→SPI CDC, 深度 8, Gray-code</td></tr>
+  <tr><td>AXI Master FSM</td><td>RX FIFO, TX FIFO</td><td>AXI4-Lite pins</td><td>—</td><td>7 状态 FSM, AXI 事务控制</td></tr>
+  <tr><td>Wrap Address Ctrl</td><td>AXI Master FSM</td><td>AXI Master FSM</td><td>32</td><td>地址环绕计算(Wrap=N)</td></tr>
+  <tr><td>CSR Block</td><td>N/A</td><td>AXI/SPI</td><td>32</td><td>5 个 32-bit 配置/状态寄存器</td></tr>
+</table>
+</section>
+
+<!-- ===== Chapter 4: FSM Specification ===== -->
+<section id="c4">
+<h2>4. FSM Specification</h2>
+
+<h3 id="c4-1">4.1 SPI Receive FSM (SPI_CLK Domain)</h3>
+
+<h4>State Encoding Table</h4>
+<table class="fsm-table">
+  <tr><th>State Name</th><th>Encoding</th><th>Description</th></tr>
+  <tr><td>IDLE</td><td>3'b000</td><td>等待 spi_cs_n 拉低</td></tr>
+  <tr><td>PREP</td><td>3'b001</td><td>准备阶段，初始化位计数器</td></tr>
+  <tr><td>OPCODE</td><td>3'b010</td><td>接收 8-bit 操作码</td></tr>
+  <tr><td>ADDR</td><td>3'b011</td><td>接收 32-bit 地址</td></tr>
+  <tr><td>DUMMY</td><td>3'b100</td><td>插入 Dummy cycles (仅读操作)</td></tr>
+  <tr><td>DATA</td><td>3'b101</td><td>发送/接收 32-bit 数据</td></tr>
+  <tr><td>DONE</td><td>3'b110</td><td>事务完成，清理状态</td></tr>
+</table>
+
+<h4>State Transition Matrix</h4>
+<table class="fsm-table">
+  <tr><th>Current State</th><th>Condition</th><th>Next State</th><th>Transition Action</th></tr>
+  <tr><td>IDLE</td><td>spi_cs_n == 1'b0</td><td>PREP</td><td>清除位计数器</td></tr>
+  <tr><td>IDLE</td><td>spi_cs_n == 1'b1</td><td>IDLE</td><td>保持空闲</td></tr>
+  <tr><td>PREP</td><td>—</td><td>OPCODE</td><td>使能移位寄存器</td></tr>
+  <tr><td>OPCODE</td><td>bit_cnt == 8</td><td>ADDR</td><td>保存 opcode</td></tr>
+  <tr><td>ADDR</td><td>bit_cnt == 32 &amp; read</td><td>DUMMY</td><td>读操作进入 DUMMY</td></tr>
+  <tr><td>ADDR</td><td>bit_cnt == 32 &amp; write</td><td>DATA</td><td>写操作跳过 DUMMY</td></tr>
+  <tr><td>DUMMY</td><td>dummy_cnt == N-1</td><td>DATA</td><td>完成等待</td></tr>
+  <tr><td>DATA</td><td>bit_cnt == 32</td><td>DONE</td><td>提交 AXI 请求或读 TX FIFO</td></tr>
+  <tr><td>DONE</td><td>spi_cs_n == 1'b1</td><td>IDLE</td><td>断言 done 信号</td></tr>
+</table>
+
+<h4>Output Decode Table</h4>
+<table class="fsm-table">
+  <tr><th>Output Signal</th><th>IDLE</th><th>PREP</th><th>OPCODE</th><th>ADDR</th><th>DUMMY</th><th>DATA</th><th>DONE</th></tr>
+  <tr><td><code>shift_en</code></td><td>0</td><td>1</td><td>1</td><td>1</td><td>0</td><td>1</td><td>0</td></tr>
+  <tr><td><code>bit_cnt_en</code></td><td>0</td><td>0</td><td>1</td><td>1</td><td>0</td><td>1</td><td>0</td></tr>
+  <tr><td><code>dummy_cnt_en</code></td><td>0</td><td>0</td><td>0</td><td>0</td><td>1</td><td>0</td><td>0</td></tr>
+  <tr><td><code>rx_fifo_wr</code></td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>1(写)</td></tr>
+  <tr><td><code>tx_fifo_rd</code></td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>1(读)</td><td>0</td></tr>
+  <tr><td><code>axi_start</code></td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>1</td><td>0</td></tr>
+</table>
+
+<h4>FSM RTL Template — SPI Receive</h4>
+<pre>typedef enum logic [2:0] {
+  ST_IDLE   = 3'b000,
+  ST_PREP   = 3'b001,
+  ST_OPCODE = 3'b010,
+  ST_ADDR   = 3'b011,
+  ST_DUMMY  = 3'b100,
+  ST_DATA   = 3'b101,
+  ST_DONE   = 3'b110
+} spi_fsm_state_t;
+
+spi_fsm_state_t spi_state_q, spi_next_state;
+
+always_ff @(posedge spi_sclk or posedge spi_cs_n) begin
+  if (spi_cs_n) spi_state_q <= ST_IDLE;
+  else          spi_state_q <= spi_next_state;
+end
+
+always_comb begin
+  spi_next_state = spi_state_q;
+  unique case (spi_state_q)
+    ST_IDLE:   if (!spi_cs_n)     spi_next_state = ST_PREP;
+    ST_PREP:                       spi_next_state = ST_OPCODE;
+    ST_OPCODE: if (bit_cnt == 8)  spi_next_state = ST_ADDR;
+    ST_ADDR:   if (bit_cnt == 32)
+                   spi_next_state = is_read ? ST_DUMMY : ST_DATA;
+    ST_DUMMY:  if (dummy_cnt == DUMMY_CYCLES-1)
+                                     spi_next_state = ST_DATA;
+    ST_DATA:   if (bit_cnt == 32) spi_next_state = ST_DONE;
+    ST_DONE:   if (spi_cs_n)      spi_next_state = ST_IDLE;
+    default:   spi_next_state = ST_IDLE;  // safety
+  endcase
+end</pre>
+
+<h3 id="c4-2">4.2 AXI Master FSM (AXI_CLK Domain)</h3>
+
+<h4>State Encoding Table</h4>
+<table class="fsm-table">
+  <tr><th>State Name</th><th>Encoding</th><th>Description</th></tr>
+  <tr><td>IDLE</td><td>3'b000</td><td>等待 RX FIFO 非空或读请求</td></tr>
+  <tr><td>WR_ADDR</td><td>3'b001</td><td>发送 AW 通道地址</td></tr>
+  <tr><td>WR_DATA</td><td>3'b010</td><td>发送 W 通道数据</td></tr>
+  <tr><td>WR_RESP</td><td>3'b011</td><td>等待 B 通道响应</td></tr>
+  <tr><td>RD_ADDR</td><td>3'b100</td><td>发送 AR 通道地址</td></tr>
+  <tr><td>RD_DATA</td><td>3'b101</td><td>等待 R 通道数据</td></tr>
+  <tr><td>COMPLETE</td><td>3'b110</td><td>事务完成, 准备响应</td></tr>
+</table>
+<div class="warn-box"><strong>Safety:</strong> 未使用的编码 (111) 必须解码为 IDLE, 防止 FSM 锁死。</div>
+
+<h4>State Transition Matrix</h4>
+<table class="fsm-table">
+  <tr><th>Current</th><th>Condition</th><th>Next</th><th>Action</th></tr>
+  <tr><td>IDLE</td><td>rx_fifo_empty==0 &amp;&amp; WRITE</td><td>WR_ADDR</td><td>读 RX FIFO (地址+数据)</td></tr>
+  <tr><td>IDLE</td><td>read_request==1</td><td>RD_ADDR</td><td>读 RX FIFO (地址)</td></tr>
+  <tr><td>WR_ADDR</td><td>awready==1</td><td>WR_DATA</td><td>awvalid=1, awaddr有效</td></tr>
+  <tr><td>WR_ADDR</td><td>awready==0</td><td>WR_ADDR</td><td>等待 AW ready</td></tr>
+  <tr><td>WR_DATA</td><td>wready==1</td><td>WR_RESP</td><td>wvalid=1, wstrb=4'hF</td></tr>
+  <tr><td>WR_RESP</td><td>bvalid==1</td><td>COMPLETE</td><td>保存 bresp, 更新 status</td></tr>
+  <tr><td>RD_ADDR</td><td>arready==1</td><td>RD_DATA</td><td>arvalid=1, araddr有效</td></tr>
+  <tr><td>RD_DATA</td><td>rvalid==1</td><td>COMPLETE</td><td>保存 rdata, 写 TX FIFO</td></tr>
+  <tr><td>COMPLETE</td><td>—</td><td>IDLE</td><td>更新状态寄存器</td></tr>
+</table>
+
+<h4>Output Decode Table</h4>
+<table class="fsm-table">
+  <tr><th>Output</th><th>IDLE</th><th>WR_ADDR</th><th>WR_DATA</th><th>WR_RESP</th><th>RD_ADDR</th><th>RD_DATA</th><th>COMPLETE</th></tr>
+  <tr><td><code>awvalid</code></td><td>0</td><td>1</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+  <tr><td><code>wvalid</code></td><td>0</td><td>0</td><td>1</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+  <tr><td><code>bready</code></td><td>0</td><td>0</td><td>0</td><td>1</td><td>0</td><td>0</td><td>0</td></tr>
+  <tr><td><code>arvalid</code></td><td>0</td><td>0</td><td>0</td><td>0</td><td>1</td><td>0</td><td>0</td></tr>
+  <tr><td><code>rready</code></td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>1</td><td>0</td></tr>
+  <tr><td><code>tx_fifo_wr</code></td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>1</td></tr>
+</table>
+
+<h4>FSM RTL Template — AXI Master</h4>
+<pre>typedef enum logic [2:0] {
+  ST_AXI_IDLE   = 3'b000,
+  ST_WR_ADDR    = 3'b001,
+  ST_WR_DATA    = 3'b010,
+  ST_WR_RESP    = 3'b011,
+  ST_RD_ADDR    = 3'b100,
+  ST_RD_DATA    = 3'b101,
+  ST_COMPLETE   = 3'b110
+} axi_fsm_state_t;
+
+axi_fsm_state_t axi_state_q, axi_next_state;
+
+always_ff @(posedge axi_clk or negedge axi_rst_n) begin
+  if (!axi_rst_n) axi_state_q <= ST_AXI_IDLE;
+  else            axi_state_q <= axi_next_state;
+end
+
+always_comb begin
+  axi_next_state = axi_state_q;
+  unique case (axi_state_q)
+    ST_AXI_IDLE: begin
+      if (!rx_fifo_empty &amp;&amp; cmd_is_write) axi_next_state = ST_WR_ADDR;
+      else if (read_request)               axi_next_state = ST_RD_ADDR;
+    end
+    ST_WR_ADDR:  if (awready)              axi_next_state = ST_WR_DATA;
+    ST_WR_DATA:  if (wready)               axi_next_state = ST_WR_RESP;
+    ST_WR_RESP:  if (bvalid)               axi_next_state = ST_COMPLETE;
+    ST_RD_ADDR:  if (arready)              axi_next_state = ST_RD_DATA;
+    ST_RD_DATA:  if (rvalid)               axi_next_state = ST_COMPLETE;
+    ST_COMPLETE:                            axi_next_state = ST_AXI_IDLE;
+    default:     axi_next_state = ST_AXI_IDLE;
+  endcase
+end</pre>
+</section>
+
+<!-- ===== Chapter 5: Pipeline ===== -->
+<section id="c5">
+<h2>5. Pipeline Specification</h2>
+<p>SPI2AXI 不使用深度流水线结构。数据路径为三级序列 (非流水线，transaction-based):</p>
+<table>
+  <tr><th>Stage Name</th><th>Stage ID</th><th>Latency</th><th>Description</th></tr>
+  <tr><td>SPI_Receive</td><td>0</td><td>可变 (SPI bit rate)</td><td>SPI 串行接收 Opcode + Addr + Data</td></tr>
+  <tr><td>CDC_Transfer</td><td>1</td><td>2~8 cycles</td><td>通过异步 FIFO 跨时钟域</td></tr>
+  <tr><td>AXI_Execute</td><td>2</td><td>2~N cycles</td><td>AXI4-Lite 总线事务</td></tr>
+</table>
+<div class="info-box">由于整个数据路径为事务型 (transaction-based)，无连续流水线推进，不需要 stall/hold/flush 机制。</div>
+</section>
+
+<!-- ===== Chapter 6: Datapath ===== -->
+<section id="c6">
+<h2>6. Datapath Specification</h2>
+
+<h3>6.1 地址 Wrap 计算逻辑</h3>
+<table>
+  <tr><th>Operation</th><th>Width</th><th>Latency</th><th>Description</th></tr>
+  <tr><td>ADD (+4)</td><td>32</td><td>0 (comb)</td><td>地址线性递增</td></tr>
+  <tr><td>CMP_EQ</td><td>32</td><td>0 (comb)</td><td>地址到达窗口边界检测</td></tr>
+  <tr><td>MUX</td><td>32</td><td>0 (comb)</td><td>选择下一地址 (base / next)</td></tr>
+</table>
+
+<pre>// Wrap 地址计算逻辑
+logic [31:0] base_addr;     // 起始地址 (4B 对齐)
+logic [31:0] next_addr;
+
+always_comb begin
+  if (wrap_en &amp;&amp; (current_addr[31:2] == base_addr[31:2] + wrap_size - 1)) begin
+    next_addr = base_addr;  // 到达窗口边界，回绕到起始地址
+  end else begin
+    next_addr = current_addr + 32'd4;  // 线性递增
+  end
+end</pre>
+
+<h3>6.2 Datapath Widths</h3>
+<table>
+  <tr><th>Segment</th><th>Width</th><th>Rationale</th></tr>
+  <tr><td>SPI Serial Input</td><td>4</td><td>QSPI 4-line 模式</td></tr>
+  <tr><td>RX FIFO Entry</td><td>64</td><td>{opcode[8], addr[32], data[32]}</td></tr>
+  <tr><td>TX FIFO Entry</td><td>32</td><td>读返回数据</td></tr>
+  <tr><td>AXI Address/Data</td><td>32</td><td>AXI4-Lite 标准位宽</td></tr>
+</table>
+</section>
+
+<!-- ===== Chapter 7: CSR ===== -->
+<section id="c7">
+<h2>7. CSR Register Map</h2>
+
+<h3>7.1 Address Map Overview</h3>
+<table>
+  <tr><th>Offset</th><th>Register</th><th>Width</th><th>Attr</th><th>Reset Value</th><th>Description</th></tr>
+  <tr><td><code>0x00</code></td><td>SPI_CTRL</td><td>32</td><td>RW</td><td>0x0000_0000</td><td>SPI 控制寄存器</td></tr>
+  <tr><td><code>0x04</code></td><td>SPI_STATUS</td><td>32</td><td>RO/W1C</td><td>0x0000_0001</td><td>SPI 状态寄存器</td></tr>
+  <tr><td><code>0x08</code></td><td>WRAP_CFG</td><td>32</td><td>RW</td><td>0x0000_0000</td><td>地址环绕配置</td></tr>
+  <tr><td><code>0x0C</code></td><td>DUMMY_CFG</td><td>32</td><td>RW</td><td>0x0000_0020</td><td>Dummy cycle 配置</td></tr>
+  <tr><td><code>0x10</code></td><td>SPI_DATA</td><td>32</td><td>RW</td><td>0x0000_0000</td><td>SPI 数据直通</td></tr>
+</table>
+
+<h3>7.2 Bit-Level Field Definitions</h3>
+
+<h4>SPI_CTRL (0x00)</h4>
+<table>
+  <tr><th>Field</th><th>Bits</th><th>Attr</th><th>Reset</th><th>Description</th></tr>
+  <tr><td><code>spi_en</code></td><td>0</td><td>RW</td><td>1'b0</td><td>SPI 接口使能</td></tr>
+  <tr><td><code>qspi_en</code></td><td>1</td><td>RW</td><td>1'b0</td><td>QSPI 模式使能: 0=SPI, 1=QSPI</td></tr>
+  <tr><td><code>reserved</code></td><td>31:2</td><td>RES</td><td>30'b0</td><td>读返回 0</td></tr>
+</table>
+
+<h4>SPI_STATUS (0x04)</h4>
+<table>
+  <tr><th>Field</th><th>Bits</th><th>Attr</th><th>Reset</th><th>Description</th></tr>
+  <tr><td><code>ready</code></td><td>0</td><td>RO</td><td>1'b1</td><td>模块就绪</td></tr>
+  <tr><td><code>busy</code></td><td>1</td><td>RO</td><td>1'b0</td><td>模块忙</td></tr>
+  <tr><td><code>slverr</code></td><td>2</td><td>W1C</td><td>1'b0</td><td>AXI SLVERR 错误</td></tr>
+  <tr><td><code>timeout</code></td><td>3</td><td>W1C</td><td>1'b0</td><td>AXI 超时标志</td></tr>
+  <tr><td><code>reserved</code></td><td>31:4</td><td>RES</td><td>28'b0</td><td>—</td></tr>
+</table>
+
+<h4>WRAP_CFG (0x08)</h4>
+<table>
+  <tr><th>Field</th><th>Bits</th><th>Attr</th><th>Reset</th><th>Description</th></tr>
+  <tr><td><code>wrap_size</code></td><td>7:0</td><td>RW</td><td>8'd0</td><td>Wrap 窗口大小 (0=disabled)</td></tr>
+  <tr><td><code>reserved</code></td><td>31:8</td><td>RES</td><td>24'b0</td><td>—</td></tr>
+</table>
+
+<h4>DUMMY_CFG (0x0C)</h4>
+<table>
+  <tr><th>Field</th><th>Bits</th><th>Attr</th><th>Reset</th><th>Description</th></tr>
+  <tr><td><code>dummy_cycles</code></td><td>5:0</td><td>RW</td><td>6'd32</td><td>实际 = config + 1</td></tr>
+  <tr><td><code>reserved</code></td><td>31:6</td><td>RES</td><td>26'b0</td><td>—</td></tr>
+</table>
+
+<h3>7.3 CSR RTL Template</h3>
+<pre>// CSR Write Logic
+always_ff @(posedge axi_clk or negedge axi_rst_n) begin
+  if (!axi_rst_n) begin
+    spi_ctrl_reg  <= 32'b0;
+    wrap_cfg_reg  <= 32'b0;
+    dummy_cfg_reg <= 32'h0000_0020;
+    spi_data_reg  <= 32'b0;
+  end else if (csr_write_en) begin
+    unique case (csr_write_addr)
+      ADDR_SPI_CTRL:  spi_ctrl_reg  <= csr_write_data;
+      ADDR_WRAP_CFG:  wrap_cfg_reg  <= csr_write_data;
+      ADDR_DUMMY_CFG: dummy_cfg_reg <= csr_write_data;
+      ADDR_SPI_DATA:  spi_data_reg  <= csr_write_data;
+      default: ;
+    endcase
+  end
+end</pre>
+</section>
+
+<!-- ===== Chapter 8: Clock & Reset ===== -->
+<section id="c8">
+<h2>8. Clock & Reset Architecture</h2>
+
+<h3>8.1 Clock Domains</h3>
+<table>
+  <tr><th>Domain</th><th>Source</th><th>Freq</th><th>Description</th></tr>
+  <tr><td>SPI_CLK</td><td>External SPI Master</td><td>≤ 50MHz</td><td>SPI Slave I/F, Cmd Decoder, Dummy Counter</td></tr>
+  <tr><td>AXI_CLK</td><td>SoC PLL</td><td>≥ 100MHz</td><td>AXI Master FSM, Wrap Ctrl, CSR</td></tr>
+</table>
+
+<h3>8.2 CDC Paths</h3>
+<table>
+  <tr><th>Source</th><th>Dest</th><th>Signal</th><th>Width</th><th>CDC Scheme</th></tr>
+  <tr><td>SPI_CLK</td><td>AXI_CLK</td><td>cmd_addr_data</td><td>64</td><td>Async FIFO (8-deep)</td></tr>
+  <tr><td>SPI_CLK</td><td>AXI_CLK</td><td>read_request</td><td>1</td><td>Pulse synchronizer</td></tr>
+  <tr><td>AXI_CLK</td><td>SPI_CLK</td><td>read_data</td><td>32</td><td>Async FIFO (8-deep)</td></tr>
+  <tr><td>AXI_CLK</td><td>SPI_CLK</td><td>status_update</td><td>1</td><td>Pulse synchronizer</td></tr>
+</table>
+
+<h3>8.3 Reset Synchronizer Template</h3>
+<pre>logic axi_rst_n_sync1, axi_rst_n_sync;
+always_ff @(posedge axi_clk or negedge axi_rst_n) begin
+  if (!axi_rst_n) begin
+    axi_rst_n_sync1 <= 1'b0;
+    axi_rst_n_sync  <= 1'b0;
+  end else begin
+    axi_rst_n_sync1 <= 1'b1;
+    axi_rst_n_sync  <= axi_rst_n_sync1;
+  end
+end</pre>
+</section>
+
+<!-- ===== Chapter 9: SDC ===== -->
+<section id="c9">
+<h2>9. Timing Constraints (SDC)</h2>
+
+<pre>#=============================================================================
+# SDC: SPI2AXI Timing Constraints
+# 文件: spi2axi.sdc
+#=============================================================================
+
+# 1. Clock Definitions
+create_clock -name spi_clk -period 20.0 [get_ports spi_sclk]
+create_clock -name axi_clk -period 10.0 [get_ports axi_clk]
+
+# 2. Clock Groups (asynchronous)
+set_clock_groups -asynchronous \
+    -group { spi_clk } \
+    -group { axi_clk }
+
+# 3. Input Delays (SPI)
+set_input_delay -clock spi_clk -max 2.9 [get_ports spi_sdi*]
+set_input_delay -clock spi_clk -min -0.1 [get_ports spi_sdi*]
+set_input_delay -clock spi_clk -max 5.0 -add_delay [get_ports spi_cs_n]
+
+# 4. Output Delays (SPI)
+set_output_delay -clock spi_clk -max 5.0 [get_ports spi_sdo*]
+set_output_delay -clock spi_clk -min 0.5 [get_ports spi_sdo*]
+
+# 5. Input Delays (AXI)
+set_input_delay -clock axi_clk -max 2.0 [get_ports axi_*ready]
+set_input_delay -clock axi_clk -max 3.0 [get_ports axi_bresp*]
+set_input_delay -clock axi_clk -max 3.0 [get_ports axi_rdata*]
+set_input_delay -clock axi_clk -max 2.0 [get_ports axi_rvalid]
+
+# 6. Output Delays (AXI)
+set_output_delay -clock axi_clk -max 3.0 [get_ports axi_aw*]
+set_output_delay -clock axi_clk -max 3.0 [get_ports axi_w*]
+set_output_delay -clock axi_clk -max 3.0 [get_ports axi_ar*]
+set_output_delay -clock axi_clk -max 3.0 [get_ports axi_rready]
+set_output_delay -clock axi_clk -max 3.0 [get_ports axi_bready]
+
+# 7. False Paths
+set_false_path -from [get_ports axi_rst_n]
+set_false_path -from [get_ports spi_cs_n]
+set_false_path -from [get_clocks spi_clk] -to [get_clocks axi_clk]
+set_false_path -from [get_clocks axi_clk] -to [get_clocks spi_clk]
+
+# 8. Multicycle Paths
+set_multicycle_path -setup 4 -from [get_clocks axi_clk] \
+    -to [get_pins spi_status_reg/D]
+set_multicycle_path -hold 3 -from [get_clocks axi_clk] \
+    -to [get_pins spi_status_reg/D]</pre>
+</section>
+
+<!-- ===== Chapter 10: Implementation ===== -->
+<section id="c10">
+<h2>10. Implementation Notes</h2>
+
+<h3>10.1 Coding Style Rules</h3>
+<table>
+  <tr><th>Rule</th><th>Requirement</th></tr>
+  <tr><td>R1</td><td>Use <code>always_ff @(posedge clk or negedge rst_n)</code> for sequential logic</td></tr>
+  <tr><td>R2</td><td>Use <code>always_comb</code> for combinational logic</td></tr>
+  <tr><td>R3</td><td>Non-blocking in seq, blocking in comb</td></tr>
+  <tr><td>R4</td><td>No latches inferred</td></tr>
+  <tr><td>R5</td><td><code>unique case</code> for muxes</td></tr>
+  <tr><td>R6</td><td>All flops must have a reset value (DFT requirement)</td></tr>
+  <tr><td>R7</td><td>All FSMs decode unused states to safe state</td></tr>
+</table>
+
+<h3>10.2 Module Parameterization</h3>
+<pre>module spi2axi #(
+  parameter int AXI_ADDR_WIDTH = 32,
+  parameter int AXI_DATA_WIDTH = 32,
+  parameter int RX_FIFO_DEPTH  = 8,
+  parameter int TX_FIFO_DEPTH  = 8,
+  parameter bit SPI_CPOL       = 1'b0,
+  parameter bit SPI_CPHA       = 1'b0
+) (
+  input  logic                  spi_sclk,
+  input  logic                  spi_cs_n,
+  input  logic [3:0]            spi_sdi,
+  output logic [3:0]            spi_sdo,
+  input  logic                  axi_clk,
+  input  logic                  axi_rst_n,
+  output logic [AXI_ADDR_WIDTH-1:0] axi_awaddr,
+  output logic                     axi_awvalid,
+  input  logic                     axi_awready,
+  output logic [AXI_DATA_WIDTH-1:0] axi_wdata,
+  output logic [AXI_DATA_WIDTH/8-1:0] axi_wstrb,
+  output logic                     axi_wvalid,
+  input  logic                     axi_wready,
+  input  logic [1:0]               axi_bresp,
+  input  logic                     axi_bvalid,
+  output logic                     axi_bready,
+  output logic [AXI_ADDR_WIDTH-1:0] axi_araddr,
+  output logic                     axi_arvalid,
+  input  logic                     axi_arready,
+  input  logic [AXI_DATA_WIDTH-1:0] axi_rdata,
+  input  logic [1:0]               axi_rresp,
+  input  logic                     axi_rvalid,
+  output logic                     axi_rready
+);</pre>
+</section>
+
+<!-- ===== Chapter 11: Verification ===== -->
+<section id="c11">
+<h2>11. Verification Guidance</h2>
+
+<h3>11.1 Directed Test Scenarios</h3>
+<table>
+  <tr><th>ID</th><th>Scenario</th><th>Stimulus</th><th>Expected Behavior</th></tr>
+  <tr><td>T01</td><td>CSR write/read</td><td>Write SPI_CTRL, read back</td><td>Match written values</td></tr>
+  <tr><td>T02</td><td>SPI write transaction</td><td>Opcode=0x00, addr, data</td><td>AXI AW→W→B sequence</td></tr>
+  <tr><td>T03</td><td>SPI read transaction</td><td>Opcode=0x01, addr, dummy</td><td>AXI AR→R sequence, data out</td></tr>
+  <tr><td>T04</td><td>QSPI mode</td><td>QSPI_EN=1, 4-line transfer</td><td>4x throughput</td></tr>
+  <tr><td>T05</td><td>Address wrap</td><td>WRAP_CFG=2</td><td>Wraps at boundary</td></tr>
+  <tr><td>T06</td><td>Dummy cycle</td><td>DUMMY_CFG=16</td><td>Read after 16 cycles</td></tr>
+  <tr><td>T07</td><td>CDC random test</td><td>Random freq ratio</td><td>Data integrity</td></tr>
+  <tr><td>T08</td><td>Error injection</td><td>Force AXI SLVERR</td><td>Status byte reflects error</td></tr>
+  <tr><td>T09</td><td>Back-to-back access</td><td>Continuous write/read</td><td>No data loss</td></tr>
+  <tr><td>T10</td><td>CS abort</td><td>CS de-assert mid-op</td><td>FSM→IDLE cleanly</td></tr>
+</table>
+
+<h3>11.2 Assertion Checkers (SVA)</h3>
+<pre>`ifdef FORMAL
+  // A1: AXI valid/ready handshake
+  assert_aw_handshake: assert property (
+    @(posedge axi_clk) disable iff (!axi_rst_n)
+    axi_awvalid |-> s_eventually axi_awready
+  );
+
+  // A2: FSM never enters reserved state
+  assert_fsm_safe: assert property (
+    @(posedge axi_clk) disable iff (!axi_rst_n)
+    axi_state_q inside {ST_AXI_IDLE, ST_WR_ADDR, ST_WR_DATA,
+                        ST_WR_RESP, ST_RD_ADDR, ST_RD_DATA, ST_COMPLETE}
+  );
+
+  // A3: FIFO never read when empty
+  assert_fifo_no_empty_read: assert property (
+    @(posedge axi_clk) disable iff (!axi_rst_n)
+    !(rx_fifo_rd &amp;&amp; rx_fifo_empty)
+  );
+`endif</pre>
+</section>
+
+<!-- ===== Chapter 12: DFT ===== -->
+<section id="c12">
+<h2>12. DFT Requirements</h2>
+
+<h3>12.1 Scan Chain Specification</h3>
+<table>
+  <tr><th>Chain</th><th>Domain</th><th>Flop Count</th><th>IO Pins</th></tr>
+  <tr><td>chain_spi</td><td>SPI_CLK</td><td>~200</td><td>scan_in0 / scan_out0</td></tr>
+  <tr><td>chain_axi</td><td>AXI_CLK</td><td>~500</td><td>scan_in1 / scan_out1</td></tr>
+</table>
+
+<h3>12.2 Test Mode Signals</h3>
+<table>
+  <tr><th>Signal</th><th>Function Mode</th><th>Test Mode</th><th>Description</th></tr>
+  <tr><td><code>test_mode_i</code></td><td>0</td><td>1</td><td>全局测试模式使能</td></tr>
+  <tr><td><code>scan_enable_i</code></td><td>0</td><td>1</td><td>扫描移位使能</td></tr>
+</table>
+
+<h3>12.3 MBIST</h3>
+<table>
+  <tr><th>Memory</th><th>BIST Ctrl</th><th>Algorithm</th></tr>
+  <tr><td>RX_FIFO</td><td>mbist_ctrl_0</td><td>March C-</td></tr>
+  <tr><td>TX_FIFO</td><td>mbist_ctrl_0</td><td>March C-</td></tr>
+</table>
+</section>
+
+<!-- ===== Chapter 13: Delivery ===== -->
+<section id="c13">
+<h2>13. Delivery Checklist</h2>
+<table>
+  <tr><th>#</th><th>File</th><th>Description</th><th>Status</th></tr>
+  <tr><td>1</td><td><code>spi2axi_top.sv</code></td><td>主 RTL 源代码</td><td>☐ Not started</td></tr>
+  <tr><td>2</td><td><code>spi2axi.sdc</code></td><td>时序约束文件</td><td>☐ Draft</td></tr>
+  <tr><td>3</td><td><code>spi2axi_tb.sv</code></td><td>自检测试台</td><td>☐ Not started</td></tr>
+  <tr><td>4</td><td><code>spi2axi_lint.rpt</code></td><td>Lint 检查报告</td><td>☐ Not started</td></tr>
+  <tr><td>5</td><td><code>spi2axi_area.rpt</code></td><td>面积报告</td><td>☐ Not started</td></tr>
+</table>
+
+<h3>13.1 Quality Gates</h3>
+<table>
+  <tr><th>Gate</th><th>Entry</th><th>Exit</th></tr>
+  <tr><td>G1: Lint Clean</td><td>RTL ready</td><td>Lint report (0 errors)</td></tr>
+  <tr><td>G2: Simulation Pass</td><td>Testbench ready</td><td>All 10 directed tests pass</td></tr>
+  <tr><td>G3: Synthesis Clean</td><td>SDC + RTL ready</td><td>Area report</td></tr>
+  <tr><td>G4: DFT Ready</td><td>Synthesis done</td><td>DFT report</td></tr>
+</table>
+</section>
+
+<!-- ===== Chapter 14: Revision ===== -->
+<section id="c14">
+<h2>14. Revision History</h2>
+<table>
+  <tr><th>Version</th><th>Date</th><th>Author</th><th>Change Description</th></tr>
+  <tr><td>V1.0</td><td>2026-05-20</td><td>chip-spec-gen</td><td>初稿</td></tr>
+  <tr><td><strong>V2.0</strong></td><td><strong>2026-05-20</strong></td><td><strong>chip-spec-gen</strong></td><td><strong>LLD 拆分版: 14 章 AI-Executable 结构</strong></td></tr>
+</table>
+</section>
+
+<div class="footer">
+  <p><em>本文档由 Chip Design Agent 生成 — AI-Executable LLD V2.0</em></p>
+  <p>SPI2AXI Bridge — 模块微架构规格书 &copy; 2026</p>
+</div>
+
+</main>
+</div>
+</body>
+</html>

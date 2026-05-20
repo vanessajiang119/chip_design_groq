@@ -1,8 +1,15 @@
 topic: "SPI2AXI Bridge IP — 芯片设计规格文档"
 mode: A
 max_iterations: 5
+design_research:
+  enabled: true
+  search_queries:
+    - "SPI to AXI bridge RTL design"
+    - "SPI slave AXI master CDC FIFO architecture"
+    - "SPI2AXI bridge Verilog implementation"
 source_files:
   - 1.planning/source_spec.md
+detected_type: Block
 output_requirements:
   chapters:
     - 产品概述与特性
