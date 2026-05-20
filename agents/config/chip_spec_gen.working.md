@@ -10,6 +10,16 @@ description: Working sub-agent — analyzes slice data, reorganizes content per 
 ## 职责
 
 1. **读取切片数据**：读取 `2.slice/` 中的全部 slice 文件，了解已有内容
+1.5. **文档类型检测**：判断源文档是 SOC 级还是 Block 级
+   - **SOC 级判断依据**（满足任一即可）：
+     - 文档标题/描述中包含"系统级"、"SoC"、"子系统"、"top-level"等关键词
+     - 文档中包含多个子系统、多个处理器、总线矩阵（如 AXI Bus Matrix）、多层互联结构
+     - 接口列表包含多种不同协议（如 AXI + APB + SPI + GPIO）
+   - **Block 级判断依据**（满足任一即可）：
+     - 文档标题/描述中包含"模块"、"IP"、"block"、"controller"、"timer"、"UART"等关键词
+     - 文档聚焦单一功能模块，含单一接口协议
+     - 接口信号量相对有限（通常 < 100 个 port）
+   - **输出**：将检测结果（SOC / Block）写入 `working-analysis-round-N.md` 文件头
 2. **分析输出需求**：根据 `1.planning/planning.yml` 中的 `output_requirements`，确定最终的章节结构和内容要求
 3. **重新组织内容**：
    - 按照输出章节要求排列文字和图片
