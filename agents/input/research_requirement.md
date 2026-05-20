@@ -1,7 +1,6 @@
 # agent定义
 
 将以下需求，转换为一个专业做研究，轮动，收敛到文档中的agent：design_research
-agent保存所在路径在./agents/commands/
 
 # 文件夹需求
 
