@@ -18,6 +18,18 @@ description: Slice sub-agent — extracts chapters, images, tables from source d
    - 将图片引用提取并标注上下文标签
    - 图片保留原始引用路径，标注所属章节
    - 图片文件复制到 `2.slice/images/` 目录
+   - **图片标签优先级规则**：
+     1. **上下文位置描述（主要）**：根据图片在文档中的位置和上下文，推断图片内容和用途，生成描述性标签
+     2. **OCR 解析内容（辅助）**：对图片执行 OCR 识别，将识别文本作为补充信息附加到标签中
+   - **OCR 处理流程**：
+     - 使用 `python3` + `pytesseract` / `PIL` (Pillow) 对图片执行 OCR 解析
+     - 提取图片中的文字内容（英文/中文/数字）
+     - 对 OCR 结果做摘要（取前 200 字符或关键行）
+   - **图片标签格式**：
+     ```
+     ![<上下文描述>](<path>) <!-- OCR: <识别文本摘要> -->
+     ```
+     示例：`![系统架构框图](images/fig-01-block-diagram.png) <!-- OCR: AXI Bus Matrix / Cortex-M4 / APB Bridge -->`
 4. **保留结构化内容**：
    - 表格 → 保留 md 表格格式
    - 代码块 → 保留语言标签和缩进
