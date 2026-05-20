@@ -1,0 +1,23 @@
+topic: "SPI2AXI Bridge IP — 芯片设计规格文档"
+mode: A
+max_iterations: 5
+source_files:
+  - 1.planning/source_spec.md
+output_requirements:
+  chapters:
+    - 产品概述与特性
+    - 接口定义（SPI Slave + AXI Master）
+    - 系统架构与微架构
+    - 模块划分与子模块功能
+    - 跨时钟域设计（CDC）
+    - 操作协议（写/读序列、命令格式）
+    - 寄存器映射（CSR）
+    - 可配置参数
+    - 时序分析
+    - Wrap 地址环绕功能
+    - 应用场景
+  formats:
+    - markdown
+    - html
+    - drawio
+  timestamp_format: "YYYY-MM-DD-HHMM"

@@ -39,7 +39,23 @@
       "Bash(do)",
       "Bash(rtl_dir=\"/team_work/qingyun/chip_design_groq/spi2apb/work_dir.$m/artifacts/s3_rtl_design/outputs/rtl\")",
       "Bash(echo \"=== $m ===\")",
-      "Read(//team_work/qingyun/chip_design_groq/spi2apb/work_dir.config_regs/**)"
+      "Read(//team_work/qingyun/chip_design_groq/spi2apb/work_dir.config_regs/**)",
+      "Skill(update-config)",
+      "Bash(jq:*)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if (git diff --name-only | grep -qE '^(agents/|chip_design_agent/agents/|chip_design_agent/\\.claude/agents/)') 2>/dev/null || (git ls-files --others --exclude-standard | grep -qE '^(agents/|chip_design_agent/agents/|chip_design_agent/\\.claude/agents/)') 2>/dev/null; then git add -A && git commit -m \"chore: auto-sync agent updates\" 2>/dev/null && git push 2>/dev/null || true; fi",
+            "statusMessage": "Auto-syncing agent configs..."
+          }
+        ]
+      }
     ]
   }
 }
