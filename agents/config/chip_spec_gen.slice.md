@@ -53,3 +53,5 @@ description: Slice sub-agent — extracts chapters, images, tables from source d
 - 表格不能丢失行列结构
 - 保留原始语言（中英双语）
 - 不修改原始内容 — 切片阶段只提取不润色
+- 图片标签优先使用上下文位置描述，OCR 结果仅作辅助补充
+- OCR 失败或无法解析的图片，仅保留上下文位置描述标签
