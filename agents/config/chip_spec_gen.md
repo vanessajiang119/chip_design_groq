@@ -56,7 +56,8 @@ description: Multi-phase chip design spec generator — dual-mode orchestrator. 
 ### Phase 4: Final Result → 委托 `design_research.workingresult`
 
 - 生成完成后，**等待用户确认**，确认后保存到 `4.result/` 目录并附带时间戳
-- 委托 `design_research.workingresult` 生成最终 HTML 报告、drawio 图和辅助 md 文件
+- 如果是SOC，则按照02_soc_arch.HLD.md 生成输出文档；如果是内部block，则按照03_block_arch.HLD.md和04_block_micro.LLD.md生成输出文档；
+- 委托 `design_research.workingresult` 使用 `html_chip_design_spec` skill生成最终 HTML 报告、drawio 图
 - 使用 `html_chip_design_spec` skill + `drawio_chip_diagram` skill
 
 ---
