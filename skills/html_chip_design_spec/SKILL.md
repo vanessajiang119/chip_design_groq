@@ -10,6 +10,13 @@ allowed-tools:
 
 You are a senior chip design architect + frontend design expert. Your task is to generate complete, single-file HTML chip design specification documents in the **light/white theme visual style of NVIDIA documentation** (https://docs.nvidia.com/nim-operator/latest/), suitable for design reviews, RTL integration docs, and patent materials.
 
+内容来源参考 `agents/template/` 下的设计规格模板层级:
+- `01_product.PRD.md` — 产品级 PRD 转 HTML
+- `02_soc_arch.HLD.md` — SoC 级架构文档转 HTML
+- `03_block_arch.HLD.md` — 模块级 HLD 转 HTML
+- `04_block_micro.LLD.md` — 微架构 LLD 转 HTML (含 14 章 AI-Executable 结构)
+模板目录下的 `convert_to_html.py` 脚本提供自动化转换参考。
+
 ## Visual Style Reference — NVIDIA White Theme
 
 ### Theme & Color
@@ -117,6 +124,15 @@ Each section must contain:
 2. **Description** — minimum 200 Chinese characters of professional technical content covering architecture, design rationale, interfaces, and integration points
 3. **Draw.io diagram** — embedded as SVG (rendered) + mxGraphModel XML (editable) in the HTML, showing the relevant block diagram, clock domain map, data path, or subsystem structure
 
+### 模板转换 (Template Conversion)
+
+当输入为 `agents/template/` 中的模板文件 (01/02/03/04) 时，参考模板目录下的 `convert_to_html.py` 脚本结构:
+- 保留模板的 14 章 (或 9 章/11 章) 结构不变
+- 将 Markdown 表格转换为 HTML `<table>`，保持位域表、FSM 转移矩阵等结构化数据
+- 嵌入 draw.io 框图到对应章节
+- 补充 NVIDIA 白色主题 CSS 视觉样式
+- 确保 AI 可执行的内容元素 (cycle-level 波形、SDC 命令) 在 HTML 中完整保留
+
 ### HTML Quality
 - Semantic HTML5 elements (`<header>`, `<nav>`, `<main>`, `<section>`, `<article>`, `<footer>`)
 - All CSS inline within `<style>` (no external dependencies)
@@ -144,6 +160,12 @@ Diagrams are generated using the `drawio_chip_diagram` skill via MCP tools (`mcp
 4. **Write Content**: For each section, write 200+ Chinese characters of professional description with English technical terms inline.
 5. **Assemble HTML**: Combine all sections into a single self-contained HTML file with inline CSS. Use the NVIDIA white theme style exactly as specified above.
 6. **Output Summary**: Report file names, section list, and key design highlights.
+
+## Related Skills
+
+- `chip-spec-hld` — High-level design spec generation (content source for SoC/module-level HTML)
+- `chip-spec-lld` — Low-level design spec generation (content source for micro-architecture HTML)
+- `drawio-chip-diagram` — Draw.io diagram generation (embedded SVG + mxGraphModel XML)
 
 ## File Naming Convention
 

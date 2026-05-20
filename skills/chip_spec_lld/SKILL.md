@@ -10,6 +10,8 @@ allowed-tools:
 
 You are a senior chip micro-architecture engineer. Your task is to produce professional Low-Level Design Specification (LLD) documents for IP/module implementation. LLD answers *how* the module is implemented — the exact micro-architecture, signal-level interfaces, register definitions, FSM designs, and implementation constraints that RTL designers code against.
 
+LLD 结构对齐 `agents/template/04_block_micro.LLD.md` 的 14 章 AI-Executable 模板 (FSM 状态编码表、逐周期流水线行为、Bit-level CSR 位域表、完整 SDC 模板)，确保验证和实现团队可直接基于 LLD 编码。
+
 ## Domain Context
 
 LLD 由微架构工程师/RTL 设计师完成，基于 HLD 展开。LLD 是 RTL Coding 的直接依据，验证团队也基于 LLD 编写 corner case 测试用例。LLD 冻结后，实现细节不再随意更改。
@@ -18,19 +20,19 @@ LLD 由微架构工程师/RTL 设计师完成，基于 HLD 展开。LLD 是 RTL 
 
 Each LLD must cover the following areas. Sections marked with 📐 require a draw.io diagram.
 
-| # | Section | Description |
-|---|---------|-------------|
-| 1 | 微架构概述 | Module purpose, design goals, high-level micro-architecture philosophy |
-| 2 | 📐 模块划分与层级 | Sub-block partitioning, hierarchy tree, instantiation list |
-| 3 | 📐 内部接口定义 | Signal-level port list, interface protocols, timing waveforms (read/write) |
-| 4 | 寄存器描述 (CSR) | Register address map, field definitions, reset values, RW attributes, access timing |
-| 5 | 📐 FSM 设计 | State transition diagrams, state encoding (one-hot/binary/gray), stall/wake logic |
-| 6 | 📐 数据通路与流水线 | Pipeline stages, data path width, arbitration, buffering, backpressure |
-| 7 | 时钟/电源域实现 | Generated clocks, clock gating, power domains, level shifters, isolation cells |
-| 8 | 时序约束与综合指引 | SDC constraints (create_clock, set_input_delay), synthesis compile options, timing exceptions |
-| 9 | DFT 集成 | Scan chains (stuck-at/at-speed), MBIST/LBIST, boundary scan, test modes, OCC |
-| 10 | 面积/功耗估计 | Module area breakdown, dynamic/leakage power, activity factors |
-| 11 | 验证协同 | Coverage points, corner cases, assertion checkers, formal verification bind |
+| # | Section | Description | 04 Template Chapter |
+|---|---------|-------------|-------------------|
+| 1 | 微架构概述 | Module purpose, design goals, high-level micro-architecture philosophy | §1 Module Overview |
+| 2 | 📐 模块划分与层级 | Sub-block partitioning, hierarchy tree, instantiation list | §3 Sub-Module Partition |
+| 3 | 📐 内部接口定义 | Signal-level port list, interface protocols, timing waveforms (read/write) | §2 Interface Specification |
+| 4 | 寄存器描述 (CSR) | Register address map, field definitions, reset values, RW attributes, access timing | §7 CSR Register Map |
+| 5 | 📐 FSM 设计 | State transition diagrams, state encoding (one-hot/binary/gray), stall/wake logic | §4 FSM Specification |
+| 6 | 📐 数据通路与流水线 | Pipeline stages, data path width, arbitration, buffering, backpressure | §5 Pipeline + §6 Datapath |
+| 7 | 时钟/电源域实现 | Generated clocks, clock gating, power domains, level shifters, isolation cells | §8 Clock & Reset |
+| 8 | 时序约束与综合指引 | SDC constraints (create_clock, set_input_delay), synthesis compile options, timing exceptions | §9 Timing Constraints — SDC |
+| 9 | DFT 集成 | Scan chains (stuck-at/at-speed), MBIST/LBIST, boundary scan, test modes, OCC | §12 DFT Requirements |
+| 10 | 面积/功耗估计 | Module area breakdown, dynamic/leakage power, activity factors | §10 Implementation Notes |
+| 11 | 验证协同 | Coverage points, corner cases, assertion checkers, formal verification bind | §11 Verification Guidance |
 
 ## Output Requirements
 
@@ -115,6 +117,7 @@ LLD_DMA_Controller_v1.html    + LLD_DMA_Controller_v1.drawio
 - `chip-spec-hld` — Top-level architecture spec that this LLD implements
 - `html-chip-design-spec` — HTML generation engine (NVIDIA white theme)
 - `drawio-chip-diagram` — Draw.io professional chip diagram generation
+- `chip-design-arch` — Chip design architecture orchestrator (4-phase workflow, uses LLD as s3 input)
 
 ## Review Checklist
 

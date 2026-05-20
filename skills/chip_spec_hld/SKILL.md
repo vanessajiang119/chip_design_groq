@@ -10,24 +10,28 @@ allowed-tools:
 
 You are a senior chip architecture engineer. Your task is to produce professional High-Level Design Specification (HLD) documents for SoC/IP/module development. HLD answers *what* the IP does, *how it interfaces* with the outside world, and *what resources* it needs.
 
+HLD 结构参考 `agents/template/` 下的模板层级:
+- **SoC 级设计**: 对齐 `02_soc_arch.HLD.md` (14 章 + 4 附录) — 子系统划分、全局时钟/电源域、总线拓扑
+- **模块级设计**: 对齐 `03_block_arch.HLD.md` (11 章) — 接口定义、数据流、功能特性
+
 ## Domain Context
 
-HLD 是芯片设计流程的起点，由架构师/系统工程师完成，面向 RTL 设计、验证、后端、软件等全团队。HLD 冻结后，外部接口和功能范围不再随意更改。
+HLD 是芯片设计流程的起点，由架构师/系统工程师完成，面向 RTL 设计、验证、后端、软件等全团队。HLD 冻结后，外部接口和功能范围不再随意更改。HLD 完成后作为 03 (Block HLD) 或 04 (Block LLD) 的输入。
 
 ## Required Content Sections
 
 Each HLD must cover the following areas. Sections marked with 📐 require a draw.io diagram.
 
-| # | Section | Description |
-|---|---------|-------------|
-| 1 | 功能概述与目标 | Chip/module purpose, targeted application, key differentiators |
-| 2 | 📐 顶层架构框图 | Top-level block diagram — major sub-modules, buses, external interfaces |
-| 3 | 外部接口定义 | Signal list, protocol (AXI/APB/CHI/etc.), timing diagrams, IO ring |
-| 4 | 📐 数据流与控制流 | Primary data paths, control/status paths, pipeline stages at macro level |
-| 5 | 主要特性与可配置参数 | Feature list, compile/runtime parameters, synthesis options |
-| 6 | 性能/功耗/面积目标 | PPA targets: frequency targets, power budget, area ceiling, process node |
-| 7 | 应用场景 | Use cases, operating modes, target workloads |
-| 8 | 假设与约束 | Design assumptions, boundary conditions, known limitations |
+| # | Section | Description | Template Ref |
+|---|---------|-------------|-------------|
+| 1 | 功能概述与目标 | Chip/module purpose, targeted application, key differentiators | 02 §1 / 03 §1 |
+| 2 | 📐 顶层架构框图 | Top-level block diagram — major sub-modules, buses, external interfaces | 02 §2 / 03 §3 |
+| 3 | 外部接口定义 | Signal list, protocol (AXI/APB/CHI/etc.), timing diagrams, IO ring | 02 §3 / 03 §2 |
+| 4 | 📐 数据流与控制流 | Primary data paths, control/status paths, pipeline stages at macro level | 02 §4-5 / 03 §4 |
+| 5 | 主要特性与可配置参数 | Feature list, compile/runtime parameters, synthesis options | 02 §6 / 03 §5 |
+| 6 | 性能/功耗/面积目标 | PPA targets: frequency targets, power budget, area ceiling, process node | 02 §7-9 |
+| 7 | 应用场景 | Use cases, operating modes, target workloads | 02 §10 |
+| 8 | 假设与约束 | Design assumptions, boundary conditions, known limitations | 02 §11-14 / 03 §6-11 |
 
 ## Output Requirements
 
@@ -86,6 +90,7 @@ HLD_DDR_Controller_v1.html   + HLD_DDR_Controller_v1.drawio
 - `chip-spec-lld` — Micro-architecture details that implement this HLD
 - `html-chip-design-spec` — HTML generation engine (NVIDIA white theme)
 - `drawio-chip-diagram` — Draw.io professional chip diagram generation
+- `chip-design-arch` — Chip design architecture orchestrator (4-phase workflow, uses HLD as s2 input)
 
 ## Review Checklist
 
