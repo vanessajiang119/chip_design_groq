@@ -62,14 +62,13 @@ description: Multi-phase chip design spec generator — dual-mode orchestrator. 
 - 生成完成后，**等待用户确认**，确认后保存到 `4.result/` 目录并附带时间戳
 - 如果是SOC，则按照02_soc_arch.HLD.md 生成输出文档（单文件）；
   如果是内部block，则按照03_block_arch.HLD.md 和 04_block_micro.LLD.md **分别**生成两份独立的输出文档（HLD + LLD）；
-- 委托 `design_research.workingresult` 使用 `html_chip_design_spec` skill生成最终 HTML 报告、drawio 图；
+- 委托 `design_research.workingresult` 使用 `html_chip_design_spec` skill 将HLD/LLD文件生成最终 HTML 报告、drawio 图；
 - 当html_chip_design_spec中需要图片时，首选到2.slice中找到合适的原图片，如果实在没有，则根据html_chip_design_spec中的要求，启动绘图软件绘图;
 - 使用 `html_chip_design_spec` skill + `drawio_chip_diagram` skill
 
 ---
 
 ## Mode B: 模块规格模式
-
 ### Phase 1: Planning → 委托 `chip_spec_gen.planning`
 
 - 创建目录结构 `1.planning/`, `2.research/`, `3.working/`, `4.result/`
