@@ -52,7 +52,7 @@ description: Multi-phase chip design spec generator — dual-mode orchestrator. 
   - **SOC**: 按照 02_soc_arch.HLD.md 组织章节和内容（单文件）
   - **内部 Block**: 按照 03_block_arch.HLD.md 和 04_block_micro.LLD.md **分别**组织章节和内容，生成**两份独立的文档**（HLD + LLD）
 - 检查各章节内容完整性：
-  - **缺少内容** → 回到 Phase 2 要求补充特定材料
+  - **缺少内容** → 回到 Phase 2 要求补充特定材料；根据 planning 阶段的配置，判断是否启动 design_research agent，自动到网上寻找缺失章节内容；
   - **内容完整** → 轻度润色后进入 Phase 4
 - 迭代次数由 `planning.yml` 中的 `max_iterations` 控制
 
