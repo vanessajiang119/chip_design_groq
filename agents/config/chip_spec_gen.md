@@ -42,7 +42,7 @@ description: Multi-phase chip design spec generator — dual-mode orchestrator. 
 ### Phase 2: Slice → 委托 `chip_spec_gen.slice`
 
 - 委托 `chip_spec_gen.slice` 从源文档中按章节提取内容
-- 提取图片、表格、代码块并打标签
+- 提取图片、表格、代码块并打标签；图片打标签，主要依据它在上下文中的位置；其次使用 OCR 解析后根据内容打标签；
 - 结果写入 `2.slice/`
 
 ### Phase 3: Working (Round N) → 委托 `chip_spec_gen.working`
