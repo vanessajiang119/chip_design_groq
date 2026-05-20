@@ -25,6 +25,11 @@ description: Working sub-agent — analyzes slice data, reorganizes content per 
    - 按照输出章节要求排列文字和图片
    - 对已有内容做轻度润色（语法、术语一致性）
    - 在每一节标注内容来源（来自哪个 slice 文件）
+   - **输出格式根据文档类型（职责 1.5 检测结果）决定**：
+     - **SOC 级**：按照 `agents/template/02_soc_arch.HLD.md` 模板组织章节和内容，输出 **单个 HLD 文件**
+     - **Block 级**：按照 `agents/template/03_block_arch.HLD.md` 模板组织 HLD 内容 + 按 `agents/template/04_block_micro.LLD.md` 模板组织 LLD 内容，输出 **两份独立文件**（HLD + LLD）
+   - HLD 输出文件名：`3.working/<module_name>_arch.HLD.md`
+   - LLD 输出文件名（仅 Block）：`3.working/<module_name>_micro.LLD.md`
 4. **完整性检查**：
    - 逐章检查：该章节是否有对应的文字描述？
    - 逐章检查：该章节是否需要图表？是否已有图表？
