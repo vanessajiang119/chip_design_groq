@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SPI2AXI Bridge &mdash; Architecture Blueprint (HLD) v1.0</title>
+    <title>SPI2AXI Bridge — 架构蓝图 HLD v1.0</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/wavedrom/3.4.0/wavedrom.min.js" integrity="sha512-sI1K2UyiG/9byV/KPqBH0LRK2n5SO5YPPJfLLbQ9pF7Y2L6H3wRyF7B46JZ2Ak+26x8OrJVBleYBLM5HGm8Gog==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
     <style>
@@ -22,17 +22,8 @@
             --font-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
             --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
         }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        html {
-            scroll-behavior: smooth;
-        }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; scroll-padding-top: calc(var(--header-height) + 16px); }
         body {
             font-family: var(--font-sans);
             color: var(--gray-text);
@@ -40,12 +31,8 @@
             line-height: 1.6;
             font-size: 15px;
         }
-
         .site-header {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
+            position: fixed; top: 0; left: 0; right: 0;
             height: var(--header-height);
             background: var(--white);
             border-bottom: 2px solid var(--nvidia-green);
@@ -55,1007 +42,843 @@
             z-index: 1000;
             box-shadow: 0 1px 4px rgba(0,0,0,0.06);
         }
-
-        .site-header .logo {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .site-header .logo-dot {
-            width: 10px;
-            height: 10px;
+        .site-header .logo { display: flex; align-items: center; gap: 12px; }
+        .site-header .logo-dot { width: 10px; height: 10px; background: var(--nvidia-green); border-radius: 50%; flex-shrink: 0; }
+        .site-header h1 { font-size: 16px; font-weight: 600; color: var(--gray-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .site-header .version-badge {
+            margin-left: auto;
+            font-size: 11px;
             background: var(--nvidia-green);
-            border-radius: 50%;
+            color: white;
+            padding: 2px 10px;
+            border-radius: 10px;
+            font-weight: 500;
             flex-shrink: 0;
         }
-
-        .site-header h1 {
-            font-size: 16px;
-            font-weight: 600;
-            color: var(--gray-text);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .site-header .badge {
-            margin-left: 12px;
-            font-size: 11px;
-            font-weight: 500;
-            background: var(--nvidia-green);
-            color: var(--white);
-            padding: 2px 10px;
-            border-radius: 12px;
-            white-space: nowrap;
-        }
-
-        .header-toggle {
+        .sidebar-toggle {
             display: none;
             background: none;
             border: none;
             font-size: 22px;
             cursor: pointer;
-            color: var(--gray-secondary);
-            margin-right: 12px;
+            color: var(--gray-text);
+            margin-right: 8px;
         }
-
         .sidebar {
             position: fixed;
             top: var(--header-height);
             left: 0;
-            bottom: 0;
             width: var(--sidebar-width);
+            height: calc(100vh - var(--header-height));
             background: var(--gray-bg);
             border-right: 1px solid var(--gray-border);
             overflow-y: auto;
-            padding: 16px 0;
             z-index: 900;
+            padding: 16px 0;
             transition: transform 0.2s ease;
         }
-
-        .sidebar::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .sidebar::-webkit-scrollbar-thumb {
-            background: var(--gray-border);
-            border-radius: 3px;
-        }
-
-        .sidebar-nav {
-            list-style: none;
-        }
-
-        .sidebar-nav li {
-            margin: 0;
-        }
-
-        .sidebar-nav a {
+        .sidebar ul { list-style: none; }
+        .sidebar li { margin: 0; }
+        .sidebar a {
             display: block;
             padding: 6px 20px;
-            font-size: 13px;
-            color: var(--gray-secondary);
+            color: var(--gray-text);
             text-decoration: none;
+            font-size: 13px;
             border-left: 3px solid transparent;
             transition: all 0.15s;
         }
-
-        .sidebar-nav a:hover,
-        .sidebar-nav a.active {
-            color: var(--nvidia-green-dark);
-            background: var(--nvidia-green-light);
-            border-left-color: var(--nvidia-green);
-        }
-
-        .sidebar-nav .section-l1 {
+        .sidebar a:hover { background: var(--nvidia-green-light); color: var(--nvidia-green-dark); }
+        .sidebar a.active { border-left-color: var(--nvidia-green); background: var(--nvidia-green-light); color: var(--nvidia-green-dark); font-weight: 600; }
+        .sidebar .section-l0 { font-weight: 600; font-size: 14px; padding-top: 10px; padding-bottom: 6px; }
+        .sidebar .section-l1 { padding-left: 32px; font-size: 12.5px; }
+        .sidebar .section-l2 { padding-left: 48px; font-size: 12px; color: var(--gray-secondary); }
+        .sidebar-heading {
+            padding: 8px 20px 4px;
+            font-size: 11px;
             font-weight: 600;
-            font-size: 13px;
-            color: var(--gray-text);
-            padding-top: 10px;
-            padding-bottom: 4px;
-            border-left-color: transparent;
+            color: var(--gray-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
-
-        .sidebar-nav .section-l1:hover {
-            background: transparent;
-            border-left-color: transparent;
-            color: var(--gray-text);
-        }
-
-        .sidebar-nav .section-l2 {
-            padding-left: 32px;
-            font-size: 12.5px;
-        }
-
-        .sidebar-nav .section-divider {
-            height: 1px;
-            background: var(--gray-border);
-            margin: 8px 16px;
-        }
-
         .main-content {
             margin-left: var(--sidebar-width);
             margin-top: var(--header-height);
-            padding: 40px 48px 80px;
+            padding: 32px 48px 64px;
             max-width: 960px;
         }
-
-        .content-title {
+        .page-title {
             margin-bottom: 32px;
-            padding-bottom: 24px;
+            padding-bottom: 16px;
             border-bottom: 2px solid var(--nvidia-green);
         }
-
-        .content-title h1 {
-            font-size: 28px;
-            font-weight: 700;
-            line-height: 1.3;
-        }
-
-        .content-title .meta {
-            margin-top: 12px;
-            font-size: 14px;
-            color: var(--gray-secondary);
-        }
-
-        .content-title .meta strong {
-            color: var(--gray-text);
-        }
-
-        h2 {
-            font-size: 22px;
-            font-weight: 700;
-            margin: 40px 0 16px;
-            padding-bottom: 8px;
-            border-bottom: 1px solid var(--gray-border);
-        }
-
-        h2 .chapter-num {
-            color: var(--nvidia-green);
-        }
-
-        h3 {
-            font-size: 18px;
-            font-weight: 600;
-            margin: 28px 0 12px;
-        }
-
-        h4 {
-            font-size: 16px;
-            font-weight: 600;
-            margin: 20px 0 10px;
-        }
-
-        p {
-            margin: 0 0 14px;
-        }
-
-        a {
-            color: var(--nvidia-green);
-            text-decoration: none;
-        }
-
-        a:hover {
-            text-decoration: underline;
-        }
-
-        blockquote {
-            margin: 16px 0;
-            padding: 12px 16px;
-            background: var(--gray-bg);
-            border-left: 4px solid var(--nvidia-green);
-            border-radius: 0 4px 4px 0;
-            font-size: 14px;
-            color: var(--gray-secondary);
-        }
-
-        blockquote p {
-            margin: 0;
-        }
-
-        hr {
-            border: none;
-            border-top: 1px solid var(--gray-border);
-            margin: 36px 0;
-        }
-
+        .page-title h1 { font-size: 28px; font-weight: 700; color: var(--gray-text); }
+        .page-title .meta { margin-top: 8px; font-size: 13px; color: var(--gray-secondary); }
+        .page-title .meta strong { color: var(--gray-text); }
+        h2 { font-size: 22px; font-weight: 700; margin-top: 40px; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--gray-border); }
+        h2 .chapter-num { color: var(--nvidia-green); margin-right: 8px; }
+        h3 { font-size: 17px; font-weight: 600; margin-top: 28px; margin-bottom: 12px; color: var(--gray-text); }
+        h4 { font-size: 15px; font-weight: 600; margin-top: 20px; margin-bottom: 8px; }
+        p { margin-bottom: 12px; }
+        ul, ol { margin-bottom: 12px; padding-left: 24px; }
+        li { margin-bottom: 4px; }
         table {
             width: 100%;
             border-collapse: collapse;
-            margin: 16px 0 20px;
-            font-size: 13.5px;
-            border: 1px solid var(--gray-border);
-            border-radius: 4px;
-            overflow: hidden;
-        }
-
-        thead {
-            background: var(--nvidia-green);
-            color: var(--white);
-        }
-
-        thead th {
-            padding: 8px 12px;
-            font-weight: 600;
-            text-align: left;
+            margin: 12px 0 20px;
             font-size: 13px;
-            letter-spacing: 0.3px;
-        }
-
-        tbody tr {
-            border-bottom: 1px solid var(--gray-border);
-            transition: background 0.1s;
-        }
-
-        tbody tr:nth-child(even) {
-            background: var(--gray-bg);
-        }
-
-        tbody tr:hover {
-            background: var(--nvidia-green-light);
-        }
-
-        tbody td {
-            padding: 7px 12px;
-            vertical-align: top;
-        }
-
-        pre {
-            margin: 16px 0;
-            padding: 14px 16px;
-            background: #1e1e1e;
-            border: 1px solid var(--gray-border);
-            border-radius: 6px;
+            display: block;
             overflow-x: auto;
-            font-size: 13px;
-            line-height: 1.45;
         }
-
-        pre code {
-            font-family: var(--font-mono);
-            color: #d4d4d4;
-            background: transparent;
-            padding: 0;
-            font-size: inherit;
-        }
-
+        thead { background: var(--nvidia-green); color: white; }
+        th, td { padding: 8px 12px; text-align: left; border: 1px solid var(--gray-border); }
+        th { font-weight: 600; font-size: 12.5px; }
+        tr:nth-child(even) { background: var(--gray-bg); }
         code {
             font-family: var(--font-mono);
-            font-size: 13px;
-            background: var(--gray-bg);
+            background: var(--gray-light);
             padding: 2px 6px;
             border-radius: 3px;
-            color: #c7254e;
+            font-size: 13px;
+            color: #d63384;
         }
-
-        .mermaid {
+        pre {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 16px 20px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-family: var(--font-mono);
+            font-size: 13px;
+            line-height: 1.5;
+            margin: 12px 0 20px;
+        }
+        pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+        .info-box {
+            background: var(--nvidia-green-light);
+            border-left: 4px solid var(--nvidia-green);
+            padding: 12px 16px;
+            margin: 12px 0 20px;
+            border-radius: 0 4px 4px 0;
+            font-size: 13px;
+        }
+        .figure-container {
+            margin: 20px 0;
+            text-align: center;
+            background: var(--gray-bg);
+            padding: 20px;
+            border-radius: 6px;
+            border: 1px solid var(--gray-border);
+        }
+        .figure-container img { max-width: 100%; height: auto; }
+        .figure-container figcaption { margin-top: 8px; font-size: 13px; color: var(--gray-secondary); font-style: italic; }
+        .mermaid-container {
             margin: 20px 0;
             text-align: center;
             background: var(--white);
             padding: 16px;
+            border-radius: 6px;
             border: 1px solid var(--gray-border);
-            border-radius: 8px;
         }
-
         .wavedrom-container {
             margin: 20px 0;
             text-align: center;
             background: var(--white);
             padding: 16px;
-            border: 1px solid var(--gray-border);
-            border-radius: 8px;
-        }
-
-        .wavedrom-container .WaveDrom {
-            display: inline-block;
-        }
-
-        .figure {
-            margin: 20px 0;
-            text-align: center;
-        }
-
-        .figure img {
-            max-width: 100%;
-            border: 1px solid var(--gray-border);
             border-radius: 6px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            border: 1px solid var(--gray-border);
+            overflow-x: auto;
         }
-
-        .figure figcaption {
-            margin-top: 8px;
-            font-size: 13px;
-            color: var(--gray-secondary);
+        @media (max-width: 768px) {
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.open { transform: translateX(0); }
+            .sidebar-toggle { display: block; }
+            .main-content { margin-left: 0; padding: 20px 16px 48px; }
         }
-
-        .info-box {
-            margin: 16px 0;
-            padding: 12px 16px;
-            background: var(--nvidia-green-light);
-            border: 1px solid var(--nvidia-green);
-            border-radius: 6px;
-            font-size: 14px;
-        }
-
-        .info-box strong {
-            color: var(--nvidia-green-dark);
-        }
-
-        ul, ol {
-            margin: 8px 0 16px;
-            padding-left: 24px;
-        }
-
-        li {
-            margin-bottom: 6px;
-        }
-
-        @media (max-width: 900px) {
-            .sidebar {
-                transform: translateX(-100%);
-            }
-            .sidebar.open {
-                transform: translateX(0);
-            }
-            .main-content {
-                margin-left: 0;
-                padding: 24px 20px 60px;
-            }
-            .header-toggle {
-                display: block;
-            }
-        }
-
-        @media print {
-            .site-header, .sidebar { display: none; }
-            .main-content { margin: 0; padding: 20px; max-width: none; }
-            pre { white-space: pre-wrap; }
-        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #aaa; }
     </style>
 </head>
 <body>
 
 <header class="site-header">
-    <button class="header-toggle" onclick="toggleSidebar()" aria-label="Toggle sidebar">&amp;#9776;</button>
+    <button class="sidebar-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
     <div class="logo">
         <span class="logo-dot"></span>
-        <h1>SPI2AXI Bridge &mdash; Architecture Blueprint (HLD)</h1>
-        <span class="badge">V1.0</span>
+        <h1>SPI2AXI Bridge — 架构蓝图 HLD</h1>
     </div>
+    <span class="version-badge">v1.0</span>
 </header>
 
 <nav class="sidebar" id="sidebar">
-    <ul class="sidebar-nav">
-        <li><a href="#ch1" class="section-l1">1. Module Overview</a></li>
-        <li><a href="#ch1-1" class="section-l2">1.1 Module Identity</a></li>
-        <li><a href="#ch1-2" class="section-l2">1.2 One-Line Summary</a></li>
-        <li><a href="#ch1-3" class="section-l2">1.3 Functional Goals</a></li>
-        <li><a href="#ch1-4" class="section-l2">1.4 Non-Functional Goals</a></li>
-        <li><a href="#ch1-5" class="section-l2">1.5 Top-Level Port Groups</a></li>
-        <li><a href="#ch1-6" class="section-l2">1.6 Functional Boundary</a></li>
-        <li><div class="section-divider"></div></li>
-        <li><a href="#ch2" class="section-l1">2. External Interface</a></li>
-        <li><a href="#ch2-1" class="section-l2">2.1 Top-Level I/O List</a></li>
-        <li><a href="#ch2-2" class="section-l2">2.2 Configuration Interface</a></li>
-        <li><a href="#ch2-3" class="section-l2">2.3 Data Plane Interface</a></li>
-        <li><a href="#ch2-4" class="section-l2">2.4 Interrupt Interface</a></li>
-        <li><a href="#ch2-5" class="section-l2">2.5 Other Dedicated Interfaces</a></li>
-        <li><div class="section-divider"></div></li>
-        <li><a href="#ch3" class="section-l1">3. Top-Level Architecture</a></li>
-        <li><a href="#ch3-1" class="section-l2">3.1 Module Internal Structure</a></li>
-        <li><a href="#ch3-2" class="section-l2">3.2 Sub-Module Responsibilities</a></li>
-        <li><a href="#ch3-3" class="section-l2">3.3 Key Data Path Bandwidth</a></li>
-        <li><div class="section-divider"></div></li>
-        <li><a href="#ch4" class="section-l1">4. Data &amp; Control Flow</a></li>
-        <li><a href="#ch4-1" class="section-l2">4.1 Data Flow Paths</a></li>
-        <li><a href="#ch4-2" class="section-l2">4.2 Control Flow</a></li>
-        <li><a href="#ch4-3" class="section-l2">4.3 Backpressure &amp; Flow Control</a></li>
-        <li><a href="#ch4-4" class="section-l2">4.4 Concurrency &amp; Conflict</a></li>
-        <li><div class="section-divider"></div></li>
-        <li><a href="#ch5" class="section-l1">5. Features &amp; Parameters</a></li>
-        <li><a href="#ch5-1" class="section-l2">5.1 Core Features</a></li>
-        <li><a href="#ch5-2" class="section-l2">5.2 Configurable Parameters</a></li>
-        <li><a href="#ch5-3" class="section-l2">5.3 Configuration Register Summary</a></li>
-        <li><a href="#ch5-4" class="section-l2">5.4 Operation Modes</a></li>
-        <li><div class="section-divider"></div></li>
-        <li><a href="#ch6" class="section-l1">6. Clock, Reset &amp; Power</a></li>
-        <li><a href="#ch6-1" class="section-l2">6.1 Clock Domain Overview</a></li>
-        <li><a href="#ch6-2" class="section-l2">6.2 Reset Structure</a></li>
-        <li><a href="#ch6-3" class="section-l2">6.3 Power Modes</a></li>
-        <li><div class="section-divider"></div></li>
-        <li><a href="#ch7" class="section-l1">7. PPA Targets</a></li>
-        <li><a href="#ch7-1" class="section-l2">7.1 Performance</a></li>
-        <li><a href="#ch7-2" class="section-l2">7.2 Power Budget</a></li>
-        <li><a href="#ch7-3" class="section-l2">7.3 Area Budget</a></li>
-        <li><div class="section-divider"></div></li>
-        <li><a href="#ch8" class="section-l1">8. Application Scenarios</a></li>
-        <li><a href="#ch8-1" class="section-l2">8.1 Typical Use Cases</a></li>
-        <li><a href="#ch8-2" class="section-l2">8.2 Exception Scenarios</a></li>
-        <li><a href="#ch8-3" class="section-l2">8.3 Usage Limitations</a></li>
-        <li><div class="section-divider"></div></li>
-        <li><a href="#ch9" class="section-l1">9. Assumptions &amp; Constraints</a></li>
-        <li><a href="#ch9-1" class="section-l2">9.1 Key Assumptions</a></li>
-        <li><a href="#ch9-2" class="section-l2">9.2 Design Constraints</a></li>
-        <li><a href="#ch9-3" class="section-l2">9.3 External Dependencies</a></li>
-        <li><a href="#ch9-4" class="section-l2">9.4 Open Issues</a></li>
-        <li><div class="section-divider"></div></li>
-        <li><a href="#ch10" class="section-l1">10. Architecture Decisions</a></li>
-        <li><div class="section-divider"></div></li>
-        <li><a href="#ch11" class="section-l1">11. Verification Mapping</a></li>
-        <li><a href="#ch11-1" class="section-l2">11.1 Feature-to-Verification Map</a></li>
-        <li><a href="#ch11-2" class="section-l2">11.2 Excluded Features</a></li>
-        <li><a href="#ch11-3" class="section-l2">11.3 Assertion Suggestions</a></li>
-        <li><div class="section-divider"></div></li>
-        <li><a href="#app-a" class="section-l1">Appendix A: Glossary</a></li>
-        <li><a href="#app-b" class="section-l1">Appendix B: References</a></li>
+    <div class="sidebar-heading">目录</div>
+    <ul>
+        <li><a href="#ch1" class="section-l0">1. 模块概述</a></li>
+        <li><a href="#ch2" class="section-l0">2. 外部接口定义</a></li>
+        <li><a href="#ch3" class="section-l0">3. 顶层架构框图</a></li>
+        <li><a href="#ch4" class="section-l0">4. 数据流与控制流</a></li>
+        <li><a href="#ch5" class="section-l0">5. 特性与配置参数</a></li>
+        <li><a href="#ch6" class="section-l0">6. 时钟、复位与电源</a></li>
+        <li><a href="#ch7" class="section-l0">7. 性能/功耗/面积</a></li>
+        <li><a href="#ch8" class="section-l0">8. 应用场景</a></li>
+        <li><a href="#ch9" class="section-l0">9. 假设与约束</a></li>
+        <li><a href="#ch10" class="section-l0">10. 设计决策</a></li>
+        <li><a href="#ch11" class="section-l0">11. 验证特性映射</a></li>
+        <li><a href="#appA" class="section-l0">附录A: 术语表</a></li>
+        <li><a href="#appB" class="section-l0">附录B: 参考文档</a></li>
     </ul>
 </nav>
 
-<main class="main-content">
-    <div class="content-title">
-        <h1>SPI2AXI Bridge &mdash; Architecture Blueprint (HLD)</h1>
-        <div class="meta">
-            <strong>Module:</strong> SPI2AXI Bridge (spi2axi_bridge_top) &middot;
-            <strong>Version:</strong> V1.0 &middot;
-            <strong>Date:</strong> 2026-05-21 &middot;
-            <strong>Status:</strong> Draft
-        </div>
-        <div class="meta">
-            <strong>Architecture Freeze:</strong> YYYY-MM-DD &middot;
-            <strong>Corresponding LLD:</strong> <code>spi2axi_bridge_micro.LLD.md</code>
-        </div>
+<div class="main-content">
+
+<div class="page-title">
+    <h1>模块架构蓝图 — Architecture Blueprint (HLD)</h1>
+    <div class="meta">
+        <strong>模块名称:</strong> SPI2AXI Bridge (spi2axi_bridge_top) &middot;
+        <strong>版本:</strong> V1.0 &middot;
+        <strong>日期:</strong> 2026-05-21 &middot;
+        <strong>状态:</strong> Draft
     </div>
+    <div class="meta">
+        <strong>Architecture Freeze:</strong> YYYY-MM-DD &middot;
+        <strong>对应 LLD 文档:</strong> <code>spi2axi_bridge_micro.LLD.md</code>
+    </div>
+</div>
 
-    <section id="ch1">
-        <h2><span class="chapter-num">Chapter 1</span> Module Overview</h2>
+<!-- ======================== Chapter 1 ======================== -->
+<section id="ch1">
+<h2><span class="chapter-num">第1章</span> 模块概述 (Module Overview)</h2>
 
-        <h3 id="ch1-1">1.1 Module Identity</h3>
-        <div class="info-box"><strong>Note:</strong> This section focuses on architecture-level positioning. See LLD Ch1.1 for implementation details (PVT corners, area, power targets).</div>
-        <table>
-            <thead><tr><th>Attribute</th><th>Value</th></tr></thead>
-            <tbody>
-                <tr><td>Module Full Name</td><td>SPI2AXI Bridge (spi2axi_bridge_top)</td></tr>
-                <tr><td>Hierarchical Path</td><td><code>soc.periph_bus.spi2axi_bridge</code></td></tr>
-                <tr><td>Function Classification</td><td>Interface Bridge (SPI Slave to AXI4-Lite Master)</td></tr>
-                <tr><td>Technology Node</td><td>TBD</td></tr>
-                <tr><td>Target Frequency</td><td>SPI: 50MHz / AXI: Depends on SoC system clock</td></tr>
-                <tr><td>Supply Voltage</td><td>TBD</td></tr>
-            </tbody>
-        </table>
+<h3>1.1 模块身份 (Module Identity)</h3>
+<div class="info-box"><strong>说明:</strong> 本节聚焦架构级定位。LLD Ch1.1 包含更详细的 PVT corner、面积、功耗目标。</div>
+<table>
+    <thead><tr><th>属性 (Attribute)</th><th>值 (Value)</th></tr></thead>
+    <tbody>
+        <tr><td>模块全名 (Module Full Name)</td><td>SPI2AXI Bridge (spi2axi_bridge_top)</td></tr>
+        <tr><td>层次路径 (Hierarchical Path)</td><td><code>soc.periph_bus.spi2axi_bridge</code></td></tr>
+        <tr><td>功能分类 (Function)</td><td>接口桥接 (SPI Slave to AXI4-Lite Master)</td></tr>
+        <tr><td>工艺节点 (Technology)</td><td>待补充</td></tr>
+        <tr><td>目标频率 (Target Freq)</td><td>SPI: 50MHz / AXI: 取决于 SoC 系统时钟</td></tr>
+        <tr><td>供电电压 (Voltage)</td><td>待补充</td></tr>
+    </tbody>
+</table>
 
-        <h3 id="ch1-2">1.2 One-Line Summary</h3>
-        <p>SPI2AXI Bridge IP is a bridge module that converts an SPI Slave interface to an AXI4-Lite Master interface. It allows external SPI masters to directly access memory-mapped register spaces and peripherals on the AXI bus through standard SPI or Quad-SPI (QSPI) bus protocols without requiring SoC internal CPU intervention. It is widely used in SoC system debugging, configuration management, firmware updates, and chip test verification.</p>
+<h3>1.2 一句话摘要 (One-Line Summary)</h3>
+<p>SPI2AXI Bridge IP 是一个将 SPI 从设备（Slave）接口转换为 AXI4-Lite 主设备（Master）接口的桥接模块，允许外部 SPI 主机通过标准的 SPI 或 Quad-SPI（QSPI）总线协议，无需 SoC 内部 CPU 干预即可直接访问 AXI 总线上的存储器映射寄存器空间和外设，广泛用于 SoC 的系统调试、配置管理、固件更新以及芯片测试验证等场景。</p>
 
-        <h3 id="ch1-3">1.3 Functional Goals</h3>
-        <ul>
-            <li><strong>Support standard SPI and Quad-SPI (QSPI) dual-mode protocol:</strong> Provides 1-wire standard SPI and 4-wire QSPI operating modes, dynamically switching data line width via SPI-side configuration registers.</li>
-            <li><strong>Transparently convert SPI bus commands to AXI4-Lite bus transactions:</strong> Parses the 8-bit opcode and 32-bit address, generates corresponding AXI4-Lite write/read channel transactions.</li>
-            <li><strong>Reliable clock domain crossing (CDC) data transfer:</strong> Uses dual-clock async FIFO architecture with Gray-code pointer synchronization between SPI (50MHz) and AXI clock domains.</li>
-            <li><strong>Support configurable address wrap access mode:</strong> Software-programmable address wrap within a window of N 32-bit words (4xN bytes).</li>
-            <li><strong>Provide SPI-side configuration registers and status feedback:</strong> Supports mode selection, transfer status query, Wrap parameter configuration via opcode-encoded register space.</li>
-        </ul>
+<h3>1.3 功能目标 (Functional Goals)</h3>
+<ul>
+    <li><strong>支持标准 SPI 和 Quad-SPI (QSPI) 双模协议</strong>: 提供 1 线标准 SPI 和 4 线 QSPI 两种工作模式，通过 SPI 侧配置寄存器动态切换数据线宽度，适应不同引脚数和带宽需求的系统应用场景。</li>
+    <li><strong>将 SPI 总线命令透明转换为 AXI4-Lite 总线事务</strong>: 解析 SPI 主机发送的 8-bit 操作码和 32-bit 地址，生成对应的 AXI4-Lite 写地址/写数据/读地址通道事务，实现 SPI 协议到 AXI 协议的完整语义映射。</li>
+    <li><strong>实现 SPI 时钟域到 AXI 时钟域的可靠跨时钟域数据传输</strong>: 采用双时钟异步 FIFO（dual-clock async FIFO）架构，在 SPI 时钟域（最高 50MHz）和 AXI 系统时钟域之间提供具有格雷码指针同步的可靠 CDC 传输通道。</li>
+    <li><strong>支持可配置的地址环绕（Wrap）访问模式</strong>: 提供软件可编程的地址环绕功能，Wrap=N 时以 N 个 32-bit 字（4×N 字节）为窗口进行地址回绕访问。</li>
+    <li><strong>提供 SPI 侧配置寄存器和状态反馈机制</strong>: 通过 SPI 操作码编码的寄存器地址空间，支持 SPI 工作模式选择、传输状态查询、Wrap 参数配置等功能。</li>
+</ul>
 
-        <h3 id="ch1-4">1.4 Non-Functional Goals</h3>
-        <table>
-            <thead><tr><th>Dimension</th><th>Target</th><th>Measurement Condition</th></tr></thead>
-            <tbody>
-                <tr><td>Performance</td><td>Standard SPI peak throughput &gt;= 6.25 MB/s (50MHz / 8bit-per-byte x 1-lane)</td><td>Continuous back-to-back transfers, no chip-select interval</td></tr>
-                <tr><td>Performance</td><td>QSPI peak throughput &gt;= 25 MB/s (50MHz / 8bit-per-byte x 4-lane)</td><td>Continuous back-to-back transfers, 4-wire full duplex</td></tr>
-                <tr><td>Latency</td><td>SPI command to AXI transaction latency &lt;= 5 AXI clock cycles</td><td>No FIFO contention, AXI Slave zero-wait response</td></tr>
-                <tr><td>Latency</td><td>SPI read end-to-end latency &lt;= DUMMY_CYCLES + 10 SPI clock cycles</td><td>Minimum Dummy Cycles config, AXI read zero-wait</td></tr>
-                <tr><td>Power</td><td>Dynamic power &lt; TBD mW</td><td>Full load, typical process corner</td></tr>
-                <tr><td>Area</td><td>Area budget &lt; TBD kgates</td><td>Typical process corner, excluding FIFO SRAM</td></tr>
-                <tr><td>Reliability</td><td>Zero bit-error for CDC data transfers</td><td>Async FIFO Gray-code pointer sync, CDC path SVA assertions</td></tr>
-            </tbody>
-        </table>
+<h3>1.4 非功能目标 (Non-Functional Goals)</h3>
+<table>
+    <thead><tr><th>维度 (Dimension)</th><th>目标 (Target)</th><th>测量条件 (Condition)</th></tr></thead>
+    <tbody>
+        <tr><td>性能 (Perf)</td><td>标准 SPI 峰值吞吐量 ≥ 6.25 MB/s (50MHz / 8bit × 1-lane)</td><td>连续 back-to-back 传输，无片选间隔</td></tr>
+        <tr><td>性能 (Perf)</td><td>QSPI 峰值吞吐量 ≥ 25 MB/s (50MHz / 8bit × 4-lane)</td><td>连续 back-to-back 传输，4 线全双工</td></tr>
+        <tr><td>延迟 (Latency)</td><td>SPI 命令到 AXI 事务发起延迟 ≤ 5 个 AXI 时钟周期</td><td>无 FIFO 竞争，AXI Slave 零等待响应</td></tr>
+        <tr><td>延迟 (Latency)</td><td>SPI 读操作端到端延迟 ≤ DUMMY_CYCLES + 10 个 SPI 时钟周期</td><td>最小 Dummy Cycles 配置</td></tr>
+        <tr><td>功耗 (Power)</td><td>动态功耗 &lt; 待补充 mW</td><td>满载运行，典型工艺节点</td></tr>
+        <tr><td>面积 (Area)</td><td>面积预算 &lt; 待补充 kgates</td><td>不含 FIFO SRAM</td></tr>
+        <tr><td>可靠性 (Reliability)</td><td>跨时钟域数据传输零误码</td><td>异步 FIFO 格雷码指针同步</td></tr>
+    </tbody>
+</table>
 
-        <h3 id="ch1-5">1.5 Top-Level Port Groups Summary</h3>
-        <table>
-            <thead><tr><th>Port Group</th><th>Direction</th><th>Width</th><th>Clock Domain</th><th>Description</th></tr></thead>
-            <tbody>
-                <tr><td><code>spi_*</code></td><td>in/out</td><td>1-4</td><td>spi_sclk</td><td>SPI interface signals: clock, chip-select, data input/output</td></tr>
-                <tr><td><code>axi_*</code></td><td>in/out</td><td>1-32</td><td>axi_aclk</td><td>AXI4-Lite 5-channel master interface signals</td></tr>
-                <tr><td><code>clk_*</code></td><td>input</td><td>1</td><td>&mdash;</td><td>Clock inputs: spi_sclk, axi_aclk</td></tr>
-                <tr><td><code>rst_*</code></td><td>input</td><td>1</td><td>&mdash;</td><td>Async reset inputs: spi_rst_n, axi_rst_n</td></tr>
-                <tr><td><code>cfg_*</code></td><td>input</td><td>1-3</td><td>axi_aclk</td><td>Config parameters: AXI_ADDR_WIDTH, AXI_DATA_WIDTH, AXI_ID_WIDTH, DUMMY_CYCLES</td></tr>
-            </tbody>
-        </table>
+<h3>1.5 顶层端口分组概要 (Top-Level Port Groups)</h3>
+<table>
+    <thead><tr><th>端口组 (Port Group)</th><th>方向 (Dir)</th><th>位宽 (Width)</th><th>时钟域 (Domain)</th><th>描述 (Description)</th></tr></thead>
+    <tbody>
+        <tr><td><code>spi_*</code></td><td>in/out</td><td>1~4</td><td>spi_sclk</td><td>SPI 接口信号组：时钟、片选、数据输入/输出</td></tr>
+        <tr><td><code>axi_*</code></td><td>in/out</td><td>1~32</td><td>axi_aclk</td><td>AXI4-Lite 五通道主设备接口信号组</td></tr>
+        <tr><td><code>clk_*</code></td><td>input</td><td>1</td><td>—</td><td>时钟输入组：spi_sclk, axi_aclk</td></tr>
+        <tr><td><code>rst_*</code></td><td>input</td><td>1</td><td>—</td><td>异步复位输入组：spi_rst_n, axi_rst_n</td></tr>
+        <tr><td><code>cfg_*</code></td><td>input</td><td>1~3</td><td>axi_aclk</td><td>配置参数输入组</td></tr>
+    </tbody>
+</table>
 
-        <h3 id="ch1-6">1.6 Functional Boundary</h3>
-        <ul>
-            <li><strong>In Scope:</strong> SPI standard mode (1-line) and Quad-SPI mode (4-line) read/write operations</li>
-            <li><strong>In Scope:</strong> AXI4-Lite 5-channel (AW/W/B/AR/R) protocol conversion and handshake management</li>
-            <li><strong>In Scope:</strong> Async FIFO CDC synchronization between SPI and AXI clock domains</li>
-            <li><strong>In Scope:</strong> Configurable address wrap calculation and boundary detection</li>
-            <li><strong>In Scope:</strong> SPI-side configuration register read/write access (opcode-encoded register space)</li>
-            <li><strong>Out of Scope:</strong> AXI4-Full protocol (no out-of-order or variable burst length)</li>
-            <li><strong>Out of Scope:</strong> SPI Master mode &mdash; this module operates only as an SPI Slave</li>
-            <li><strong>Out of Scope:</strong> Multi SPI chip-select support &mdash; single SPI Slave only</li>
-            <li><strong>Out of Scope:</strong> Interrupt output &mdash; pure polling/query-based status feedback</li>
-        </ul>
-    </section>
+<h3>1.6 功能边界 (Scope)</h3>
+<ul>
+    <li><strong>范围内 (In-Scope)</strong>: SPI 标准模式（1-line）和 Quad-SPI 模式（4-line）的读写操作</li>
+    <li><strong>范围内</strong>: AXI4-Lite 五通道（AW/W/B/AR/R）协议转换与握手管理</li>
+    <li><strong>范围内</strong>: SPI 时钟域与 AXI 时钟域之间的异步 FIFO CDC 同步</li>
+    <li><strong>范围内</strong>: 可配置地址环绕（Wrap）功能的地址计算与边界检测</li>
+    <li><strong>范围外 (Out-of-Scope)</strong>: AXI4-Full 协议支持</li>
+    <li><strong>范围外</strong>: SPI 主设备（Master）模式 — 仅作为 SPI Slave 工作</li>
+    <li><strong>范围外</strong>: 多 SPI 片选支持</li>
+    <li><strong>范围外</strong>: 中断输出机制</li>
+</ul>
+</section>
 
-    <hr>
+<!-- ======================== Chapter 2 ======================== -->
+<section id="ch2">
+<h2><span class="chapter-num">第2章</span> 外部接口定义 (External Interface)</h2>
 
-    <section id="ch2">
-        <h2><span class="chapter-num">Chapter 2</span> External Interface Definition</h2>
+<h3>2.1 顶层 I/O 列表 (Top-Level I/O)</h3>
+<table>
+    <thead><tr><th>信号名 (Signal)</th><th>方向 (Dir)</th><th>位宽 (Width)</th><th>时钟域 (Domain)</th><th>描述 (Description)</th></tr></thead>
+    <tbody>
+        <tr><td>spi_sclk</td><td>input</td><td>1</td><td>—</td><td>SPI 串行时钟，外部 SPI Master 提供，最高 50MHz</td></tr>
+        <tr><td>spi_cs_n</td><td>input</td><td>1</td><td>spi_sclk</td><td>SPI 片选，低有效，为高时复位 SPI Slave 内部状态</td></tr>
+        <tr><td>spi_sdi</td><td>input</td><td>4</td><td>spi_sclk</td><td>SPI 数据输入，1 线模式使用 bit[0]，4 线模式使用 bit[3:0]</td></tr>
+        <tr><td>spi_sdo</td><td>output</td><td>4</td><td>spi_sclk</td><td>SPI 数据输出，1 线模式使用 bit[0]，4 线模式使用 bit[3:0]</td></tr>
+        <tr><td>axi_aclk</td><td>input</td><td>1</td><td>—</td><td>AXI 系统时钟</td></tr>
+        <tr><td>axi_rst_n</td><td>input</td><td>1</td><td>axi_aclk</td><td>AXI 域异步复位，低有效</td></tr>
+        <tr><td>axi_awid</td><td>output</td><td>AXI_ID_WIDTH</td><td>axi_aclk</td><td>AXI 写地址通道 ID</td></tr>
+        <tr><td>axi_awaddr</td><td>output</td><td>AXI_ADDR_WIDTH</td><td>axi_aclk</td><td>AXI 写地址</td></tr>
+        <tr><td>axi_awvalid</td><td>output</td><td>1</td><td>axi_aclk</td><td>AXI 写地址有效</td></tr>
+        <tr><td>axi_awready</td><td>input</td><td>1</td><td>axi_aclk</td><td>AXI 写地址就绪</td></tr>
+        <tr><td>axi_wdata</td><td>output</td><td>AXI_DATA_WIDTH</td><td>axi_aclk</td><td>AXI 写数据</td></tr>
+        <tr><td>axi_wstrb</td><td>output</td><td>AXI_DATA_WIDTH/8</td><td>axi_aclk</td><td>AXI 写选通，固定为全 1</td></tr>
+        <tr><td>axi_wvalid</td><td>output</td><td>1</td><td>axi_aclk</td><td>AXI 写数据有效</td></tr>
+        <tr><td>axi_wready</td><td>input</td><td>1</td><td>axi_aclk</td><td>AXI 写数据就绪</td></tr>
+        <tr><td>axi_bresp</td><td>input</td><td>2</td><td>axi_aclk</td><td>AXI 写响应：OKAY=2'b00, SLVERR=2'b10, DECERR=2'b11</td></tr>
+        <tr><td>axi_bvalid</td><td>input</td><td>1</td><td>axi_aclk</td><td>AXI 写响应有效</td></tr>
+        <tr><td>axi_bready</td><td>output</td><td>1</td><td>axi_aclk</td><td>AXI 写响应就绪</td></tr>
+        <tr><td>axi_araddr</td><td>output</td><td>AXI_ADDR_WIDTH</td><td>axi_aclk</td><td>AXI 读地址</td></tr>
+        <tr><td>axi_arvalid</td><td>output</td><td>1</td><td>axi_aclk</td><td>AXI 读地址有效</td></tr>
+        <tr><td>axi_arready</td><td>input</td><td>1</td><td>axi_aclk</td><td>AXI 读地址就绪</td></tr>
+        <tr><td>axi_rdata</td><td>input</td><td>AXI_DATA_WIDTH</td><td>axi_aclk</td><td>AXI 读数据</td></tr>
+        <tr><td>axi_rresp</td><td>input</td><td>2</td><td>axi_aclk</td><td>AXI 读响应</td></tr>
+        <tr><td>axi_rvalid</td><td>input</td><td>1</td><td>axi_aclk</td><td>AXI 读数据有效</td></tr>
+        <tr><td>axi_rready</td><td>output</td><td>1</td><td>axi_aclk</td><td>AXI 读数据就绪</td></tr>
+    </tbody>
+</table>
 
-        <h3 id="ch2-1">2.1 Top-Level I/O List</h3>
-        <div class="info-box"><strong>Note:</strong> See LLD Ch2.1 for complete Port Signal Table with I/O Pad attributes.</div>
-        <table>
-            <thead><tr><th>Signal</th><th>Dir</th><th>Width</th><th>Type</th><th>Clk Domain</th><th>Rst Domain</th><th>Description</th></tr></thead>
-            <tbody>
-                <tr><td><code>spi_sclk</code></td><td>input</td><td>1</td><td>Clock</td><td>&mdash;</td><td>&mdash;</td><td>SPI serial clock, external Master, max 50MHz</td></tr>
-                <tr><td><code>spi_cs_n</code></td><td>input</td><td>1</td><td>Chip-Select</td><td>spi_sclk</td><td>&mdash;</td><td>SPI chip-select, active low</td></tr>
-                <tr><td><code>spi_sdi</code></td><td>input</td><td>4</td><td>Data</td><td>spi_sclk</td><td>spi_rst_n</td><td>SPI data input; bit[0] for 1-line, bit[3:0] for 4-line</td></tr>
-                <tr><td><code>spi_sdo</code></td><td>output</td><td>4</td><td>Data</td><td>spi_sclk</td><td>spi_rst_n</td><td>SPI data output; bit[0] for 1-line, bit[3:0] for 4-line</td></tr>
-                <tr><td><code>axi_aclk</code></td><td>input</td><td>1</td><td>Clock</td><td>&mdash;</td><td>&mdash;</td><td>AXI system clock from SoC CMU</td></tr>
-                <tr><td><code>axi_rst_n</code></td><td>input</td><td>1</td><td>Reset</td><td>axi_aclk</td><td>&mdash;</td><td>AXI domain async reset, active low</td></tr>
-                <tr><td><code>axi_awid</code></td><td>output</td><td>AXI_ID_WIDTH</td><td>Addr</td><td>axi_aclk</td><td>axi_rst_n</td><td>Write address channel ID</td></tr>
-                <tr><td><code>axi_awaddr</code></td><td>output</td><td>AXI_ADDR_WIDTH</td><td>Addr</td><td>axi_aclk</td><td>axi_rst_n</td><td>Write address</td></tr>
-                <tr><td><code>axi_awlen</code></td><td>output</td><td>8</td><td>Ctrl</td><td>axi_aclk</td><td>axi_rst_n</td><td>Burst length, fixed to 0</td></tr>
-                <tr><td><code>axi_awsize</code></td><td>output</td><td>3</td><td>Ctrl</td><td>axi_aclk</td><td>axi_rst_n</td><td>Burst size, fixed to 2 (4 bytes)</td></tr>
-                <tr><td><code>axi_awburst</code></td><td>output</td><td>2</td><td>Ctrl</td><td>axi_aclk</td><td>axi_rst_n</td><td>Burst type, INCR (adjusted by wrap_ctrl)</td></tr>
-                <tr><td><code>axi_awvalid</code></td><td>output</td><td>1</td><td>HS</td><td>axi_aclk</td><td>axi_rst_n</td><td>Write address valid</td></tr>
-                <tr><td><code>axi_awready</code></td><td>input</td><td>1</td><td>HS</td><td>axi_aclk</td><td>&mdash;</td><td>Write address ready</td></tr>
-                <tr><td><code>axi_wdata</code></td><td>output</td><td>AXI_DATA_WIDTH</td><td>Data</td><td>axi_aclk</td><td>axi_rst_n</td><td>Write data</td></tr>
-                <tr><td><code>axi_wstrb</code></td><td>output</td><td>AXI_DATA_WIDTH/8</td><td>Data</td><td>axi_aclk</td><td>axi_rst_n</td><td>Write strobe, fixed all 1s</td></tr>
-                <tr><td><code>axi_wvalid</code></td><td>output</td><td>1</td><td>HS</td><td>axi_aclk</td><td>axi_rst_n</td><td>Write data valid</td></tr>
-                <tr><td><code>axi_wready</code></td><td>input</td><td>1</td><td>HS</td><td>axi_aclk</td><td>&mdash;</td><td>Write data ready</td></tr>
-                <tr><td><code>axi_bid</code></td><td>input</td><td>AXI_ID_WIDTH</td><td>Resp</td><td>axi_aclk</td><td>&mdash;</td><td>Write response ID</td></tr>
-                <tr><td><code>axi_bresp</code></td><td>input</td><td>2</td><td>Resp</td><td>axi_aclk</td><td>&mdash;</td><td>Response: OKAY=00, EXOKAY=01, SLVERR=10, DECERR=11</td></tr>
-                <tr><td><code>axi_bvalid</code></td><td>input</td><td>1</td><td>HS</td><td>axi_aclk</td><td>&mdash;</td><td>Write response valid</td></tr>
-                <tr><td><code>axi_bready</code></td><td>output</td><td>1</td><td>HS</td><td>axi_aclk</td><td>axi_rst_n</td><td>Write response ready</td></tr>
-                <tr><td><code>axi_arid</code></td><td>output</td><td>AXI_ID_WIDTH</td><td>Addr</td><td>axi_aclk</td><td>axi_rst_n</td><td>Read address channel ID</td></tr>
-                <tr><td><code>axi_araddr</code></td><td>output</td><td>AXI_ADDR_WIDTH</td><td>Addr</td><td>axi_aclk</td><td>axi_rst_n</td><td>Read address</td></tr>
-                <tr><td><code>axi_arlen</code></td><td>output</td><td>8</td><td>Ctrl</td><td>axi_aclk</td><td>axi_rst_n</td><td>Read burst length, fixed to 0</td></tr>
-                <tr><td><code>axi_arsize</code></td><td>output</td><td>3</td><td>Ctrl</td><td>axi_aclk</td><td>axi_rst_n</td><td>Read burst size, fixed to 2</td></tr>
-                <tr><td><code>axi_arburst</code></td><td>output</td><td>2</td><td>Ctrl</td><td>axi_aclk</td><td>axi_rst_n</td><td>Read burst type, INCR</td></tr>
-                <tr><td><code>axi_arvalid</code></td><td>output</td><td>1</td><td>HS</td><td>axi_aclk</td><td>axi_rst_n</td><td>Read address valid</td></tr>
-                <tr><td><code>axi_arready</code></td><td>input</td><td>1</td><td>HS</td><td>axi_aclk</td><td>&mdash;</td><td>Read address ready</td></tr>
-                <tr><td><code>axi_rid</code></td><td>input</td><td>AXI_ID_WIDTH</td><td>Data</td><td>axi_aclk</td><td>&mdash;</td><td>Read data ID</td></tr>
-                <tr><td><code>axi_rdata</code></td><td>input</td><td>AXI_DATA_WIDTH</td><td>Data</td><td>axi_aclk</td><td>&mdash;</td><td>Read data</td></tr>
-                <tr><td><code>axi_rresp</code></td><td>input</td><td>2</td><td>Resp</td><td>axi_aclk</td><td>&mdash;</td><td>Read response</td></tr>
-                <tr><td><code>axi_rvalid</code></td><td>input</td><td>1</td><td>HS</td><td>axi_aclk</td><td>&mdash;</td><td>Read data valid</td></tr>
-                <tr><td><code>axi_rready</code></td><td>output</td><td>1</td><td>HS</td><td>axi_aclk</td><td>axi_rst_n</td><td>Read data ready</td></tr>
-            </tbody>
-        </table>
+<h3>2.2 配置接口 (Configuration Interface)</h3>
+<ul>
+    <li><strong>协议</strong>: SPI Slave（标准 SPI / Quad-SPI）</li>
+    <li><strong>最大时钟频率</strong>: 50 MHz (SPI sclk)</li>
+    <li><strong>地址空间</strong>: 8-bit 操作码编码的寄存器空间 + 32-bit 地址的存储器空间</li>
+    <li><strong>传输时序</strong>: SPI 模式 0（CPOL=0, CPHA=0），上升沿采样，下降沿更新</li>
+    <li><strong>写操作帧格式</strong>: OPCODE(8-bit) + ADDR(32-bit) + DATA(32-bit) — 标准 SPI 共需 72 SCLK</li>
+    <li><strong>读操作帧格式</strong>: OPCODE(8-bit) + ADDR(32-bit) + DUMMY(N+1) + DATA(32-bit)</li>
+</ul>
 
-        <h3 id="ch2-2">2.2 Configuration Interface</h3>
-        <ul>
-            <li><strong>Protocol:</strong> SPI Slave (Standard SPI / Quad-SPI)</li>
-            <li><strong>Interface Type:</strong> Asynchronous (no phase relationship with AXI clock domain)</li>
-            <li><strong>Max Clock Frequency:</strong> 50 MHz (SPI sclk)</li>
-            <li><strong>Address Space:</strong> Register space by 8-bit opcode + 32-bit address memory space</li>
-            <li><strong>Register Depth:</strong> 8 x 32-bit registers (SPI-side config/status)</li>
-            <li><strong>Timing:</strong> SPI Mode 0 (CPOL=0, CPHA=0), sample on rising edge, update on falling edge. CS low starts a transfer; high terminates.</li>
-            <li><strong>Cycle-Level:</strong> Write: OPCODE(8) + ADDR(32) + DATA(32) = 72 SCLK (1-line) / 18 SCLK (4-line). Read: + DUMMY(N+1) cycles.</li>
-        </ul>
+<h3>2.3 数据面接口 (Data Interface)</h3>
+<ul>
+    <li><strong>协议</strong>: AXI4-Lite (Master)</li>
+    <li><strong>数据位宽</strong>: 32-bit</li>
+    <li><strong>通道数</strong>: 5 个独立通道（AW, W, B, AR, R）</li>
+    <li><strong>突发长度</strong>: 1 beat (AxLEN=0)</li>
+    <li><strong>关键时序</strong>: AW 和 W 通道独立 valid；AR 通道发起读地址；等待 ready 握手</li>
+</ul>
 
-        <h3 id="ch2-3">2.3 Data Plane Interface</h3>
-        <ul>
-            <li><strong>Protocol:</strong> AXI4-Lite (Master), 32-bit data width, 5 channels (AW, W, B, AR, R)</li>
-            <li><strong>Max Burst:</strong> 1 beat (AxLEN=0), no out-of-order</li>
-            <li><strong>Key Timing:</strong> AW/W independent valid; AR channel read address; wait for awready/arready before next addr.</li>
-        </ul>
+<h3>2.4 中断接口 (Interrupt Interface)</h3>
+<p>本模块<strong>不包含</strong>专用中断输出。SPI 主机通过读取 SPI 侧状态寄存器获取传输完成/错误状态，采用轮询方式。适用于系统调试和配置场景，避免跨时钟域和跨芯片边界的中断同步复杂性。</p>
+</section>
 
-        <h3 id="ch2-4">2.4 Interrupt Interface</h3>
-        <p>This module does <strong>not</strong> include a dedicated interrupt output. Status query via SPI register polling. For interrupt support, add a SoC-level GPIO interrupt controller.</p>
-        <table>
-            <thead><tr><th>Interrupt</th><th>Type</th><th>Source</th><th>Clear</th></tr></thead>
-            <tbody><tr><td><code>intr_o</code></td><td>None</td><td>N/A</td><td>N/A &mdash; polling only</td></tr></tbody>
-        </table>
+<!-- ======================== Chapter 3 ======================== -->
+<section id="ch3">
+<h2><span class="chapter-num">第3章</span> 顶层架构框图 (Top Architecture)</h2>
 
-        <h3 id="ch2-5">2.5 Other Dedicated Interfaces</h3>
-        <p>No MIPI, DDR, SerDes. All functionality via SPI (config/data plane) and AXI4-Lite (data plane). Static config parameters via HDL parameterization at instantiation.</p>
-    </section>
+<h3>3.1 模块内部结构 (Internal Structure)</h3>
+<div class="figure-container">
+    <img src="spi2axi_arch_hld_assets/system_architecture.png" alt="SPI2AXI Bridge 系统架构图">
+    <figcaption>图 3-1: SPI2AXI Bridge 系统架构图 (System Architecture)</figcaption>
+</div>
 
-    <hr>
+<pre>
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                         spi2axi_bridge_top (SPI2AXI Bridge)                  │
+│                                                                              │
+│  ┌─────────────────┐     ┌──────────────┐     ┌─────────────────┐           │
+│  │   spi_slave      │────►│ cmd_decoder  │────►│   axi_master    │───► AXI   │
+│  │  SPI Slave I/F   │     │  Cmd FSM     │     │ AXI4-Lite Mast  │◄─── Bus   │
+│  │  1-line/4-line   │◄────│              │◄────│  5-channel      │           │
+│  └────────┬─────────┘     └──────┬───────┘     └────────┬────────┘           │
+│           │                      │                       │                    │
+│           ▼                      ▼                       ▼                    │
+│  ┌──────────────────────────────────────────────────────────────────┐        │
+│  │                    async_fifo (Dual-Clock CDC)                    │        │
+│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐        │        │
+│  │  │Write Cmd │  │Write Data│  │Read Addr │  │Read Data │        │        │
+│  │  │FIFO(S→A) │  │FIFO(S→A) │  │FIFO(S→A) │  │FIFO(A→S) │        │        │
+│  │  └──────────┘  └──────────┘  └──────────┘  └──────────┘        │        │
+│  └──────────────────────────────────────────────────────────────────┘        │
+│           ▲                        ▲                                         │
+│  ┌────────┴────────┐     ┌────────┴────────┐                                 │
+│  │  config_regs    │     │   wrap_ctrl     │                                 │
+│  │ SPI Config/Stat │     │  Address Wrap   │                                 │
+│  └─────────────────┘     └─────────────────┘                                 │
+└──────────────────────────────────────────────────────────────────────────────┘
+</pre>
 
-    <section id="ch3">
-        <h2><span class="chapter-num">Chapter 3</span> Top-Level Architecture Block Diagram</h2>
+<h3>3.2 子模块职责 (Sub-Module Responsibilities)</h3>
+<table>
+    <thead><tr><th>子模块 (Module)</th><th>职责 (Responsibility)</th><th>复杂度</th></tr></thead>
+    <tbody>
+        <tr><td>spi_slave</td><td>SPI 物理层：1线/4线串并转换，SCLK 边沿采样，片选管理</td><td>中</td></tr>
+        <tr><td>cmd_decoder</td><td>命令解析 FSM：8-bit opcode 解码，帧格式控制</td><td>高</td></tr>
+        <tr><td>async_fifo</td><td>CDC 桥接：dual-clock 异步 FIFO，格雷码指针同步</td><td>高</td></tr>
+        <tr><td>axi_master</td><td>AXI4-Lite Master：5 通道握手协议管理</td><td>中</td></tr>
+        <tr><td>config_regs</td><td>SPI 侧寄存器文件：模式选择/状态/Wrap 配置</td><td>低</td></tr>
+        <tr><td>wrap_ctrl</td><td>地址环绕：Wrap 计数、边界检测、回绕计算</td><td>低</td></tr>
+        <tr><td>Clock/Reset</td><td>时钟门控、复位同步器、CDC 路径隔离</td><td>低</td></tr>
+    </tbody>
+</table>
 
-        <h3 id="ch3-1">3.1 Module Internal Structure</h3>
-        <div class="figure">
-            <img src="spi2axi_arch_hld_assets/system_architecture.png" alt="SPI2AXI Bridge System Architecture">
-            <figcaption>Figure 3-1: SPI2AXI Bridge System Architecture</figcaption>
-        </div>
-        <pre><code>+------------------+    +-------------+    +------------------+
-|   spi_slave      |---&gt;| cmd_decoder |---&gt;|   axi_master     |---&gt; AXI Bus
-|  SPI Slave I/F   |&lt;---|  Cmd FSM    |&lt;---| AXI4-Lite Master |&lt;---
-+--------+---------+    +------+------+    +--------+---------+
-         |                     |                     |
-         v                     v                     v
-  +--------------------------------------------------------------+
-  |              async_fifo (Dual-Clock CDC)                     |
-  |  [Write Cmd] [Write Data] [Read Addr] [Read Data] FIFOs     |
-  +--------------------------------------------------------------+
-         ^                     ^
-         |                     |
-  +------+------+      +------+------+
-  | config_regs |      |  wrap_ctrl  |
-  +-------------+      +-------------+
-  +--------------------------------------------------------------+
-  |         Clock / Reset Synchronization Logic                  |
-  +--------------------------------------------------------------+</code></pre>
+<h3>3.3 模块间关键数据路径带宽 (Bandwidth)</h3>
+<table>
+    <thead><tr><th>路径 (Path)</th><th>位宽 (Width)</th><th>时钟域 (Domain)</th><th>理论带宽 (BW)</th></tr></thead>
+    <tbody>
+        <tr><td>SPI Master → spi_slave (1-line)</td><td>1-bit serial</td><td>spi_sclk 50MHz</td><td>6.25 MB/s</td></tr>
+        <tr><td>SPI Master → spi_slave (QSPI)</td><td>4-bit serial</td><td>spi_sclk 50MHz</td><td>25 MB/s</td></tr>
+        <tr><td>spi_slave → async_fifo</td><td>32-bit</td><td>spi_sclk</td><td>200 MB/s</td></tr>
+        <tr><td>async_fifo → axi_master</td><td>32-bit</td><td>axi_aclk</td><td>取决于 AXI 频率</td></tr>
+    </tbody>
+</table>
+</section>
 
-        <h3 id="ch3-2">3.2 Sub-Module Responsibilities</h3>
-        <table>
-            <thead><tr><th>Sub-Module</th><th>Responsibility</th><th>Key Considerations</th><th>Complexity</th><th>LLD Ref</th></tr></thead>
-            <tbody>
-                <tr><td>spi_slave</td><td>SPI PHY: 1/4-line serial-parallel conversion, SCLK sampling, CS mgmt</td><td>Mode 0 timing, dynamic 1/4-line switching</td><td>Medium</td><td>Ch3, Ch2</td></tr>
-                <tr><td>cmd_decoder</td><td>Cmd parsing FSM: opcode decode, frame control (IDLE&rarr;OP&rarr;ADDR&rarr;DM&rarr;DATA&rarr;RESP)</td><td>State encoding, exception handling, timeout</td><td>High</td><td>Ch4</td></tr>
-                <tr><td>async_fifo</td><td>CDC bridge: dual-clock async FIFO, Gray-code sync, empty/full flags</td><td>Metastability avoidance, depth matching</td><td>High</td><td>Ch3, Ch8</td></tr>
-                <tr><td>axi_master</td><td>AXI4-Lite master: 5-channel handshake, addr/data/response handling</td><td>Protocol compliance, Wrap address injection</td><td>Medium</td><td>Ch3, Ch2</td></tr>
-                <tr><td>config_regs</td><td>SPI-side register file: mode select, status, Wrap config</td><td>Opcode addr encoding, bit-field attributes</td><td>Low</td><td>Ch7</td></tr>
-                <tr><td>wrap_ctrl</td><td>Address wrap: counting, boundary detection, address calculation</td><td>Start addr alignment, window boundary</td><td>Low</td><td>Ch6, Ch10</td></tr>
-                <tr><td>Clock/Reset</td><td>Clock gating, reset synchronizer, CDC isolation</td><td>2-stage sync, reset domain crossing, false paths</td><td>Low</td><td>Ch8</td></tr>
-            </tbody>
-        </table>
+<!-- ======================== Chapter 4 ======================== -->
+<section id="ch4">
+<h2><span class="chapter-num">第4章</span> 数据流与控制流 (Dataflow &amp; Control)</h2>
 
-        <h3 id="ch3-3">3.3 Key Data Path Bandwidth</h3>
-        <table>
-            <thead><tr><th>Path</th><th>Protocol</th><th>Width</th><th>Domain</th><th>Bandwidth</th><th>Notes</th></tr></thead>
-            <tbody>
-                <tr><td>SPI Master &rarr; spi_slave</td><td>SPI 1-line</td><td>1-bit</td><td>50MHz</td><td>6.25 MB/s</td><td>Serial ingress</td></tr>
-                <tr><td>SPI Master &rarr; spi_slave</td><td>QSPI 4-line</td><td>4-bit</td><td>50MHz</td><td>25 MB/s</td><td>QSPI mode</td></tr>
-                <tr><td>spi_slave &rarr; async_fifo</td><td>Parallel</td><td>32-bit</td><td>spi_sclk</td><td>200 MB/s</td><td>After S2P</td></tr>
-                <tr><td>async_fifo &rarr; axi_master</td><td>Parallel</td><td>32-bit</td><td>axi_aclk</td><td>Depends</td><td>After CDC</td></tr>
-                <tr><td>axi_master &rarr; AXI Bus</td><td>AXI4-Lite</td><td>32-bit</td><td>axi_aclk</td><td>Depends</td><td>Egress</td></tr>
-                <tr><td>AXI Bus &rarr; axi_master</td><td>AXI4-Lite</td><td>32-bit</td><td>axi_aclk</td><td>Depends</td><td>Read return</td></tr>
-                <tr><td>async_fifo &rarr; spi_slave</td><td>Parallel</td><td>32-bit</td><td>spi_sclk</td><td>200 MB/s</td><td>Read data to SPI</td></tr>
-                <tr><td>spi_slave &rarr; SPI Master</td><td>SPI 1/4-line</td><td>1-4 bit</td><td>50MHz</td><td>6.25-25 MB/s</td><td>Serial egress</td></tr>
-            </tbody>
-        </table>
-    </section>
+<h3>4.1 数据流路径 (Data Path)</h3>
+<p>SPI2AXI Bridge 的核心数据流分为写数据流和读数据流两条独立路径。</p>
 
-    <hr>
+<p><strong>写数据流路径 (Write Data Path):</strong></p>
+<pre>
+[SPI Master] → spi_sdi → [spi_slave: 串并转换] → [cmd_decoder: 命令解析]
+                                                        │
+                                                        ▼
+                                              ┌─────────────────────┐
+                                              │   async_fifo:       │
+                                              │  Write Cmd FIFO     │◄── 写命令
+                                              │  Write Data FIFO    │◄── 写数据
+                                              └─────────┬───────────┘
+                                                        │ (CDC: spi_sclk → axi_aclk)
+                                                        ▼
+                                              ┌─────────────────────┐
+                                              │   axi_master:       │
+                                              │  AW + W Channel     │────► AXI Bus
+                                              │  B Channel          │◄──── AXI Bus
+                                              └─────────────────────┘
+</pre>
 
-    <section id="ch4">
-        <h2><span class="chapter-num">Chapter 4</span> Data Flow and Control Flow</h2>
+<p><strong>读数据流路径 (Read Data Path):</strong></p>
+<pre>
+[SPI Master] → spi_sdi → [spi_slave] → [cmd_decoder: 读命令]
+                                              │
+                                              ▼
+                                    ┌─────────────────────┐
+                                    │  Read Addr FIFO     │ (CDC: spi_sclk → axi_aclk)
+                                    └─────────┬───────────┘
+                                              ▼
+                                    ┌─────────────────────┐
+                                    │   axi_master:       │
+                                    │  AR Channel → AXI   │
+                                    │  R Channel ← AXI   │
+                                    └─────────┬───────────┘
+                                              │ (CDC: axi_aclk → spi_sclk)
+                                    ┌─────────────────────┐
+                                    │  Read Data FIFO     │──► [spi_slave: 并串转换] → spi_sdo
+                                    └─────────────────────┘
+</pre>
 
-        <h3 id="ch4-1">4.1 Data Flow Paths</h3>
-        <p>Write data flow: SPI Master &rarr; spi_slave (serial-to-parallel) &rarr; cmd_decoder &rarr; async_fifo (Write Cmd + Write Data FIFOs, CDC spi_sclk&rarr;axi_aclk) &rarr; axi_master (AW/W/B channels) &rarr; AXI Bus.</p>
-        <p>Read data flow: SPI Master &rarr; spi_slave &rarr; cmd_decoder &rarr; async_fifo (Read Addr FIFO, CDC spi_sclk&rarr;axi_aclk) &rarr; axi_master (AR/R channels) &rarr; async_fifo (Read Data FIFO, CDC axi_aclk&rarr;spi_sclk) &rarr; spi_slave (parallel-to-serial) &rarr; spi_sdo.</p>
+<h3>4.2 控制流 (Control Flow)</h3>
+<p>控制核心是 cmd_decoder 的命令解码 FSM，管理从 SPI 命令接收到 AXI 事务完成的完整流程。</p>
 
-        <h3 id="ch4-2">4.2 Control Flow</h3>
-        <p>Control core is the cmd_decoder FSM. States: IDLE, OPCODE, ADDR, DUMMY, DATA, RESPONSE, ERROR.</p>
-
-        <div class="figure">
-            <img src="spi2axi_arch_hld_assets/fsm_diagram.png" alt="FSM State Diagram">
-            <figcaption>Figure 4-1: Command Decoder FSM</figcaption>
-        </div>
-
-        <pre class="mermaid">
+<div class="mermaid-container">
+<div class="mermaid">
 stateDiagram-v2
-    [*] --&gt; IDLE
-    IDLE --&gt; OPCODE: spi_cs_n == 0
-    OPCODE --&gt; OPCODE: bit_count &lt; 8
-    OPCODE --&gt; ADDR: bit_count==8 &amp;&amp; MEM
-    OPCODE --&gt; DATA: bit_count==8 &amp;&amp; REG
-    ADDR --&gt; DUMMY: bit_count==32 &amp;&amp; READ
-    ADDR --&gt; DATA: bit_count==32 &amp;&amp; WRITE
-    DUMMY --&gt; DATA: dummy_cnt == cfg
-    DATA --&gt; RESPONSE: bit_count == 32
-    RESPONSE --&gt; IDLE: axi_done || spi_cs_n==1
-        </pre>
+    [*] --> IDLE
+    IDLE --> OPCODE: spi_cs_n = 0
+    OPCODE --> ADDR: 8-bit done
+    ADDR --> DUMMY: read opcode
+    ADDR --> DATA: write opcode
+    DUMMY --> DATA: dummy done
+    DATA --> RESPONSE: 32-bit done
+    RESPONSE --> IDLE: resp done
+    IDLE --> IDLE: spi_cs_n = 1
+    OPCODE --> IDLE: spi_cs_n = 1 (abort)
+    ADDR --> IDLE: spi_cs_n = 1 (abort)
+    DUMMY --> IDLE: spi_cs_n = 1 (abort)
+    DATA --> IDLE: spi_cs_n = 1 (abort)
+    RESPONSE --> IDLE: spi_cs_n = 1 (abort)
+</div>
+</div>
 
-        <div class="wavedrom-container">
-            <script type="WaveDrom">
-                {"signal": [{"name":"spi_sclk","wave":"p.............."},{"name":"spi_cs_n","wave":"1......0.......1"},{"name":"spi_sdi","wave":"x.3.4.5.6.7.8.x","data":["OPCODE","ADDR[31:0]","WDATA[31:0]"]},{"name":"spi_sdo","wave":"x...........9.x","data":["WAIT"]}],"head":{"text":"SPI Write Frame Timing"},"config":{"hscale":2}}
-            </script>
-        </div>
+<table>
+    <thead><tr><th>状态 (State)</th><th>描述 (Description)</th></tr></thead>
+    <tbody>
+        <tr><td>IDLE</td><td>空闲等待，SPI Slave 已准备好接收新传输</td></tr>
+        <tr><td>OPCODE</td><td>接收 8-bit 操作码，MSB 先传输</td></tr>
+        <tr><td>ADDR</td><td>接收 32-bit 目标地址</td></tr>
+        <tr><td>DUMMY</td><td>插入可编程数量的虚拟 SCLK 周期，等待 AXI 读数据返回</td></tr>
+        <tr><td>DATA</td><td>数据传输：接收写数据或发送读数据</td></tr>
+        <tr><td>RESPONSE</td><td>AXI 写响应/读完成确认</td></tr>
+    </tbody>
+</table>
 
-        <div class="wavedrom-container">
-            <script type="WaveDrom">
-                {"signal": [{"name":"spi_sclk","wave":"p......................"},{"name":"spi_cs_n","wave":"1......0...............1"},{"name":"spi_sdi","wave":"x.3.4.5.6.....x.......","data":["OPCODE","ADDR[31:0]","DUM[31:0]"]},{"name":"spi_sdo","wave":"x.....................9","data":["RDATA[31:0]"]}],"head":{"text":"SPI Read Frame with Dummy Cycles"},"config":{"hscale":2}}
-            </script>
-        </div>
+<h3>4.3 反压与流控 (Backpressure)</h3>
+<p>反压传播链：AXI Slave 响应慢 → axi_master 握手延迟 → async_fifo 满 → cmd_decoder 暂停 → spi_slave 保持。FIFO 深度建议配置为 4~8 个条目。建议在 cmd_decoder 中添加 AXI 响应超时检测（1024 个 AXI 时钟周期阈值）。</p>
+</section>
 
-        <div class="figure">
-            <img src="spi2axi_arch_hld_assets/frame_format.png" alt="SPI Frame Format">
-            <figcaption>Figure 4-2: SPI Frame Format</figcaption>
-        </div>
+<!-- ======================== Chapter 5 ======================== -->
+<section id="ch5">
+<h2><span class="chapter-num">第5章</span> 主要特性与可配置参数 (Features &amp; Parameters)</h2>
 
-        <table>
-            <thead><tr><th>State</th><th>Description</th><th>Entry Action</th><th>Exit Condition</th></tr></thead>
-            <tbody>
-                <tr><td>IDLE</td><td>Idle, SPI ready for new transfer</td><td>Clear flags, reset bit counter</td><td>spi_cs_n low</td></tr>
-                <tr><td>OPCODE</td><td>Receive 8-bit opcode MSB-first</td><td>Enable shift register, start bit count</td><td>8-bit done</td></tr>
-                <tr><td>ADDR</td><td>Receive 32-bit target address</td><td>Enable addr shift register, 32-bit count</td><td>32-bit done</td></tr>
-                <tr><td>DUMMY</td><td>Insert dummy SCLK cycles, wait for AXI read data</td><td>Start dummy counter, SDO high-Z</td><td>Dummy done or AXI data ready</td></tr>
-                <tr><td>DATA</td><td>Data transfer: receive write / send read</td><td>Write: receive 32-bit; Read: send 32-bit</td><td>32-bit done</td></tr>
-                <tr><td>RESPONSE</td><td>Write response / read completion</td><td>Wait for B channel; confirm R channel</td><td>Response received or CS high</td></tr>
-                <tr><td>ERROR</td><td>AXI Slave error response</td><td>Record error code, terminate transfer</td><td>spi_cs_n high</td></tr>
-            </tbody>
-        </table>
+<h3>5.1 核心特性 (Core Features)</h3>
+<table>
+    <thead><tr><th>特性类别 (Category)</th><th>特性 (Feature)</th><th>描述 (Description)</th></tr></thead>
+    <tbody>
+        <tr><td>协议</td><td>标准 SPI 模式 (1-line)</td><td>单条数据线串行传输，每 SCLK 1 bit</td></tr>
+        <tr><td>协议</td><td>Quad-SPI 模式 (4-line)</td><td>四条数据线并行传输，每 SCLK 4 bit</td></tr>
+        <tr><td>协议</td><td>AXI4-Lite Master</td><td>5 通道独立握手，single transfer</td></tr>
+        <tr><td>数据模式</td><td>MSB-first 传输</td><td>操作码、地址、数据均 MSB 在先</td></tr>
+        <tr><td>数据模式</td><td>写操作帧</td><td>OPCODE(8) + ADDR(32) + DATA(32)</td></tr>
+        <tr><td>数据模式</td><td>读操作帧</td><td>OPCODE(8) + ADDR(32) + DUMMY(N+1) + DATA(32)</td></tr>
+        <tr><td>错误处理</td><td>AXI Slave 错误响应</td><td>SLVERR/DECERR 检测并记录到状态寄存器</td></tr>
+        <tr><td>调试</td><td>SPI 侧状态寄存器</td><td>FIFO 状态、传输状态、错误码查询</td></tr>
+    </tbody>
+</table>
 
-        <h3 id="ch4-3">4.3 Backpressure and Flow Control</h3>
-        <p>Backpressure propagation: AXI Slave slow &rarr; axi_master delay &rarr; async_fifo full &rarr; cmd_decoder pause &rarr; spi_slave hold. FIFO depth 4-8 entries recommended. Timeout detection at 1024 AXI clock cycles.</p>
+<h3>5.2 可配置参数 (Configurable Parameters)</h3>
+<table>
+    <thead><tr><th>参数名 (Parameter)</th><th>默认值 (Default)</th><th>范围 (Range)</th><th>描述 (Description)</th></tr></thead>
+    <tbody>
+        <tr><td>AXI_ADDR_WIDTH</td><td>32</td><td>12~64</td><td>AXI 地址总线位宽</td></tr>
+        <tr><td>AXI_DATA_WIDTH</td><td>32</td><td>32 (fixed)</td><td>AXI 数据总线位宽</td></tr>
+        <tr><td>AXI_ID_WIDTH</td><td>3</td><td>1~8</td><td>AXI ID 信号位宽</td></tr>
+        <tr><td>DUMMY_CYCLES</td><td>32</td><td>0~255</td><td>SPI 读虚拟周期数</td></tr>
+        <tr><td>FIFO_DEPTH</td><td>8</td><td>2~64</td><td>异步 FIFO 深度</td></tr>
+        <tr><td>WRAP_ENABLE</td><td>1</td><td>0/1</td><td>地址环绕使能</td></tr>
+    </tbody>
+</table>
 
-        <h3 id="ch4-4">4.4 Concurrency and Conflict</h3>
-        <p>Single SPI frame at a time. Read/write mutually exclusive by opcode. No atomic operation support.</p>
-    </section>
+<h3>5.3 配置寄存器摘要 (CSR Summary)</h3>
+<table>
+    <thead><tr><th>寄存器 (Register)</th><th>属性 (Attr)</th><th>复位值 (Reset)</th><th>功能描述 (Description)</th></tr></thead>
+    <tbody>
+        <tr><td>CTRL</td><td>RW</td><td>0x0000_0000</td><td>控制：SPI 模式选择、软复位、传输使能</td></tr>
+        <tr><td>STATUS</td><td>RO</td><td>0x0000_0001</td><td>状态：FIFO 空/满、忙碌、错误标志</td></tr>
+        <tr><td>WRAP_CFG</td><td>RW</td><td>0x0000_0000</td><td>Wrap 配置：使能、窗口大小 N</td></tr>
+        <tr><td>DUMMY_CFG</td><td>RW</td><td>0x0000_0020</td><td>Dummy 周期配置</td></tr>
+        <tr><td>SCRATCH</td><td>RW</td><td>0x0000_0000</td><td>调试暂存寄存器</td></tr>
+        <tr><td>VERSION</td><td>RO</td><td>0x0000_0100</td><td>IP 版本号</td></tr>
+    </tbody>
+</table>
 
-    <hr>
+<h3>5.4 操作模式 (Operation Modes)</h3>
+<table>
+    <thead><tr><th>模式 (Mode)</th><th>编码 (Code)</th><th>描述 (Description)</th></tr></thead>
+    <tbody>
+        <tr><td>Standard SPI</td><td>0</td><td>标准 1-line SPI，通用调试配置</td></tr>
+        <tr><td>Quad-SPI (QSPI)</td><td>1</td><td>4-line QSPI，高速批量传输</td></tr>
+        <tr><td>Wrap 禁用</td><td>0</td><td>地址持续递增，无回绕</td></tr>
+        <tr><td>Wrap 使能</td><td>1</td><td>在 N 字窗口内循环访问</td></tr>
+    </tbody>
+</table>
+</section>
 
-    <section id="ch5">
-        <h2><span class="chapter-num">Chapter 5</span> Main Features and Configurable Parameters</h2>
+<!-- ======================== WaveJSON Timing ======================== -->
+<div class="wavedrom-container">
+<h3>SPI 写操作时序 (SPI Write Timing)</h3>
+<div id="wave-write"></div>
+</div>
 
-        <h3 id="ch5-1">5.1 Core Features</h3>
-        <table>
-            <thead><tr><th>Category</th><th>Feature</th><th>Description</th><th>Req</th></tr></thead>
-            <tbody>
-                <tr><td>Protocol</td><td>Standard SPI 1-line</td><td>Single data line, 1 bit/SCLK</td><td>Mandatory</td></tr>
-                <tr><td>Protocol</td><td>Quad-SPI 4-line</td><td>4 data lines, 4 bit/SCLK</td><td>Optional</td></tr>
-                <tr><td>Protocol</td><td>AXI4-Lite Master</td><td>5-channel, single transfer, OKAY/SLVERR/DECERR</td><td>Mandatory</td></tr>
-                <tr><td>Data</td><td>MSB-first</td><td>All frames MSB first</td><td>Mandatory</td></tr>
-                <tr><td>Data</td><td>Write frame</td><td>OPCODE(8)+ADDR(32)+DATA(32)</td><td>Mandatory</td></tr>
-                <tr><td>Data</td><td>Read frame</td><td>OPCODE(8)+ADDR(32)+DUMMY(N+1)+DATA(32)</td><td>Mandatory</td></tr>
-                <tr><td>Error</td><td>AXI error response</td><td>Detect SLVERR/DECERR, record to STATUS</td><td>Mandatory</td></tr>
-                <tr><td>Error</td><td>SPI abort</td><td>CS high mid-transfer &rarr; IDLE, drop frame</td><td>Mandatory</td></tr>
-                <tr><td>Debug</td><td>SPI-side status registers</td><td>Read FIFO status, error codes</td><td>Mandatory</td></tr>
-                <tr><td>Low Power</td><td>Auto clock gating</td><td>Active only on SCLK transitions when idle</td><td>Optional</td></tr>
-            </tbody>
-        </table>
+<div class="wavedrom-container">
+<h3>SPI 读操作时序 (SPI Read Timing with Dummy Cycles)</h3>
+<div id="wave-read"></div>
+</div>
 
-        <h3 id="ch5-2">5.2 Configurable Parameters</h3>
-        <table>
-            <thead><tr><th>Parameter</th><th>Type</th><th>Default</th><th>Range</th><th>Description</th><th>Impact</th></tr></thead>
-            <tbody>
-                <tr><td><code>AXI_ADDR_WIDTH</code></td><td>int</td><td>32</td><td>12-64</td><td>AXI address bus width</td><td>Area&uarr;</td></tr>
-                <tr><td><code>AXI_DATA_WIDTH</code></td><td>int</td><td>32</td><td>32 fixed</td><td>AXI data bus width</td><td>Fixed</td></tr>
-                <tr><td><code>AXI_ID_WIDTH</code></td><td>int</td><td>3</td><td>1-8</td><td>AXI ID for transaction source ID</td><td>Area&uarr;</td></tr>
-                <tr><td><code>DUMMY_CYCLES</code></td><td>int</td><td>32</td><td>0-255</td><td>Dummy cycles = value + 1</td><td>Latency&uarr;</td></tr>
-                <tr><td><code>FIFO_DEPTH</code></td><td>int</td><td>8</td><td>2-64</td><td>Async FIFO depth (entries)</td><td>Area&uarr;</td></tr>
-                <tr><td><code>WRAP_ENABLE</code></td><td>bit</td><td>1</td><td>0/1</td><td>Enable address wrap</td><td>Area&darr;</td></tr>
-                <tr><td><code>DEFAULT_WRAP</code></td><td>int</td><td>0</td><td>0-1024</td><td>Default wrap window size</td><td>&mdash;</td></tr>
-                <tr><td><code>SPI_MODE</code></td><td>int</td><td>0</td><td>0-3</td><td>SPI CPOL/CPHA mode</td><td>Fixed</td></tr>
-            </tbody>
-        </table>
+<!-- ======================== Chapter 6 ======================== -->
+<section id="ch6">
+<h2><span class="chapter-num">第6章</span> 时钟、复位与电源架构 (Clock/Reset/Power)</h2>
 
-        <h3 id="ch5-3">5.3 Configuration Register Summary</h3>
-        <p>Registers accessed via SPI opcodes (REG_READ/REG_WRITE), separate from AXI memory space.</p>
-        <table>
-            <thead><tr><th>Opcode</th><th>Name</th><th>Attr</th><th>Reset</th><th>Description</th></tr></thead>
-            <tbody>
-                <tr><td>TBD</td><td>CTRL</td><td>RW</td><td>0x0000_0000</td><td>Control: SPI mode, soft reset, transfer enable</td></tr>
-                <tr><td>TBD</td><td>STATUS</td><td>RO</td><td>0x0000_0001</td><td>Status: FIFO flags, busy, error code</td></tr>
-                <tr><td>TBD</td><td>WRAP_CFG</td><td>RW</td><td>0x0000_0000</td><td>Wrap: enable, window size N</td></tr>
-                <tr><td>TBD</td><td>DUMMY_CFG</td><td>RW</td><td>0x0000_0020</td><td>Dummy cycles config (default 32)</td></tr>
-                <tr><td>TBD</td><td>FIFO_STATUS</td><td>RO</td><td>0x0000_0000</td><td>FIFO fill levels, empty/full flags</td></tr>
-                <tr><td>TBD</td><td>SCRATCH</td><td>RW</td><td>0x0000_0000</td><td>Debug scratch register</td></tr>
-                <tr><td>TBD</td><td>VERSION</td><td>RO</td><td>0x0000_0100</td><td>IP version and revision</td></tr>
-            </tbody>
-        </table>
+<h3>6.1 时钟域概述 (Clock Domains)</h3>
+<table>
+    <thead><tr><th>时钟域 (Domain)</th><th>源 (Source)</th><th>频率 (Freq)</th><th>目标模块 (Target)</th></tr></thead>
+    <tbody>
+        <tr><td>spi_sclk</td><td>外部 SPI Master</td><td>≤ 50 MHz</td><td>spi_slave, cmd_decoder, config_regs</td></tr>
+        <tr><td>axi_aclk</td><td>SoC 时钟管理单元</td><td>取决于设计</td><td>axi_master, async_fifo (AXI 侧)</td></tr>
+    </tbody>
+</table>
+<p>两个时钟域完全异步，无固定相位关系。异步 FIFO 是唯一的 CDC 数据通道。FIFO 深度必须能吸收最差情况的时钟速率差异。</p>
 
-        <h3 id="ch5-4">5.4 Operation Modes</h3>
-        <table>
-            <thead><tr><th>Mode</th><th>Encoding</th><th>Description</th><th>Use</th></tr></thead>
-            <tbody>
-                <tr><td>Standard SPI</td><td>0</td><td>1-line, spi_sdi[0]/sdo[0]</td><td>Debug/config</td></tr>
-                <tr><td>Quad-SPI</td><td>1</td><td>4-line, spi_sdi[3:0]/sdo[3:0]</td><td>Firmware update, bulk data</td></tr>
-                <tr><td>Wrap Disabled</td><td>0</td><td>Linear address increment (+4)</td><td>Linear access</td></tr>
-                <tr><td>Wrap Enabled</td><td>1</td><td>Cyclic within N-word window</td><td>Cyclic buffer, reg batch</td></tr>
-            </tbody>
-        </table>
-    </section>
+<h3>6.2 复位结构 (Reset Structure)</h3>
+<table>
+    <thead><tr><th>复位信号 (Reset)</th><th>类型 (Type)</th><th>域 (Domain)</th></tr></thead>
+    <tbody>
+        <tr><td>spi_rst_n</td><td>Async, active-low</td><td>spi_sclk</td></tr>
+        <tr><td>axi_rst_n</td><td>Async, active-low</td><td>axi_aclk</td></tr>
+    </tbody>
+</table>
+<p>异步断言 + 同步释放。每时钟域有独立复位，经两级同步器后产生本地复位。</p>
 
-    <hr>
+<h3>6.3 电源模式 (Power Modes)</h3>
+<table>
+    <thead><tr><th>模式 (Mode)</th><th>描述 (Description)</th></tr></thead>
+    <tbody>
+        <tr><td>Active</td><td>全速运行，SPI 和 AXI 时钟均运行</td></tr>
+        <tr><td>Idle</td><td>无 SPI 传输，FIFO 空</td></tr>
+        <tr><td>Sleep</td><td>时钟门控关闭</td></tr>
+    </tbody>
+</table>
+</section>
 
-    <section id="ch6">
-        <h2><span class="chapter-num">Chapter 6</span> Clock, Reset and Power Architecture</h2>
+<!-- ======================== Chapter 7 ======================== -->
+<section id="ch7">
+<h2><span class="chapter-num">第7章</span> 性能/功耗/面积目标 (PPA Targets)</h2>
 
-        <h3 id="ch6-1">6.1 Clock Domain Overview</h3>
-        <p>Two asynchronous clock domains: spi_sclk (&le;50MHz, external SPI Master) and axi_aclk (SoC CMU). No fixed phase/frequency ratio. Async FIFO is the sole CDC bridge. FIFO depth must absorb worst-case clock rate differences.</p>
-        <table>
-            <thead><tr><th>Domain</th><th>Source</th><th>Freq</th><th>Target Modules</th></tr></thead>
-            <tbody>
-                <tr><td><code>spi_sclk</code></td><td>External SPI Master</td><td>&le;50 MHz</td><td>spi_slave, cmd_decoder, config_regs, wrap_ctrl</td></tr>
-                <tr><td><code>axi_aclk</code></td><td>SoC CMU</td><td>Depends</td><td>axi_master, async_fifo (AXI port)</td></tr>
-            </tbody>
-        </table>
+<div class="info-box"><strong>说明:</strong> 以下为估算值，需在实际工艺库下综合后更新。</div>
 
-        <h3 id="ch6-2">6.2 Reset Structure</h3>
-        <p>Async assert, sync deassert. Each domain has independent <code>*_rst_n</code> with 2-stage synchronizer.</p>
-        <table>
-            <thead><tr><th>Signal</th><th>Type</th><th>Domain</th></tr></thead>
-            <tbody>
-                <tr><td><code>spi_rst_n</code></td><td>Async active-low</td><td>spi_sclk</td></tr>
-                <tr><td><code>axi_rst_n</code></td><td>Async active-low</td><td>axi_aclk</td></tr>
-            </tbody>
-        </table>
+<h3>7.1 性能目标 (Performance)</h3>
+<table>
+    <thead><tr><th>指标 (Metric)</th><th>目标值 (Target)</th><th>条件 (Condition)</th></tr></thead>
+    <tbody>
+        <tr><td>Fmax_spi</td><td>≥ 50 MHz</td><td>典型工艺 corner</td></tr>
+        <tr><td>Fmax_axi</td><td>≥ 100 MHz</td><td>典型工艺 corner</td></tr>
+        <tr><td>峰值吞吐 (SPI)</td><td>6.25 MB/s</td><td>1-line, 连续传输</td></tr>
+        <tr><td>峰值吞吐 (QSPI)</td><td>25 MB/s</td><td>4-line, 连续传输</td></tr>
+        <tr><td>最小读延迟</td><td>DUMMY_CYCLES + ~10 SPI cycles</td><td>AXI 立即返回</td></tr>
+    </tbody>
+</table>
 
-        <h3 id="ch6-3">6.3 Power Modes</h3>
-        <p>Active: full speed, both clocks on. Idle: no SPI transfer, FIFOs empty, wake by spi_cs_n. Sleep: clocks gated by SoC, needs SoC-level wake-up.</p>
-    </section>
+<h3>7.2 功耗预算 (Power)</h3>
+<table>
+    <thead><tr><th>电源域 (Domain)</th><th>电压 (V)</th><th>Active</th><th>Idle</th></tr></thead>
+    <tbody>
+        <tr><td>VDD_CORE</td><td>待补充</td><td>待补充 mW</td><td>待补充 uW</td></tr>
+    </tbody>
+</table>
 
-    <hr>
+<h3>7.3 面积预算 (Area)</h3>
+<table>
+    <thead><tr><th>模块 (Module)</th><th>组合逻辑</th><th>时序逻辑</th><th>总计</th></tr></thead>
+    <tbody>
+        <tr><td>spi_slave</td><td>待补充</td><td>待补充</td><td>待补充 kgates</td></tr>
+        <tr><td>cmd_decoder</td><td>待补充</td><td>待补充</td><td>待补充 kgates</td></tr>
+        <tr><td>async_fifo (×4)</td><td>待补充</td><td>待补充</td><td>待补充 kgates</td></tr>
+        <tr><td>axi_master</td><td>待补充</td><td>待补充</td><td>待补充 kgates</td></tr>
+        <tr><td>config_regs</td><td>待补充</td><td>待补充</td><td>待补充 kgates</td></tr>
+        <tr><td>wrap_ctrl</td><td>待补充</td><td>待补充</td><td>待补充 kgates</td></tr>
+    </tbody>
+</table>
+</section>
 
-    <section id="ch7">
-        <h2><span class="chapter-num">Chapter 7</span> Performance / Power / Area Targets</h2>
+<!-- ======================== Chapter 8 ======================== -->
+<section id="ch8">
+<h2><span class="chapter-num">第8章</span> 应用场景 (Application Scenarios)</h2>
 
-        <h3 id="ch7-1">7.1 Performance Targets</h3>
-        <div class="info-box"><strong>Note:</strong> Estimated values, update after synthesis.</div>
-        <table>
-            <thead><tr><th>Metric</th><th>Symbol</th><th>Target</th><th>Condition</th></tr></thead>
-            <tbody>
-                <tr><td>Freq</td><td>Fmax_spi</td><td>&ge;50 MHz</td><td>Typical corner</td></tr>
-                <tr><td>Freq</td><td>Fmax_axi</td><td>&ge;100 MHz</td><td>Typical corner</td></tr>
-                <tr><td>Peak Tput</td><td>Tput_peak</td><td>6.25 MB/s (1L) / 25 MB/s (4L)</td><td>Back-to-back, zero AXI wait</td></tr>
-                <tr><td>Min Read Latency</td><td>Lat_min_read</td><td>DUMMY_CYCLES + ~10 SPI cycles</td><td>No contention, immediate return</td></tr>
-                <tr><td>Cmd Decode Latency</td><td>Lat_cmd_decode</td><td>1 SPI clock cycle</td><td>Combinational decode</td></tr>
-            </tbody>
-        </table>
+<h3>8.1 典型用例 (Use Cases)</h3>
 
-        <h3 id="ch7-2">7.2 Power Budget</h3>
-        <p>TBD &mdash; Requires PrimeTime PX after synthesis.</p>
+<p><strong>用例 1: SoC 系统调试和配置接口 (SoC Debug &amp; Config)</strong></p>
+<p>外部调试主机通过 SPI 总线访问 SoC 内部寄存器空间，实现非侵入式在线调试。</p>
+<ul>
+    <li>触发条件: 外部调试主机通过 SPI 发起 AXI 寄存器访问请求</li>
+    <li>操作序列: 配置 SPI 模式 → WRITE 操作写入目标地址 → READ 操作回读验证</li>
+    <li>关键要求: 读延迟可控（DUMMY_CYCLES 参数调节），延迟确定性高</li>
+</ul>
 
-        <h3 id="ch7-3">7.3 Area Budget</h3>
-        <p>TBD &mdash; Requires synthesis data. Modules: spi_slave, cmd_decoder, async_fifo (x4), axi_master, config_regs, wrap_ctrl, Clock/Reset.</p>
-    </section>
+<p><strong>用例 2: 嵌入式系统固件批量更新 (Firmware Update)</strong></p>
+<p>外部编程器通过 QSPI 4-line 高速模式批量写入固件镜像。</p>
+<ul>
+    <li>触发条件: 系统进入固件更新模式</li>
+    <li>操作序列: 配置 QSPI 模式 → 连续写帧 → 状态查询确认</li>
+    <li>关键要求: QSPI 峰值吞吐 25 MB/s</li>
+</ul>
 
-    <hr>
+<p><strong>用例 3: 芯片 ATE 测试配置通路 (ATE Test Config)</strong></p>
+<p>量产测试中，ATE 通过 SPI 测试引脚访问芯片内部测试寄存器。</p>
+<ul>
+    <li>触发条件: ATE 上电后通过 SPI 发送配置命令</li>
+    <li>关键要求: 仅需 4 个测试引脚，可靠性高</li>
+</ul>
 
-    <section id="ch8">
-        <h2><span class="chapter-num">Chapter 8</span> Application Scenarios</h2>
+<h3>8.2 异常场景 (Exception Scenarios)</h3>
+<ul>
+    <li><strong>片选异常拉高</strong>: FSM 立即回到 IDLE，丢弃当前不完整帧</li>
+    <li><strong>AXI Slave 错误</strong>: SLVERR/DECERR 记录到状态寄存器</li>
+    <li><strong>FIFO 满</strong>: cmd_decoder 暂停写入，SPI 侧保持当前状态</li>
+    <li><strong>非法操作码</strong>: 记录错误标志，终止处理</li>
+    <li><strong>软复位</strong>: CTRL 寄存器 soft_rst=1 触发全局复位</li>
+</ul>
+</section>
 
-        <h3 id="ch8-1">8.1 Typical Use Cases</h3>
-        <p><strong>Use Case 1: SoC Debug and Config.</strong> External debug host accesses internal registers via SPI. Sequence: REG_WRITE for mode config &rarr; WRITE to target address &rarr; READ to verify.</p>
-        <p><strong>Use Case 2: Firmware Bulk Update.</strong> External programmer writes firmware via QSPI 4-line mode. Requires 25 MB/s throughput, continuous frame support.</p>
-        <p><strong>Use Case 3: ATE Test Config.</strong> Minimal SPI pins (4), high reliability, deterministic reset.</p>
+<!-- ======================== Chapter 9 ======================== -->
+<section id="ch9">
+<h2><span class="chapter-num">第9章</span> 假设与约束 (Assumptions &amp; Constraints)</h2>
 
-        <h3 id="ch8-2">8.2 Exception Scenarios</h3>
-        <p>CS abort mid-transfer, AXI Slave error (SLVERR/DECERR), FIFO full backpressure, illegal opcode, soft reset recovery.</p>
+<h3>9.1 关键假设 (Key Assumptions)</h3>
+<table>
+    <thead><tr><th>#</th><th>假设 (Assumption)</th><th>影响 (Impact)</th></tr></thead>
+    <tbody>
+        <tr><td>A1</td><td>SPI Master 帧格式符合规范（opcode+addr+data）</td><td>格式错误导致命令解析错误</td></tr>
+        <tr><td>A2</td><td>配置寄存器仅在片选低电平时访问</td><td>高电平时行为未定义</td></tr>
+        <tr><td>A3</td><td>AXI Slave 在 1024 周期内返回响应</td><td>无响应将触发超时 ERROR</td></tr>
+        <tr><td>A4</td><td>SPI 时钟 ≤ 50MHz</td><td>超过可能导致采样违例</td></tr>
+        <tr><td>A5</td><td>两时钟持续提供，无时钟停止</td><td>时钟停止导致 FIFO 同步失效</td></tr>
+    </tbody>
+</table>
 
-        <h3 id="ch8-3">8.3 Usage Limitations</h3>
-        <p>1 outstanding AXI transaction. No unaligned access. FIFO depth static at instantiation. DUMMY_CYCLES must cover worst-case AXI read latency. CDC sync requires 2-3 target clock cycles.</p>
-    </section>
+<h3>9.2 设计约束 (Design Constraints)</h3>
+<ul>
+    <li><strong>时序约束</strong>: 输入延迟 max 5.0 ns (SPI I/O Pad 到模块)，异步路径标记为 false path</li>
+    <li><strong>物理约束</strong>: 面积待补充，靠近 SoC 边界放置</li>
+    <li><strong>工具约束</strong>: 所有 FF 可扫描链插入，异步 FIFO 格雷码寄存器需特殊处理</li>
+</ul>
 
-    <hr>
+<h3>9.3 外部依赖 (External Dependencies)</h3>
+<table>
+    <thead><tr><th>依赖模块 (Dependency)</th><th>接口 (Interface)</th><th>风险 (Risk)</th></tr></thead>
+    <tbody>
+        <tr><td>SoC AXI 总线矩阵</td><td>AXI4-Lite</td><td>低</td></tr>
+        <tr><td>SoC 时钟管理单元</td><td>axi_aclk</td><td>低</td></tr>
+        <tr><td>SPI I/O Pad</td><td>SPI 信号</td><td>中</td></tr>
+        <tr><td>SoC 复位控制器</td><td>spi/axi_rst_n</td><td>低</td></tr>
+    </tbody>
+</table>
+</section>
 
-    <section id="ch9">
-        <h2><span class="chapter-num">Chapter 9</span> Assumptions and Constraints</h2>
+<!-- ======================== Chapter 10 ======================== -->
+<section id="ch10">
+<h2><span class="chapter-num">第10章</span> 设计决策记录 (Architecture Decision Record)</h2>
 
-        <h3 id="ch9-1">9.1 Key Assumptions</h3>
-        <table>
-            <thead><tr><th>#</th><th>Assumption</th><th>Impact</th><th>Verification</th></tr></thead>
-            <tbody>
-                <tr><td>A1</td><td>SPI frame format conforms to spec</td><td>Parse errors if non-conforming</td><td>UVM legal/illegal frames</td></tr>
-                <tr><td>A2</td><td>Regs accessed only during CS low via REG_READ/WRITE</td><td>Undefined behavior if violated</td><td>Formal assertion</td></tr>
-                <tr><td>A3</td><td>AXI Slave responds in &lt;1024 cycles</td><td>Timeout &rarr; ERROR state</td><td>UVM latency injection</td></tr>
-                <tr><td>A4</td><td>SPI clock &le;50MHz</td><td>Setup/hold violations</td><td>STA worst-corner</td></tr>
-                <tr><td>A5</td><td>Both clocks continuously provided</td><td>Gray-code sync failure if stopped</td><td>Clock gating scenarios</td></tr>
-                <tr><td>A6</td><td>Target AXI Slave exists</td><td>DECERR if not</td><td>UVM error injection</td></tr>
-                <tr><td>A7</td><td>SPI Master provides sufficient dummy cycles</td><td>Invalid read data if insufficient</td><td>Boundary tests</td></tr>
-            </tbody>
-        </table>
+<table>
+    <thead><tr><th>ADR#</th><th>决策 (Decision)</th><th>选项 (Options)</th><th>选择理由 (Rationale)</th></tr></thead>
+    <tbody>
+        <tr><td>001</td><td>选择 AXI4-Lite 而非 AXI4-Full</td><td>AXI4-Lite / Full</td><td>调试场景仅需 single transfer，AXI4-Lite 复杂度远低于 Full</td></tr>
+        <tr><td>002</td><td>SPI/QSPI 复用同一组引脚</td><td>独立/复用</td><td>避免额外引脚开销，通过动态配置选择模式</td></tr>
+        <tr><td>003</td><td>串行帧处理而非流水线预取</td><td>串行/流水线</td><td>SPI 协议天然按帧串行处理，串行简化 AXI 事务管理</td></tr>
+        <tr><td>004</td><td>使用异步 FIFO 做 CDC</td><td>FIFO/握手/DMUX</td><td>数据量大（32-bit × 深度），FIFO 吞吐更高</td></tr>
+    </tbody>
+</table>
+</section>
 
-        <h3 id="ch9-2">9.2 Design Constraints</h3>
-        <p>Timing: I/O delay 5.0 ns, async false paths, AXI valid/ready handshake. Physical: TBD area, VDD_CORE domain, near-boundary floorplan. Tools: no synopsys_translate_off, scan chain for all FFs, STA at 50MHz SPI.</p>
+<!-- ======================== Chapter 11 ======================== -->
+<section id="ch11">
+<h2><span class="chapter-num">第11章</span> 验证特性映射 (Verification Feature Mapping)</h2>
 
-        <h3 id="ch9-3">9.3 External Dependencies</h3>
-        <table>
-            <thead><tr><th>Module</th><th>Type</th><th>Interface</th><th>Risk</th></tr></thead>
-            <tbody>
-                <tr><td>SoC AXI Bus Matrix</td><td>Data</td><td>AXI4-Lite</td><td>Low</td></tr>
-                <tr><td>SoC CMU</td><td>Clock</td><td>axi_aclk</td><td>Low</td></tr>
-                <tr><td>SPI I/O Pad</td><td>Physical</td><td>SPI signals</td><td>Medium</td></tr>
-                <tr><td>SoC Reset Controller</td><td>Control</td><td>rst_n</td><td>Low</td></tr>
-            </tbody>
-        </table>
+<table>
+    <thead><tr><th>#</th><th>Feature</th><th>验证方法 (Method)</th><th>覆盖率目标 (Coverage)</th></tr></thead>
+    <tbody>
+        <tr><td>F01</td><td>各操作模式 (1-line / 4-line QSPI)</td><td>UVM scoreboard 数据完整性检查</td><td>100% 模式组合</td></tr>
+        <tr><td>F02</td><td>所有 SPI 操作码 (READ/WRITE/REG)</td><td>UVM 定向 + 随机测试</td><td>100% 操作码编码</td></tr>
+        <tr><td>F03</td><td>SPI 和 AXI 协议时序合规性</td><td>Formal assertion</td><td>100% 协议规则</td></tr>
+        <tr><td>F04</td><td>AXI4-Lite 5 通道握手</td><td>Formal + UVM monitor</td><td>100% 握手组合</td></tr>
+        <tr><td>F05</td><td>CDC 数据传输完整性</td><td>UVM 随机 + FIFO 边界测试</td><td>100% CDC 路径</td></tr>
+        <tr><td>F06</td><td>地址环绕功能</td><td>UVM 定向 + 随机地址</td><td>100% Wrap 配置</td></tr>
+        <tr><td>F07</td><td>配置寄存器读写</td><td>UVM reg_model</td><td>100% 寄存器位域</td></tr>
+        <tr><td>F08</td><td>FSM 异常处理</td><td>UVM error injection</td><td>100% 错误码组合</td></tr>
+    </tbody>
+</table>
+</section>
 
-        <h3 id="ch9-4">9.4 Open Issues</h3>
-        <p>Q01: SPI Mode 1/2/3 support? Q02: AXI target frequency? Q03: FIFO SRAM vs register? Q04: Dynamic wrap window? All TBD owner/deadline.</p>
-    </section>
+<!-- ======================== Appendix A ======================== -->
+<section id="appA">
+<h2><span class="chapter-num">附录A</span> 术语表 (Glossary)</h2>
 
-    <hr>
+<table>
+    <thead><tr><th>术语 (Term)</th><th>含义 (Meaning)</th></tr></thead>
+    <tbody>
+        <tr><td>SPI</td><td>Serial Peripheral Interface — 串行外设接口</td></tr>
+        <tr><td>QSPI</td><td>Quad SPI — 四线串行外设接口</td></tr>
+        <tr><td>AXI</td><td>Advanced eXtensible Interface — ARM AMBA 高级可扩展接口</td></tr>
+        <tr><td>AXI4-Lite</td><td>AXI4 轻量级版本，支持单次传输</td></tr>
+        <tr><td>CDC</td><td>Clock Domain Crossing — 跨时钟域传输</td></tr>
+        <tr><td>FIFO</td><td>First-In First-Out — 先进先出缓冲器</td></tr>
+        <tr><td>FSM</td><td>Finite State Machine — 有限状态机</td></tr>
+        <tr><td>PPA</td><td>Performance, Power, Area — 性能、功耗、面积</td></tr>
+        <tr><td>CSR</td><td>Control and Status Register — 控制和状态寄存器</td></tr>
+        <tr><td>SLVERR</td><td>Slave Error — AXI 从设备错误</td></tr>
+        <tr><td>DECERR</td><td>Decode Error — AXI 地址解码错误</td></tr>
+        <tr><td>DFT</td><td>Design for Test — 可测试性设计</td></tr>
+        <tr><td>MBIST</td><td>Memory BIST — 存储器内建自测试</td></tr>
+        <tr><td>ATE</td><td>Automatic Test Equipment — 自动测试设备</td></tr>
+    </tbody>
+</table>
+</section>
 
-    <section id="ch10">
-        <h2><span class="chapter-num">Chapter 10</span> Architecture Decision Record</h2>
-        <table>
-            <thead><tr><th>ADR</th><th>Decision</th><th>Rationale</th><th>Consequence</th><th>Date</th></tr></thead>
-            <tbody>
-                <tr><td>001</td><td>AXI4-Lite over AXI4-Full</td><td>Single-beat only for debug/config</td><td>No burst/OoO, reduced area/verif</td><td>2026-05-21</td></tr>
-                <tr><td>002</td><td>Shared SPI/QSPI pins</td><td>Reuse pins via dynamic config</td><td>Modes mutually exclusive</td><td>2026-05-21</td></tr>
-                <tr><td>003</td><td>Serial FSM, no pipeline</td><td>SPI is inherently frame-serial</td><td>No parallelism, simpler design</td><td>2026-05-21</td></tr>
-                <tr><td>004</td><td>Async FIFO for CDC</td><td>Higher throughput than handshake</td><td>Larger area, Gray-code logic</td><td>2026-05-21</td></tr>
-            </tbody>
-        </table>
-    </section>
+<!-- ======================== Appendix B ======================== -->
+<section id="appB">
+<h2><span class="chapter-num">附录B</span> 参考文档 (References)</h2>
 
-    <hr>
+<table>
+    <thead><tr><th>文档 (Document)</th><th>版本 (Version)</th><th>说明 (Description)</th></tr></thead>
+    <tbody>
+        <tr><td>SPI2AXI SPEC.pdf</td><td>Rev 1.0</td><td>SPI2AXI IP 原始设计规格</td></tr>
+        <tr><td>ARM AMBA AXI 协议规范</td><td>ARM IHI 0022E</td><td>AXI4/AXI4-Lite 协议</td></tr>
+        <tr><td>SPI2AXI Bridge Planning Report</td><td>V1.0</td><td>规划阶段输出</td></tr>
+        <tr><td>SPI2AXI Bridge Slice (14 文件)</td><td>V1.0</td><td>切片分析阶段输出</td></tr>
+        <tr><td>03_block_arch.HLD.md Template</td><td>V1.0</td><td>模块架构蓝图模板</td></tr>
+    </tbody>
+</table>
+</section>
 
-    <section id="ch11">
-        <h2><span class="chapter-num">Chapter 11</span> Verification Feature Mapping Guide</h2>
+<hr>
+<p style="text-align:center;color:var(--gray-secondary);font-size:13px;margin-top:48px;">
+本文档由 Chip Design Agent 自动生成<br>
+Generated 2026-05-21
+</p>
 
-        <h3 id="ch11-1">11.1 Feature-to-Verification Mapping</h3>
-        <table>
-            <thead><tr><th>#</th><th>Feature</th><th>Verification Focus</th><th>Method</th><th>Coverage</th></tr></thead>
-            <tbody>
-                <tr><td>F01</td><td>All SPI modes (1L/4L)</td><td>Data correctness, mode switching</td><td>UVM scoreboard</td><td>100% mode x data</td></tr>
-                <tr><td>F02</td><td>All opcodes</td><td>FSM transitions, AXI generation</td><td>UVM directed + random</td><td>100% opcode</td></tr>
-                <tr><td>F03</td><td>SPI/AXI protocol timing</td><td>Mode 0, valid/ready handshake</td><td>Formal assertion</td><td>100% protocol rules</td></tr>
-                <tr><td>F04</td><td>AXI 5-channel handshake</td><td>Cross-handshake, no violation</td><td>Formal + UVM monitor</td><td>100% combinations</td></tr>
-                <tr><td>F05</td><td>CDC integrity</td><td>No data loss/corruption</td><td>UVM random + FIFO boundary</td><td>100% CDC paths</td></tr>
-                <tr><td>F06</td><td>Address wrap</td><td>Calculation, boundary detection</td><td>UVM directed + random addr</td><td>100% config x addr</td></tr>
-                <tr><td>F07</td><td>SPI-side register access</td><td>RW/RO, reset value, bit-field</td><td>UVM reg_model</td><td>100% registers/bits</td></tr>
-                <tr><td>F08</td><td>FSM exception handling</td><td>Timeout, illegal opcode, CS abort</td><td>UVM injection + Formal</td><td>100% error x state</td></tr>
-                <tr><td>F09</td><td>Backpressure/flow control</td><td>FIFO full/empty protection</td><td>UVM backpressure injection</td><td>All FIFO states</td></tr>
-                <tr><td>F10</td><td>Performance metrics</td><td>Latency, throughput</td><td>UVM perf monitor</td><td>&ge;6.25/25 MB/s</td></tr>
-                <tr><td>F11</td><td>AXI error response</td><td>SLVERR/DECERR sampling</td><td>UVM error injection</td><td>100% error types</td></tr>
-                <tr><td>F12</td><td>Assumption violations</td><td>Robustness under violation</td><td>Formal / UVM injection</td><td>Each assumption</td></tr>
-            </tbody>
-        </table>
-
-        <h3 id="ch11-2">11.2 Excluded Features</h3>
-        <p>Test-specific paths (scan, mbist) &rarr; DFT team. Combinational intermediate signals &rarr; covered end-to-end. Async FIFO internal Gray-code &rarr; covered by separate VIP.</p>
-
-        <h3 id="ch11-3">11.3 Assertion Suggestions</h3>
-        <p><strong>Protocol:</strong> SPI data stable on rising edge, AXI valid-hold, bvalid after awready+wready. <strong>FSM:</strong> one-hot check, illegal state, transition legality. <strong>Data:</strong> no empty-read/full-write, SPI-AXI data consistency. <strong>Safety:</strong> key register protection, IDLE after reset, pointer difference &le; depth.</p>
-    </section>
-
-    <hr>
-
-    <section id="app-a">
-        <h2>Appendix A: Glossary</h2>
-        <table>
-            <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
-            <tbody>
-                <tr><td>SPI</td><td>Serial Peripheral Interface</td></tr>
-                <tr><td>QSPI</td><td>Quad Serial Peripheral Interface</td></tr>
-                <tr><td>AXI</td><td>Advanced eXtensible Interface (ARM AMBA)</td></tr>
-                <tr><td>AXI4-Lite</td><td>AXI4 light, single transfer, no OoO</td></tr>
-                <tr><td>CDC</td><td>Clock Domain Crossing</td></tr>
-                <tr><td>FIFO</td><td>First-In First-Out buffer</td></tr>
-                <tr><td>FSM</td><td>Finite State Machine</td></tr>
-                <tr><td>PPA</td><td>Performance, Power, Area</td></tr>
-                <tr><td>MSB</td><td>Most Significant Bit</td></tr>
-                <tr><td>CSR</td><td>Control and Status Register</td></tr>
-                <tr><td>SLVERR</td><td>Slave Error (AXI)</td></tr>
-                <tr><td>DECERR</td><td>Decode Error (AXI)</td></tr>
-                <tr><td>ATE</td><td>Automatic Test Equipment</td></tr>
-                <tr><td>DFT</td><td>Design for Test</td></tr>
-                <tr><td>MBIST</td><td>Memory Built-In Self-Test</td></tr>
-            </tbody>
-        </table>
-    </section>
-
-    <hr>
-
-    <section id="app-b">
-        <h2>Appendix B: Reference Documents</h2>
-        <table>
-            <thead><tr><th>Document</th><th>Version</th><th>Source</th><th>Description</th></tr></thead>
-            <tbody>
-                <tr><td>SPI2AXI SPEC.pdf</td><td>Rev 1.0</td><td>Product Spec</td><td>Original design specification</td></tr>
-                <tr><td>ARM AMBA AXI and ACE Protocol Spec</td><td>ARM IHI 0022E</td><td>ARM Official</td><td>AXI4/AXI4-Lite protocol</td></tr>
-                <tr><td>SPI2AXI Planning Report</td><td>V1.0</td><td>1.planning/</td><td>Planning phase output</td></tr>
-                <tr><td>SPI2AXI Slice Documents (14 files)</td><td>V1.0</td><td>2.slice/</td><td>Slice analysis phase output</td></tr>
-                <tr><td>03_block_arch.HLD.md Template</td><td>V1.0</td><td>agents/template/</td><td>Architecture blueprint template</td></tr>
-            </tbody>
-        </table>
-    </section>
-
-    <hr>
-
-    <footer style="text-align:center; padding:24px 0 8px; color:var(--gray-secondary); font-size:13px; border-top:1px solid var(--gray-border);">
-        <p>This document was auto-generated by Chip Design Agent</p>
-    </footer>
-</main>
+</div><!-- /main-content -->
 
 <script>
-    mermaid.initialize({ startOnLoad: true, theme: 'neutral', themeVariables: { primaryColor: '#76B900', primaryTextColor: '#fff', primaryBorderColor: '#5a8f00', lineColor: '#76B900', secondaryColor: '#e8f5d6', tertiaryColor: '#F6F8FA' } });
-    window.addEventListener('load', function() { if (typeof WaveDrom !== 'undefined') { WaveDrom.ProcessAll(); } });
-    function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
-    var sections = document.querySelectorAll('section[id]');
-    var navLinks = document.querySelectorAll('.sidebar-nav a');
-    window.addEventListener('scroll', function() {
-        var current = '';
-        sections.forEach(function(section) { if (window.scrollY >= section.offsetTop - 80) current = section.getAttribute('id'); });
-        navLinks.forEach(function(link) { link.classList.remove('active'); if (link.getAttribute('href') === '#' + current) link.classList.add('active'); });
+    // Mermaid 初始化
+    mermaid.initialize({
+        startOnLoad: true,
+        theme: 'base',
+        themeVariables: {
+            primaryColor: '#76B900',
+            primaryTextColor: '#fff',
+            primaryBorderColor: '#5a8f00',
+            lineColor: '#333',
+            secondaryColor: '#e8f5d6',
+            tertiaryColor: '#fff'
+        },
+        securityLevel: 'loose'
     });
+
+    // WaveDrom 时序图
+    window.addEventListener('DOMContentLoaded', function() {
+        // SPI 写操作时序
+        WaveDrom.ProcessAll();
+
+        // 高亮 sidebar 当前章节
+        const sections = document.querySelectorAll('section[id]');
+        const links = document.querySelectorAll('.sidebar a');
+        window.addEventListener('scroll', function() {
+            let current = '';
+            sections.forEach(s => {
+                const top = s.getBoundingClientRect().top;
+                if (top <= 150) current = s.getAttribute('id');
+            });
+            links.forEach(a => {
+                a.classList.remove('active');
+                if (a.getAttribute('href') === '#' + current) a.classList.add('active');
+            });
+        });
+    });
+</script>
+
+<script type="WaveDrom">
+    { signal: [
+        { name: "spi_sclk", wave: "p......................" },
+        { name: "spi_cs_n", wave: "1.0..................1." },
+        { name: "spi_sdi",  wave: "x.=.......=.=.=.=.=.=.x", data: ["OP"], ["ADDR"], ["D0"], ["D1"], ["D2"], ["D3"] },
+        { name: "spi_sdo",  wave: "x......................" },
+        {},
+        { name: "阶段", wave: "x.3..44...55...66..77.x.", data: ["IDLE", "OPCODE", "ADDR", "DATA"] }
+    ]}
+</script>
+
+<script type="WaveDrom">
+    { signal: [
+        { name: "spi_sclk", wave: "p......................" },
+        { name: "spi_cs_n", wave: "1.0..................1." },
+        { name: "spi_sdi",  wave: "x.=.......=.=.=.=....x", data: ["OP"], ["ADDR"], ["D0"], ["D1"], ["D2"], ["D3"] },
+        { name: "spi_sdo",  wave: "x..............=.=.=.x", data: ["Q0"], ["Q1"], ["Q2"] },
+        {},
+        { name: "阶段", wave: "x.3..44...55...66..77.x.", data: ["IDLE", "OPCODE", "ADDR", "DUMMY", "DATA"] }
+    ]}
 </script>
 
 </body>
