@@ -1,0 +1,1 @@
+用chip-spec-gen，根据spi2axi/0.start/SPI2AXI SPEC.pdf 生成文档 

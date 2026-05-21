@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPI2AXI Bridge — 设计规格书 Design Specification</title>
+<!-- WaveDrom for timing diagrams -->
+<script src="https://cdn.jsdelivr.net/npm/wavedrom@3.4.0/lib/wavedrom.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/wavedrom@3.4.0/lib/wavedrom.js"></script>
+<!-- Mermaid for flow/state diagrams -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>
+window.addEventListener('DOMContentLoaded', function() { WaveDrom.ProcessAll(); mermaid.initialize({startOnLoad:true, theme:'neutral'}); });
+</script>
+<style>
+:root {
+  --bg-primary: #FFFFFF;
+  --bg-secondary: #F6F8FA;
+  --bg-tertiary: #F0F2F5;
+  --bg-hover: #EAECEF;
+  --text-primary: #1A1A1A;
+  --text-secondary: #4B5563;
+  --text-muted: #9CA3AF;
+  --accent-green: #76B900;
+  --accent-green-hover: #89C700;
+  --accent-green-dark: #3B5C00;
+  --border: #E5E7EB;
+  --border-strong: #D1D5DB;
+  --border-active: #76B900;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC', Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.7; color: var(--text-primary); background: var(--bg-primary); }
+header { position: sticky; top: 0; z-index: 100; background: var(--bg-primary); border-bottom: 1px solid var(--border); height: 56px; display: flex; align-items: center; padding: 0 24px; }
+header .logo { font-weight: 700; font-size: 1.1rem; color: var(--text-primary); }
+header .logo span { color: var(--accent-green); }
+header .breadcrumb { margin-left: 16px; font-size: 0.85rem; color: var(--text-secondary); }
+.layout { display: flex; max-width: 1200px; margin: 0 auto; }
+nav.sidebar { position: sticky; top: 72px; width: 280px; min-height: calc(100vh - 72px); background: var(--bg-secondary); border-right: 1px solid var(--border); padding: 1.5rem 0; overflow-y: auto; flex-shrink: 0; }
+nav.sidebar .toc-title { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; padding: 0 16px 8px; }
+nav.sidebar a { display: block; padding: 6px 16px; color: var(--text-secondary); text-decoration: none; font-size: 0.9rem; border-left: 3px solid transparent; border-radius: 0 4px 4px 0; }
+nav.sidebar a:hover { background: var(--bg-hover); }
+nav.sidebar a.active { color: var(--text-primary); font-weight: 600; border-left-color: var(--accent-green); background: var(--bg-hover); }
+nav.sidebar a.h2 { padding-left: 28px; font-size: 0.85rem; }
+main { flex: 1; max-width: 860px; padding: 3rem 2rem; }
+h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.02em; color: var(--text-primary); margin-bottom: 0.5rem; }
+h1 + .subtitle { font-size: 1.1rem; color: var(--text-secondary); margin-bottom: 2rem; }
+h2 { font-size: 1.5rem; font-weight: 600; border-top: 1px solid var(--border); padding-top: 2rem; margin-top: 3rem; color: var(--text-primary); }
+h3 { font-size: 1.25rem; font-weight: 600; color: var(--text-primary); margin-top: 1.5rem; margin-bottom: 0.75rem; }
+h4 { font-size: 1.05rem; font-weight: 600; color: var(--text-primary); margin-top: 1.25rem; margin-bottom: 0.5rem; }
+p { margin-bottom: 1.25rem; color: var(--text-primary); }
+a { color: var(--accent-green); text-decoration: underline; }
+a:hover { color: var(--accent-green-hover); }
+table { width: 100%; border-collapse: collapse; margin: 1rem 0 1.5rem; font-size: 0.9rem; }
+th { border-bottom: 2px solid var(--border-strong); padding: 10px 14px; font-size: 0.75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; text-align: left; }
+td { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+tr:nth-child(even) td { background: var(--bg-secondary); }
+code { font-family: 'SFMono-Regular', 'SF Mono', 'Fira Code', 'Hack', Consolas, monospace; font-size: 0.85rem; background: var(--bg-tertiary); padding: 2px 6px; border-radius: 3px; }
+pre { background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 6px; padding: 1rem; font-size: 0.85rem; overflow-x: auto; margin: 1rem 0; }
+pre code { background: none; padding: 0; }
+img.diagram { max-width: 100%; border: 1px solid var(--border); border-radius: 8px; margin: 1rem 0; box-shadow: var(--shadow-sm); }
+figure { margin: 1.5rem 0; text-align: center; }
+figure img { max-width: 100%; border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow-sm); }
+figure figcaption { margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-secondary); }
+.card { background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; box-shadow: var(--shadow-sm); margin: 1.5rem 0; }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+.tag-green { background: #E8F5D8; color: var(--accent-green-dark); }
+.tag-blue { background: #DBEAFE; color: #1E40AF; }
+.tag-yellow { background: #FEF3C7; color: #92400E; }
+@media (max-width: 768px) { nav.sidebar { display: none; } main { padding: 1.5rem 1rem; } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><span>◆</span> SPI2AXI</div>
+  <div class="breadcrumb">Design Specification / v1.0 / 2026-05-21</div>
+</header>
+
+<div class="layout">
+<nav class="sidebar">
+  <div class="toc-title">Contents</div>
+  <a href="#overview" class="active">1. 模块概述</a>
+  <a href="#interface" class="h2">2. 接口定义</a>
+  <a href="#submodules" class="h2">3. 子模块划分</a>
+  <a href="#fsm" class="h2">4. FSM 设计</a>
+  <a href="#pipeline" class="h2">5. 流水线设计</a>
+  <a href="#datapath" class="h2">6. 数据通路</a>
+  <a href="#csr" class="h2">7. 配置寄存器</a>
+  <a href="#clock" class="h2">8. 时钟与复位</a>
+  <a href="#sdc" class="h2">9. 时序约束</a>
+  <a href="#wrap" class="h2">10. 地址环绕</a>
+  <a href="#verification" class="h2">11. 验证计划</a>
+  <a href="#dft" class="h2">12. DFT 设计</a>
+</nav>
+
+<main>
+
+<h1>SPI2AXI Bridge 设计规格书</h1>
+<p class="subtitle">SPI Slave to AXI4-Lite Master Bridge IP — 芯片调试与配置接口桥接模块</p>
+
+<div class="card" style="display:flex;gap:2rem;flex-wrap:wrap;">
+  <div><span class="tag tag-green">v1.0</span> <span style="color:var(--text-secondary);font-size:0.9rem;">2026-05-21</span></div>
+  <div><span class="tag tag-blue">Block IP</span></div>
+  <div><span style="color:var(--text-secondary);font-size:0.9rem;">SPI 50MHz / AXI4-Lite / QSPI</span></div>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="overview">1. 模块概述 (Module Overview)</h2>
+
+<p>SPI2AXI IP 是一个将 SPI 从设备接口（SPI Slave）转换为 AXI 主设备接口（AXI4-Lite Master）的桥接模块。其核心设计目标是通过 SPI 总线实现对 SoC 内部 AXI 总线上的存储器和外设进行配置访问，从而在不依赖 SoC 内部 CPU 干预的前提下，完成芯片的功能配置、状态观测、寄存器读写等调试与初始化操作。由于 SPI 是一种通用且低引脚数的数字接口标准，SPI2AXI 桥接器特别适用于桌面 PC 环境下的 pattern 调试、实验室 bringup 以及芯片量产测试等场景。</p>
+
+<p>该 IP 支持标准 SPI（1-wire）和 Quad SPI（4-wire, QSPI）两种工作模式，最高 SPI 时钟频率可达 50MHz。在 QSPI 模式下，4 条数据线同时传输，理论吞吐量可达标准 SPI 模式的 4 倍，满足中等带宽的配置访问需求。AXI 侧采用 AXI4-Lite 协议，提供 5 个独立通道（AW、W、B、AR、R），支持单次传输（AxLEN=0, AxSIZE=2 = 4 bytes），地址位宽 32-bit，数据位宽 32-bit。</p>
+
+<figure>
+  <img src="images/page1_img0.png" alt="SPI2AXI 系统架构图" class="diagram">
+  <figcaption>Figure 1-1: SPI2AXI Bridge 系统架构图 — SPI Slave ↔ Dual-Clock FIFO ↔ AXI Master</figcaption>
+</figure>
+
+<h3>1.1 关键特性</h3>
+<table>
+  <tr><th>特性类别</th><th>特性</th><th>描述</th></tr>
+  <tr><td>接口协议</td><td>SPI / QSPI</td><td>支持 1-wire (标准 SPI) 和 4-wire (QSPI) 模式，动态切换</td></tr>
+  <tr><td>接口协议</td><td>AXI4-Lite</td><td>5 通道 Master 接口，AxLEN=0, AxSIZE=2, 32-bit 数据总线</td></tr>
+  <tr><td>跨时钟域</td><td>Dual-Clock FIFO</td><td>内置异步 FIFO 实现 SPI ↔ AXI 可靠 CDC 传输</td></tr>
+  <tr><td>地址环绕</td><td>Wrap 功能</td><td>可配置的地址环绕窗口（N × 4 bytes），用于循环缓冲区访问</td></tr>
+  <tr><td>可配置参数</td><td>Parametric</td><td>AXI_ADDR_WIDTH, AXI_DATA_WIDTH, AXI_ID_WIDTH, DUMMY_CYCLES 等</td></tr>
+  <tr><td>操作码</td><td>Opcode-based</td><td>8-bit 操作码解码：READ, WRITE, REG_READ, REG_WRITE</td></tr>
+</table>
+
+<h3>1.2 应用场景</h3>
+<ul>
+  <li><strong>系统调试和配置接口</strong>：通过 SPI 接口访问 SoC 内部配置空间，无需 CPU 参与</li>
+  <li><strong>低引脚数系统总线扩展</strong>：SPI 仅需 4-6 根信号线即可扩展出 AXI 总线访问能力</li>
+  <li><strong>嵌入式系统固件更新</strong>：通过 SPI 从外部加载固件到 SoC 内存空间</li>
+  <li><strong>芯片测试和验证接口</strong>：实验室 bringup 和 ATE 测试场景下的调试访问通道</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="interface">2. 接口定义 (Interface Specification)</h2>
+
+<h3>2.1 SPI 接口信号</h3>
+<table>
+  <tr><th>信号名称</th><th>方向</th><th>位宽</th><th>描述</th></tr>
+  <tr><td>spi_sclk</td><td>输入</td><td>1</td><td>SPI 串行时钟，最高 50MHz，由外部 SPI Master 提供</td></tr>
+  <tr><td>spi_cs_n</td><td>输入</td><td>1</td><td>SPI 片选信号（低有效），CS 拉低开始传输，拉高结束传输</td></tr>
+  <tr><td>spi_sdi</td><td>输入</td><td>4</td><td>SPI 数据输入线。1-wire 模式使用 spi_sdi[0]；QSPI 模式使用 spi_sdi[3:0]</td></tr>
+  <tr><td>spi_sdo</td><td>输出</td><td>4</td><td>SPI 数据输出线。1-wire 模式使用 spi_sdo[0]；QSPI 模式使用 spi_sdo[3:0]</td></tr>
+</table>
+
+<h3>2.2 AXI4-Lite Master 接口</h3>
+<table>
+  <tr><th>通道</th><th>信号前缀</th><th>描述</th></tr>
+  <tr><td>写地址 (AW)</td><td>axi_aw*</td><td>写地址通道：awaddr[31:0], awvalid, awready, awprot[2:0]</td></tr>
+  <tr><td>写数据 (W)</td><td>axi_w*</td><td>写数据通道：wdata[31:0], wstrb[3:0], wvalid, wready</td></tr>
+  <tr><td>写响应 (B)</td><td>axi_b*</td><td>写响应通道：bresp[1:0], bvalid, bready</td></tr>
+  <tr><td>读地址 (AR)</td><td>axi_ar*</td><td>读地址通道：araddr[31:0], arvalid, arready, arprot[2:0]</td></tr>
+  <tr><td>读数据 (R)</td><td>axi_r*</td><td>读数据通道：rdata[31:0], rresp[1:0], rvalid, rready, rlast</td></tr>
+</table>
+
+<h3>2.3 可配置参数</h3>
+<table>
+  <tr><th>参数</th><th>默认值</th><th>描述</th></tr>
+  <tr><td>AXI_ADDR_WIDTH</td><td>32</td><td>AXI 地址总线宽度</td></tr>
+  <tr><td>AXI_DATA_WIDTH</td><td>32</td><td>AXI 数据总线宽度</td></tr>
+  <tr><td>AXI_ID_WIDTH</td><td>3</td><td>AXI ID 信号宽度</td></tr>
+  <tr><td>DUMMY_CYCLES</td><td>32</td><td>SPI 读操作虚拟周期数，实际 dummy_cycle = 配置值 + 1</td></tr>
+</table>
+
+<h3>2.4 SPI 帧格式与 Cycle-Level 时序</h3>
+
+<p>SPI 帧格式由 SPI Master 控制，SPI2AXI 作为 Slave 跟随外部时钟和片选。基本帧结构包含：8-bit 操作码 (opcode) → [32-bit 地址] → [dummy cycles] → 32-bit 数据。访问内存时需要地址字段，访问寄存器时地址由操作码编码。</p>
+
+<h4>SPI 写操作时序 (Standard 1-wire Mode)</h4>
+<script type="WaveDrom">
+{
+  "signal": [
+    { "name": "spi_sclk", "wave": "p.............." },
+    { "name": "spi_cs_n", "wave": "1......0.......1" },
+    { "name": "spi_sdi",  "wave": "x.3.4.5.6.7.8.x", "data": ["OPCODE", "ADDR[31:0]", "WDATA[31:0]"] },
+    { "name": "spi_sdo",  "wave": "x...........9.x", "data": ["WAIT"] },
+    {},
+    { "name": "opcode_valid", "wave": "0...1..0......." },
+    { "name": "addr_valid",   "wave": "0....1...0......" },
+    { "name": "data_valid",   "wave": "0......1..0....." }
+  ],
+  "head": { "text": "Figure 2-1: SPI Write Frame — Standard 1-wire Mode<br>SCLK=50MHz, Frame: OPCODE(8bit) + ADDR(32bit) + DATA(32bit)" },
+  "foot": { "text": "SPI 帧由外部 Master 驱动。SPI2AXI 在 spi_cs_n 拉低后开始逐位采样，完成 8-bit opcode 解码后启动 AXI 事务" },
+  "config": { "hscale": 2 }
+}
+</script>
+
+<h4>SPI 读操作时序 (含 Dummy Cycles)</h4>
+<script type="WaveDrom">
+{
+  "signal": [
+    { "name": "spi_sclk", "wave": "p......................" },
+    { "name": "spi_cs_n", "wave": "1......0...............1" },
+    { "name": "spi_sdi",  "wave": "x.3.4.5.6.....x.......", "data": ["OPCODE", "ADDR[31:0]", "DUM[31:0]"] },
+    { "name": "spi_sdo",  "wave": "x.....................9", "data": ["RDATA[31:0]"] },
+    {},
+    { "name": "axi_arvalid","wave": "0.......1..0.........." },
+    { "name": "axi_arready","wave": "0........1..........." },
+    { "name": "axi_rvalid", "wave": "0.........1..0......." },
+    { "name": "axi_rdata",  "wave": "x.........4..x.......", "data": ["RDATA"] },
+    { "name": "axi_rready", "wave": "0..........1.........0" }
+  ],
+  "head": { "text": "Figure 2-2: SPI Read Frame with AXI Read Transaction<br>Frame: OPCODE + ADDR + 32 Dummy Cycles + DATA; AXI: AR → R channels" },
+  "foot": { "text": "读操作中 SPI Master 在发送完地址后需发送 DUMMY_CYCLES+1 个 dummy 周期等待 AXI 读数据返回" },
+  "config": { "hscale": 2 }
+}
+</script>
+
+<h4>QSPI (4-wire) 模式写时序</h4>
+<script type="WaveDrom">
+{
+  "signal": [
+    { "name": "spi_sclk", "wave": "p....p....p....p...." },
+    { "name": "spi_cs_n", "wave": "1....0.........1..." },
+    { "name": "spi_sdi[3:0]", "wave": "x.3.4.5.6.7.8.x...", "data": ["OP", "ADDR[7:0]", "W0", "W1", "W2", "W3"] },
+    { "name": "spi_sdo[3:0]", "wave": "x...............x." }
+  ],
+  "head": { "text": "Figure 2-3: QSPI Write Timing (4-wire Mode)<br>Each SCLK cycle transfers 4 bits on spi_sdi[3:0]" },
+  "foot": { "text": "QSPI 模式下，每个 SCLK 周期同时传输 4 bit 数据，帧效率是标准 SPI 的 4 倍" },
+  "config": { "hscale": 2 }
+}
+</script>
+
+<!-- ============================================================ -->
+<h2 id="submodules">3. 子模块划分 (Sub-Module Partition)</h2>
+
+<p>SPI2AXI Bridge IP 内部划分为 6 个功能子模块，各模块在各自时钟域内独立工作，通过预定义的内部接口进行数据和控制信号交换。以下是各子模块的职责和关键设计考量。</p>
+
+<table>
+  <tr><th>子模块</th><th>类型</th><th>时钟域</th><th>职责</th></tr>
+  <tr><td>spi_slave</td><td>接口</td><td>SPI (50MHz)</td><td>SPI 协议层处理，1-wire/4-wire 模式检测与数据串并转换</td></tr>
+  <tr><td>cmd_decoder</td><td>Ctrl FSM</td><td>SPI (50MHz)</td><td>8-bit opcode 解码，产生 AXI 传输控制信号，FSM 状态迁移</td></tr>
+  <tr><td>async_fifo</td><td>FIFO</td><td>双时钟 (CDC)</td><td>跨时钟域数据缓冲，写数据 FIFO + 读数据 FIFO</td></tr>
+  <tr><td>axi_master</td><td>接口</td><td>AXI</td><td>AXI4-Lite 5 通道 Master 协议引擎，完成地址/数据/响应处理</td></tr>
+  <tr><td>config_regs</td><td>配置</td><td>SPI</td><td>SPI 侧配置寄存器组，工作模式、状态、Wrap、Dummy 配置</td></tr>
+  <tr><td>wrap_ctrl</td><td>地址控制</td><td>AXI</td><td>地址环绕逻辑，Wrap=N 时在 N×4 字节窗口内循环寻址</td></tr>
+</table>
+
+<figure>
+  <img src="images/page4_img0.png" alt="SPI2AXI 子模块架构" class="diagram">
+  <figcaption>Figure 3-1: SPI2AXI 命令帧格式 — 操作码、地址、Dummy、数据段定义</figcaption>
+</figure>
+
+<!-- ============================================================ -->
+<h2 id="fsm">4. 状态机设计 (FSM Design)</h2>
+
+<p>命令解码器 (cmd_decoder) 是 SPI2AXI 的核心控制单元，采用有限状态机实现。FSM 在 SPI 时钟域内运行，响应 spi_cs_n 和 spi_sclk 信号，完成 SPI 命令帧的解析和控制信号的生成。FSM 共包含 6 个主要状态，采用 3-bit 二进制编码实现。</p>
+
+<h3>4.1 状态编码</h3>
+<table>
+  <tr><th>状态</th><th>编码 (3-bit)</th><th>描述</th></tr>
+  <tr><td>IDLE</td><td>3'b000</td><td>空闲状态，等待 spi_cs_n 拉低，所有输出清零</td></tr>
+  <tr><td>OPCODE</td><td>3'b001</td><td>接收 8-bit 操作码，移位寄存器逐位采样</td></tr>
+  <tr><td>ADDR</td><td>3'b010</td><td>接收 32-bit 地址（MSB first），仅内存访问需要</td></tr>
+  <tr><td>DUMMY</td><td>3'b011</td><td>插入可编程 dummy cycles（DUMMY_CYCLES+1），等待 AXI 读返回</td></tr>
+  <tr><td>DATA</td><td>3'b100</td><td>数据传输阶段，32-bit 数据收发（MSB first）</td></tr>
+  <tr><td>RESPONSE</td><td>3'b101</td><td>AXI 写响应处理或读数据输出完成，准备返回 IDLE</td></tr>
+</table>
+
+<h3>4.2 状态转移图</h3>
+<pre class="mermaid">
+stateDiagram-v2
+    [*] --> IDLE
+    IDLE --> OPCODE: spi_cs_n == 0
+    OPCODE --> OPCODE: bit_count &lt; 8
+    OPCODE --> ADDR: bit_count == 8\n&amp;&amp; opcode==MEM_ACCESS
+    OPCODE --> DATA: bit_count == 8\n&amp;&amp; opcode==REG_ACCESS
+    ADDR --> ADDR: bit_count &lt; 32
+    ADDR --> DUMMY: bit_count == 32\n&amp;&amp; opcode==READ
+    ADDR --> DATA: bit_count == 32\n&amp;&amp; opcode==WRITE
+    DUMMY --> DUMMY: dummy_cnt &lt; cfg
+    DUMMY --> DATA: dummy_cnt == cfg
+    DATA --> DATA: bit_count &lt; 32
+    DATA --> RESPONSE: bit_count == 32
+    RESPONSE --> IDLE: axi_done || spi_cs_n == 1
+    IDLE --> IDLE: spi_cs_n == 1
+    OPCODE --> IDLE: spi_cs_n == 1 (abort)
+    DATA --> IDLE: spi_cs_n == 1 (abort)
+</pre>
+
+<figure>
+  <img src="images/page4_img1.png" alt="SPI2AXI FSM 状态图" class="diagram">
+  <figcaption>Figure 4-1: SPI2AXI 命令解码器 FSM 状态图 — IDLE → OPCODE → ADDR → DUMMY → DATA → RESPONSE</figcaption>
+</figure>
+
+<h3>4.3 状态转移矩阵</h3>
+<table>
+  <tr><th>当前状态</th><th>转移条件</th><th>下一状态</th><th>输出动作</th></tr>
+  <tr><td>IDLE</td><td>spi_cs_n = 0</td><td>OPCODE</td><td>清除移位寄存器，bit_count = 0</td></tr>
+  <tr><td>OPCODE</td><td>bit_count = 8 & opcode ∈ MEM</td><td>ADDR</td><td>锁存 opcode，清 bit_count，启动地址接收</td></tr>
+  <tr><td>OPCODE</td><td>bit_count = 8 & opcode ∈ REG</td><td>DATA</td><td>锁存 opcode，清 bit_count，启动数据接收</td></tr>
+  <tr><td>ADDR</td><td>bit_count = 32 & opcode = READ</td><td>DUMMY</td><td>锁存地址，启动 AXI 读请求，dummy_cnt = 0</td></tr>
+  <tr><td>ADDR</td><td>bit_count = 32 & opcode = WRITE</td><td>DATA</td><td>锁存地址，启动 AXI 写地址，清 bit_count</td></tr>
+  <tr><td>DUMMY</td><td>dummy_cnt = DUMMY_CYCLES</td><td>DATA</td><td>清 bit_count，准备接收数据</td></tr>
+  <tr><td>DATA</td><td>bit_count = 32</td><td>RESPONSE</td><td>数据写入/读出 FIFO，启动 AXI 数据通道</td></tr>
+  <tr><td>RESPONSE</td><td>axi_bvalid = 1 / axi_rvalid = 1</td><td>IDLE</td><td>等待 AXI 响应，完成后回到空闲</td></tr>
+  <tr><td>任意</td><td>spi_cs_n = 1 (异常终止)</td><td>IDLE</td><td>清空所有 FIFO 和寄存器，异常退出</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="pipeline">5. 流水线设计 (Pipeline Design)</h2>
+
+<p>SPI2AXI 的 SPI 命令到 AXI 事务的转换采用流水线架构，划分为 5 个阶段。由于 SPI 和 AXI 工作在不同时钟域，阶段间通过异步 FIFO 和握手信号进行数据传递。以下是完整的 SPI 写操作和读操作序列。</p>
+
+<h3>5.1 写操作序列</h3>
+<pre class="mermaid">
+flowchart LR
+    A[SPI Master] -->|SPI Frame| B[SPI Slave]
+    B -->|opcode+addr+data| C[cmd_decoder]
+    C -->|ctrl signals| D[async_fifo]
+    D -->|CDC| E[axi_master]
+    E -->|AXI AW| F[AXI Slave]
+    E -->|AXI W| F
+    F -->|AXI B| E
+    E -->|response| D
+    D -->|status| C
+    C -->|done| B
+    B -->|MISO| A
+</pre>
+
+<table>
+  <tr><th>阶段</th><th>时钟域</th><th>操作</th><th>延迟</th></tr>
+  <tr><td>1. SPI 命令接收</td><td>SPI</td><td>spi_sdi 串行输入，移位寄存器逐位采样</td><td>8~72 SCLK</td></tr>
+  <tr><td>2. 命令解码</td><td>SPI</td><td>解析 opcode，生成 AXI 控制字（读/写/寄存器）</td><td>1 SCLK</td></tr>
+  <tr><td>3. CDC 同步</td><td>跨时钟域</td><td>写数据/命令→异步 FIFO; 读请求→脉冲同步器</td><td>2~N AXI clk</td></tr>
+  <tr><td>4. AXI 总线事务</td><td>AXI</td><td>AXI AW/W/B 或 AR/R 通道完成传输</td><td>取决于 AXI Slave</td></tr>
+  <tr><td>5. 数据返回</td><td>SPI</td><td>读数据经 RX FIFO → 并串转换 → spi_sdo</td><td>1~2 SCLK</td></tr>
+</table>
+
+<h3>5.2 SPI 读操作数据流与 Dummy Cycles 协同</h3>
+<script type="WaveDrom">
+{
+  "signal": [
+    { "name": "SPI Domain", "wave": "3.4.5.6.....7.8...", "data": ["OP", "ADDR", "DUM", "DUM", "RDATA"], "node": "A" },
+    {},
+    { "name": "CDC FIFO", "wave": "x...3.4.5....6.x..", "data": ["ADDR", "CMD", "RREQ", "RDATA"] },
+    {},
+    { "name": "AXI Domain", "wave": "x...3.4.5....6.x..", "data": ["AW", "AR", "RDATA"], "node": "B" }
+  ],
+  "head": { "text": "Figure 5-1: Pipeline Stages — Read Operation<br>SPI: OPCODE→ADDR→DUMMY→DATA ↔ CDC FIFO ↔ AXI: AR→RDATA" },
+  "node": [
+    {"name": "A", "pin": 2},
+    {"name": "B", "pin": 12}
+  ],
+  "config": { "hscale": 2 }
+}
+</script>
+
+<!-- ============================================================ -->
+<h2 id="datapath">6. 数据通路 (Datapath)</h2>
+
+<p>SPI2AXI 的数据通路分为写数据通路和读数据通路两条独立的路径，通过异步 FIFO 实现跨时钟域数据交换。SPI 侧数据在 spi_sclk 时钟域内完成串并转换，AXI 侧数据在 axi_aclk 时钟域内完成总线协议处理。</p>
+
+<h3>6.1 写数据通路</h3>
+<pre class="mermaid">
+flowchart LR
+    A[spi_sdi] --> B[Shift Register\n串并转换]
+    B --> C[cmd_decoder\nFSM]
+    C --> D[Wr_Data_FIFO\nSPI clk domain]
+    D --> E[Async FIFO\nDual-Clock CDC]
+    E --> F[AXI W Channel\nMaster]
+    F --> G[AXI Slave]
+    C --> H[AW Channel\nvia CDC]
+    H --> I[AXI AW Channel]
+    I --> G
+
+    G --> J[AXI B Channel]
+    J --> K[Response\nFIFO]
+    K --> C
+</pre>
+
+<h3>6.2 读数据通路</h3>
+<pre class="mermaid">
+flowchart LR
+    A[cmd_decoder\nFSM] -->|Read Request| B[Pulse Sync\nCDC]
+    B --> C[AXI AR Channel\nMaster]
+    C --> D[AXI Slave]
+    D --> E[AXI R Channel]
+    E --> F[Rd_Data_FIFO\nAXI clk domain]
+    F --> G[Async FIFO\nDual-Clock CDC]
+    G --> H[TX FIFO\nSPI clk domain]
+    H --> I[Shift Register\n并串转换]
+    I --> J[spi_sdo]
+</pre>
+
+<h3>6.3 串并转换参数</h3>
+<table>
+  <tr><th>模式</th><th>数据线</th><th>每 SCLK 传输位数</th><th>32-bit 数据需 SCLK 数</th></tr>
+  <tr><td>Standard SPI (1-wire)</td><td>spi_sdi[0]</td><td>1 bit</td><td>32 SCLK</td></tr>
+  <tr><td>Quad SPI (4-wire)</td><td>spi_sdi[3:0]</td><td>4 bits</td><td>8 SCLK</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="csr">7. 配置寄存器 (Configuration Registers)</h2>
+
+<p>SPI 侧的配置寄存器组 (config_regs) 通过操作码 (opcode) 进行地址编码。寄存器在 SPI 时钟域内工作，支持通过 SPI 命令直接读写。</p>
+
+<h3>7.1 寄存器地址映射</h3>
+<table>
+  <tr><th>地址</th><th>寄存器名称</th><th>属性</th><th>复位值</th><th>描述</th></tr>
+  <tr><td>0x00</td><td>SPI_CTRL</td><td>RW</td><td>0x0000_0000</td><td>SPI 控制寄存器：bit[0]=mode_sel (0:1-wire, 1:4-wire)</td></tr>
+  <tr><td>0x04</td><td>WRAP_CFG</td><td>RW</td><td>0x0000_0000</td><td>Wrap 配置寄存器：bit[7:0]=wrap_size (0=no wrap)</td></tr>
+  <tr><td>0x08</td><td>DUMMY_CFG</td><td>RW</td><td>0x0000_0020</td><td>Dummy 周期配置：bit[7:0]=dummy_cycles (default 32)</td></tr>
+  <tr><td>0x0C</td><td>STATUS</td><td>RO</td><td>0x0000_0001</td><td>状态寄存器：bit[0]=ready, bit[1]=busy, bit[2]=wr_done, bit[3]=rd_done</td></tr>
+  <tr><td>0x10</td><td>IP_ID</td><td>RO</td><td>0x53495252</td><td>IP 标识寄存器："SIRR" (SPI2AXI IP Identification)</td></tr>
+</table>
+
+<figure>
+  <img src="images/page5_img1.png" alt="SPI 侧寄存器设定" class="diagram">
+  <figcaption>Figure 7-1: SPI 侧寄存器设定表 — 操作码编码与地址映射</figcaption>
+</figure>
+
+<figure>
+  <img src="images/page5_img0.png" alt="SPI 命令操作码表" class="diagram">
+  <figcaption>Figure 7-2: SPI 命令操作码表 — READ/WRITE/REG_READ/REG_WRITE 编码定义</figcaption>
+</figure>
+
+<!-- ============================================================ -->
+<h2 id="clock">8. 时钟与复位 (Clock & Reset)</h2>
+
+<p>SPI2AXI IP 包含两个完全异步的时钟域，通过 dual-clock 异步 FIFO 和脉冲同步器实现可靠的跨时钟域数据传输。</p>
+
+<h3>8.1 时钟域划分</h3>
+<table>
+  <tr><th>时钟域</th><th>时钟源</th><th>频率</th><th>目标模块</th></tr>
+  <tr><td>SPI 时钟域 (spi_clk)</td><td>外部 SPI Master (spi_sclk)</td><td>最高 50MHz</td><td>spi_slave, cmd_decoder, config_regs</td></tr>
+  <tr><td>AXI 时钟域 (axi_clk)</td><td>SoC 系统时钟 (axi_aclk)</td><td>取决于 SoC 配置</td><td>axi_master, wrap_ctrl</td></tr>
+</table>
+
+<h3>8.2 跨时钟域 CDC 路径</h3>
+<table>
+  <tr><th>路径</th><th>方向</th><th>同步方案</th><th>延迟</th></tr>
+  <tr><td>写命令+数据</td><td>SPI → AXI</td><td>异步 FIFO (dual-clock, 格雷码指针)</td><td>2~N AXI clk</td></tr>
+  <tr><td>读请求</td><td>SPI → AXI</td><td>脉冲同步器 (2-FF handshake)</td><td>2 AXI clk</td></tr>
+  <tr><td>读返回数据</td><td>AXI → SPI</td><td>异步 FIFO (dual-clock)</td><td>2~N SPI clk</td></tr>
+  <tr><td>AXI 写响应</td><td>AXI → SPI</td><td>异步 FIFO / 脉冲同步器</td><td>2 SPI clk</td></tr>
+</table>
+
+<h3>8.3 异步 FIFO 双时钟域时序</h3>
+<script type="WaveDrom">
+{
+  "signal": [
+    { "name": "spi_sclk", "wave": "p...p...p...p..." },
+    { "name": "fifo_wr_en","wave": "0...1..0......." },
+    { "name": "fifo_wdata", "wave": "x...3..x.......", "data": ["DATA"] },
+    {},
+    { "name": "fifo_rdata", "wave": "x........4..x..", "data": ["DATA"] },
+    { "name": "fifo_rd_en", "wave": "0.......1..0..." },
+    { "name": "axi_aclk",   "wave": "p.....p.....p....", "period": 1.5 }
+  ],
+  "head": { "text": "Figure 8-1: Dual-Clock Async FIFO CDC Timing<br>Write domain: spi_sclk (50MHz), Read domain: axi_aclk" },
+  "foot": { "text": "异步 FIFO 使用格雷码编码的读写指针和 2-FF 同步器实现可靠的跨时钟域数据传递。写使能到读数据可用延迟约为 2~5 个读时钟周期" },
+  "config": { "hscale": 2 }
+}
+</script>
+
+<h3>8.4 复位方案</h3>
+<p>SPI2AXI 采用异步复位同步释放的复位同步器方案。每个时钟域有独立的复位同步器，确保复位释放时刻满足 CDC 要求。spi_cs_n 拉高（传输结束）也作为软复位信号，将 FSM 强制回到 IDLE 状态。</p>
+<pre><code>// 异步复位同步释放 RTL 模板
+always_ff @(posedge clk, negedge rst_n) begin
+    if (!rst_n) begin
+        rst_sync_ff1 <= 1'b0;
+        rst_sync_ff2 <= 1'b0;
+    end else begin
+        rst_sync_ff1 <= 1'b1;
+        rst_sync_ff2 <= rst_sync_ff1;
+    end
+end
+// rst_sync_ff2 作为该时钟域的同步复位信号
+</code></pre>
+
+<!-- ============================================================ -->
+<h2 id="sdc">9. 时序约束 (SDC Constraints)</h2>
+
+<p>SPI2AXI 的时序约束需要处理两个异步时钟域，以及 SPI 接口相对于外部时钟的输入/输出延迟约束。以下是完整的 SDC 约束模板。</p>
+
+<pre><code># ============================================================
+# SPI2AXI Bridge — Synopsys Design Constraints (SDC)
+# ============================================================
+
+# --- Clock Definitions ---
+create_clock -name spi_sclk -period 20.0 [get_ports spi_sclk]
+create_clock -name axi_aclk -period 10.0 [get_ports axi_aclk]
+
+# --- Generated Clocks (if applicable) ---
+# create_generated_clock -name spi_clk_int -source [get_ports spi_sclk] \
+#     -divide_by 1 [get_pins .../spi_clk_int_reg/Q]
+
+# --- SPI Input Delay Constraints ---
+set_input_delay -clock spi_sclk -max 5.0 [get_ports {spi_sdi[*] spi_cs_n}]
+set_input_delay -clock spi_sclk -min 1.0 [get_ports {spi_sdi[*] spi_cs_n}]
+
+# --- SPI Output Delay Constraints ---
+set_output_delay -clock spi_sclk -max 4.0 [get_ports {spi_sdo[*]}]
+set_output_delay -clock spi_sclk -min 0.5 [get_ports {spi_sdo[*]}]
+
+# --- AXI Input/Output Delay Constraints ---
+set_input_delay -clock axi_aclk -max 4.0 [get_ports {axi_awready axi_wready axi_bvalid \
+    axi_arready axi_rvalid axi_rdata[*] axi_rresp[*] axi_rlast}]
+set_output_delay -clock axi_aclk -max 4.0 [get_ports {axi_awaddr[*] axi_awvalid \
+    axi_awprot[*] axi_wdata[*] axi_wstrb[*] axi_wvalid axi_bready \
+    axi_araddr[*] axi_arvalid axi_arprot[*] axi_rready}]
+
+# --- CDC Constraints: Async Clock Groups ---
+set_clock_groups -asynchronous \
+    -group [get_clocks spi_sclk] \
+    -group [get_clocks axi_aclk]
+
+# --- False Paths ---
+# Async FIFO internal CDC paths (handled by FIFO synchronizer)
+set_false_path -from [get_clocks spi_sclk] -to [get_clocks axi_aclk]
+set_false_path -from [get_clocks axi_aclk] -to [get_clocks spi_sclk]
+
+# --- Multicycle Paths (if applicable) ---
+# set_multicycle_path -setup 2 -from [get_clocks spi_sclk] -to [get_clocks spi_sclk] \
+#     -through [get_pins .../shift_reg/Q]
+</code></pre>
+
+<!-- ============================================================ -->
+<h2 id="wrap">10. 地址环绕 (Address Wrap)</h2>
+
+<p>SPI2AXI 在 AXI4-Lite 协议基础上引入了可配置的地址环绕 (Wrap) 功能。由于 AXI4-Lite 仅支持单次传输 (AxLEN=0, AxSIZE=2 => 4 bytes)，Wrap 功能在软件层面模拟了循环缓冲区访问模式，适用于 FIFO 状的数据结构或循环配置空间访问。</p>
+
+<h3>10.1 Wrap 工作原理</h3>
+<table>
+  <tr><th>Wrap 配置</th><th>行为</th><th>应用场景</th></tr>
+  <tr><td>Wrap = 0</td><td>无环绕，地址持续递增（标准 AXI 行为）</td><td>普通内存访问</td></tr>
+  <tr><td>Wrap = N (N &gt; 0)</td><td>环绕窗口 = N × 4 字节，地址在窗口内循环</td><td>循环缓冲区、FIFO 访问</td></tr>
+</table>
+
+<h3>10.2 Wrap 地址序列示例</h3>
+<p>Wrap=2, 起始地址 'h100 (4-byte 对齐):</p>
+<pre><code>Burst 0: Write to 'h100  (第 1 个 word)
+Burst 1: Write to 'h104  (第 2 个 word)
+Burst 2: Write to 'h100  (回绕，重新从第 1 个 word 开始)
+Burst 3: Write to 'h104
+Burst 4: Write to 'h100
+...</code></pre>
+
+<h3>10.3 QSPI 读写时序</h3>
+<figure>
+  <img src="images/page6_img0.png" alt="QSPI 写时序" class="diagram">
+  <figcaption>Figure 10-1: QSPI 写时序图 — 4-line 模式下的命令/地址/数据相位</figcaption>
+</figure>
+<figure>
+  <img src="images/page6_img1.png" alt="QSPI 读时序" class="diagram">
+  <figcaption>Figure 10-2: QSPI 读时序图 — 4-line 模式，含 Dummy Cycles</figcaption>
+</figure>
+
+<h3>10.4 Wrap 地址计算逻辑</h3>
+<pre class="mermaid">
+flowchart TD
+    A[Start: current_addr = base_addr] --> B[AXI Write/Read]
+    B --> C{next_addr = current_addr + 4}
+    C --> D{Wrap == 0?}
+    D -->|Yes| E[Continue incrementing\nno wrap back]
+    D -->|No| F{next_addr - base >= Wrap*4?}
+    F -->|No| G[current_addr = next_addr]
+    F -->|Yes| H[current_addr = base_addr\nwrap around]
+    G --> B
+    H --> B
+</pre>
+
+<!-- ============================================================ -->
+<h2 id="verification">11. 验证计划 (Verification Plan)</h2>
+
+<p><strong>待补充</strong> — 以下为建议的验证点框架，需根据具体设计实现完善。</p>
+
+<h3>11.1 功能验证点</h3>
+<table>
+  <tr><th>ID</th><th>验证点</th><th>描述</th><th>方法</th></tr>
+  <tr><td>F01</td><td>SPI 标准模式写</td><td>1-wire 模式下 SPI → AXI 写传输正确性</td><td>定向测试 + 随机测试</td></tr>
+  <tr><td>F02</td><td>SPI 标准模式读</td><td>1-wire 模式下 AXI → SPI 读返回正确性</td><td>定向测试 + 随机测试</td></tr>
+  <tr><td>F03</td><td>QSPI 模式写</td><td>4-wire 模式下 32-bit 写数据传输正确性</td><td>定向测试 + 随机测试</td></tr>
+  <tr><td>F04</td><td>QSPI 模式读</td><td>4-wire 模式下 32-bit 读数据传输正确性</td><td>定向测试 + 随机测试</td></tr>
+  <tr><td>F05</td><td>操作码解码</td><td>所有 opcode 的正确解码和对应操作</td><td>遍历所有码点</td></tr>
+  <tr><td>F06</td><td>地址环绕</td><td>Wrap=N 时地址在窗口内循环的正确性</td><td>遍历 Wrap=0~255</td></tr>
+  <tr><td>F07</td><td>Dummy 周期</td><td>可配置 dummy 周期数的正确性</td><td>遍历配置值</td></tr>
+  <tr><td>F08</td><td>CDC 传输</td><td>跨时钟域数据传输无丢失/无损坏</td><td>大量随机数据测试</td></tr>
+  <tr><td>F09</td><td>寄存器访问</td><td>所有 CSR 的 RW/RO 属性正确性</td><td>UVM reg_model</td></tr>
+  <tr><td>F10</td><td>异常处理</td><td>SPI 传输中断、AXI 错误响应处理</td><td>错误注入</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="dft">12. DFT 设计 (DFT Design)</h2>
+
+<p><strong>待补充</strong> — SPI2AXI 的 DFT 方案需根据 SoC 级 DFT 规划确定。以下为建议方案框架。</p>
+
+<h3>12.1 扫描链 (Scan Chain)</h3>
+<ul>
+  <li>所有时序单元（FF）应接入扫描链</li>
+  <li>异步 FIFO 内部的格雷码指针寄存器需特殊处理</li>
+  <li>测试时钟复用 SPI 时钟或 AXI 时钟</li>
+</ul>
+
+<h3>12.2 测试模式 (Test Mode)</h3>
+<ul>
+  <li>test_mode 引脚控制功能/测试模式切换</li>
+  <li>测试模式下所有时钟通过 MUX 切换到测试时钟</li>
+  <li>异步 FIFO 在测试模式下工作于同步模式</li>
+</ul>
+
+<h3>12.3 Memory BIST</h3>
+<ul>
+  <li>dual-clock 异步 FIFO 建议使用 MBIST 覆盖</li>
+  <li>使用独立的 BIST 控制器和 BIST 时钟</li>
+</ul>
+
+<hr style="margin:4rem 0;border:none;border-top:2px solid var(--border);">
+
+<p style="color:var(--text-secondary);text-align:center;font-size:0.85rem;">
+SPI2AXI Design Specification v1.0 — Generated 2026-05-21 by chip-spec-gen<br>
+Based on SPI2AXI SPEC.pdf · 14-chapter LLD structure · NVIDIA White Theme
+</p>
+
+</main>
+</div>
+
+</body>
+</html>
