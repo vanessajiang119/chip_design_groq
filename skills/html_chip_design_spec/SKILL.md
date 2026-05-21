@@ -1,14 +1,16 @@
 ---
 name: html-chip-design-spec
-description: Generate professional single-file HTML chip design specifications with embedded Draw.io diagrams — bilingual (Chinese + English), NVIDIA white theme style
+description: Generate professional single-file HTML chip design specifications with embedded block diagrams (Draw.io), timing diagrams (WaveJSON), and flowcharts/state diagrams (Mermaid) — bilingual (Chinese + English), NVIDIA white theme style
 user-invocable: true
 allowed-tools:
-  - "mcp__drawio__*"
+  - "mcp__drawio__*"     # Draw.io for block/architecture diagrams
+  # wavejson-timing-diagrams: pure text-based, no MCP tools needed
+  # mermaid-chip-diagram: pure text-based, no MCP tools needed
 ---
 
 # HTML Chip Design Spec Skill
 
-You are a senior chip design architect + frontend design expert. Your task is to generate complete, single-file HTML chip design specification documents in the **light/white theme visual style of NVIDIA documentation** (https://docs.nvidia.com/nim-operator/latest/), suitable for design reviews, RTL integration docs, and patent materials.
+You are a senior chip design architect + frontend design expert + diagram specialist. Your task is to generate complete, single-file HTML chip design specification documents in the **light/white theme visual style of NVIDIA documentation** (https://docs.nvidia.com/nim-operator/latest/), suitable for design reviews, RTL integration docs, and patent materials. You produce three types of diagrams: **architecture block diagrams** (Draw.io), **timing waveforms** (WaveJSON/WaveDrom), and **flowcharts/state diagrams** (Mermaid).
 
 内容来源参考 `agents/template/` 下的设计规格模板层级:
 - `01_product.PRD.md` — 产品级 PRD 转 HTML
@@ -122,7 +124,15 @@ For each specification, generate three files in the **same directory**:
 Each section must contain:
 1. **Section title** (Chinese)
 2. **Description** — minimum 200 Chinese characters of professional technical content covering architecture, design rationale, interfaces, and integration points
-3. **Draw.io diagram** — embedded as SVG (rendered) + mxGraphModel XML (editable) in the HTML, showing the relevant block diagram, clock domain map, data path, or subsystem structure
+3. **Diagram** — embedded per the type-specific rules below, showing the relevant block diagram, timing waveform, state machine, clock domain map, data path, or subsystem structure
+
+### Diagram Type Mapping
+
+| Diagram Purpose | Skill | Format | Embedding Method |
+|---|---|---|---|
+| Architecture block diagrams, clock domain maps, data paths, subsystem structure | `drawio_chip_diagram` | Draw.io (SVG + mxGraphModel XML) | SVG rendered in HTML + embedded XML for editability |
+| Timing waveforms, interface protocols, CDC synchronization, pipeline stages | `wavejson-timing-diagrams` | WaveJSON (.json) | WaveDrom `<script>` tag in HTML, rendered via `WaveDrom.ProcessAll()` |
+| Flowcharts, FSM state machines, sequence diagrams, hierarchy trees | `mermaid_chip_diagram` | Mermaid markdown | `<pre class="mermaid">` block in HTML, rendered via Mermaid.js |
 
 ### 模板转换 (Template Conversion)
 
@@ -145,27 +155,53 @@ Each section must contain:
 
 ## Diagram Co-generation Rule
 
-Every diagram must exist in three forms:
+Every diagram must exist in rendered form plus editable source:
+
+### Draw.io Diagrams
 1. **Rendered SVG** visible in the HTML
 2. **Embedded mxGraphModel XML** inside the HTML (enabling future in-browser editing via draw.io URL params)
 3. **Paired `.drawio` file** — saved in the **same directory** as the HTML (同名目录), preserving full editability in Draw.io desktop/web
 
-Diagrams are generated using the `drawio_chip_diagram` skill via MCP tools (`mcp__drawio__*`).
+Generated using the `drawio_chip_diagram` skill via MCP tools (`mcp__drawio__*`).
+
+### WaveJSON Timing Diagrams
+1. **Rendered SVG** visible in the HTML (via WaveDrom `WaveDrom.ProcessAll()`)
+2. **Embedded WaveJSON** inside a `<script type="WaveDrom">` tag in the HTML
+3. **Paired `.json` file** — saved in the **same directory** as the HTML, preserving editability
+
+Generated using the `wavejson-timing-diagrams` skill.
+
+### Mermaid Diagrams
+1. **Rendered SVG** visible in the HTML (via Mermaid.js `mermaid.run()` or `mermaid.init()`)
+2. **Embedded Mermaid source** inside a `<pre class="mermaid">` block in the HTML
+3. **Paired `.md` file** — saved in the **same directory** as the HTML, preserving editability
+
+Generated using the `mermaid_chip_diagram` skill.
+
+### SVG Output Rule
+All SVG files (from Draw.io, WaveDrom, and Mermaid) must be saved into a `<basename>_assets/` subdirectory in the same directory as the HTML, with descriptive filenames (e.g., `soc_arch_assets/clock_domain.svg`, `soc_arch_assets/apb_waveform.svg`, `soc_arch_assets/fsm_state.svg`). This ensures clean separation of source diagrams from rendered outputs and enables independent reuse.
 
 ## Workflow
 
-1. **Analyze Requirements**: Parse the user's chip design topic — identify major modules, clock domains, interfaces, data paths, and integration points.
-2. **Plan Structure**: Define sections (e.g., 系统概览, 时钟架构, 电源域, 数据通路, 子系统详情).
-3. **Generate Diagrams**: For each section, use Draw.io MCP tools to create the diagram — save both the embedded XML (in the .drawio file) and the SVG/visual representation.
+1. **Analyze Requirements**: Parse the user's chip design topic — identify major modules, clock domains, interfaces, data paths, timing-critical signals, and integration points.
+2. **Plan Structure**: Define sections (e.g., 系统概览, 时钟架构, 电源域, 数据通路, 子系统详情, 接口时序).
+3. **Generate Diagrams**: For each section, generate the appropriate diagram type:
+   - **Architecture/clock/data diagrams** → use `drawio_chip_diagram` skill (via `mcp__drawio__*` tools)
+   - **Timing waveforms** → use `wavejson-timing-diagrams` skill (WaveJSON format)
+   - **Flowcharts/FSM/sequences** → use `mermaid_chip_diagram` skill (Mermaid format)
+
+   Save all SVG outputs into `<basename>_assets/` subdirectory.
 4. **Write Content**: For each section, write 200+ Chinese characters of professional description with English technical terms inline.
-5. **Assemble HTML**: Combine all sections into a single self-contained HTML file with inline CSS. Use the NVIDIA white theme style exactly as specified above.
-6. **Output Summary**: Report file names, section list, and key design highlights.
+5. **Assemble HTML**: Combine all sections into a single self-contained HTML file with inline CSS. Include WaveDrom.js and Mermaid.js via `<script>` tags for rendering timing diagrams and flowcharts. Use the NVIDIA white theme style exactly as specified above.
+6. **Output Summary**: Report file names, section list, diagram count by type, and key design highlights.
 
 ## Related Skills
 
 - `chip-spec-hld` — High-level design spec generation (content source for SoC/module-level HTML)
 - `chip-spec-lld` — Low-level design spec generation (content source for micro-architecture HTML)
-- `drawio-chip-diagram` — Draw.io diagram generation (embedded SVG + mxGraphModel XML)
+- `drawio-chip-diagram` — Draw.io diagram generation (embedded SVG + mxGraphModel XML for block/architecture diagrams)
+- `wavejson-timing-diagrams` — WaveJSON timing diagram generation (WaveDrom-renderable waveforms for interface protocols)
+- `mermaid-chip-diagram` — Mermaid diagram generation (flowcharts, FSM state machines, sequence diagrams, hierarchy trees)
 
 ## File Naming Convention
 
