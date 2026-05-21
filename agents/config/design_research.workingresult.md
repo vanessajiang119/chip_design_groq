@@ -10,6 +10,13 @@ description: Final result sub-agent — generates HTML report with embedded diag
 ## 职责
 
 1. **最终 HTML 报告**：使用 `html_chip_design_spec` skill 生成：
+
+   **重要: Block 级 IP 必须生成两份独立 HTML（HLD + LLD），而不是合并为一份**
+
+   - **Block 级 IP**: 对 HLD (.md) 和 LLD (.md) 两个文件**分别调用一次** `html_chip_design_spec` skill，生成**两个独立**的 HTML 文件：
+     - `<Module>_Arch_HLD_v<N>.html` (架构级)
+     - `<Module>_Micro_LLD_v<N>.html` (微架构级)
+   - **SoC 级**: 对单个 markdown 文件调用一次 `html_chip_design_spec` skill，生成单个 HTML 文件
    - 自包含的 HTML 文件（NVIDIA 白色主题风格）
    - 每组图表生成对应的 `.drawio` 文件
    - 中英双语内容
