@@ -1,122 +1,33 @@
-project:
-  name: spi2axi_bridge
-  tech_node: 待补充
-  top_module: spi2axi_bridge_top
-  description: >
-    SPI2AXI IP - SPI Slave to AXI4-Lite Master bridge module.
-    Converts SPI bus commands (standard SPI and Quad-SPI) to
-    AXI4-Lite transactions for accessing SoC memory and peripherals
-    without CPU intervention.
-
-modules:
-  - name: spi_slave
-    type: 接口
-    description: >
-      SPI Slave 接口模块，支持标准 SPI 和 Quad SPI (QSPI) 两种工作模式。
-      最高 50MHz SPI 时钟，片选低有效。
-      数据线: spi_sdi[3:0], spi_sdo[3:0]。
-      解析 SPI 命令操作码(opcode)、地址、数据。
-    interface: SPI / QSPI
-
-  - name: cmd_decoder
-    type: Ctrl FSM
-    description: >
-      命令解码器/FSM 控制器。解析 SPI 操作码(8-bit)，
-      生成 AXI 传输控制信号。状态机包含:
-      IDLE → OPCODE → ADDR → DUMMY → DATA → RESPONSE 等状态。
-      支持操作码: READ/WRITE/REG_READ/REG_WRITE 等。
-    interface: 内部 (spi_slave ↔ axi_master)
-
-  - name: async_fifo
-    type: FIFO
-    description: >
-      异步 FIFO 跨时钟域桥接，SPI 时钟域 (50MHz) ↔ AXI 时钟域。
-      内置 dual-clock FIFO 实现可靠的 CDC 传输。
-      包含写数据 FIFO 和读数据 FIFO。
-    interface: 内部 (双向 CDC)
-
-  - name: axi_master
-    type: 接口
-    description: >
-      AXI4-Lite Master 接口模块，五个独立通道:
-      AW(写地址), W(写数据), B(写响应), AR(读地址), R(读数据)。
-      支持 AXI4-Lite single transfer (AxLEN=0, AxSIZE=2=4bytes)。
-      可配置地址环绕(Wrap)功能。
-    interface: AXI4-Lite
-
-  - name: config_regs
-    type: 配置接口
-    description: >
-      SPI 侧寄存器配置模块。包含:
-      SPI 工作模式选择(1线/4线)、
-      状态寄存器、Wrap 配置寄存器等。
-      寄存器的地址由操作码(opcode)进行编码。
-    interface: SPI 侧寄存器
-
-  - name: wrap_ctrl
-    type: 地址控制
-    description: >
-      地址环绕控制器。支持可配置的 Wrap 功能:
-      Wrap=0: 无环绕，地址持续递增。
-      Wrap=N: 环绕窗口为 N 个字(4×N 字节)，
-      起始地址 4 字节对齐，每次+4，到第 N 个字后回绕到起始地址。
-    interface: 内部 (地址通道)
-
+topic: SPI2AXI Bridge — SPI Slave to AXI4-Lite Master Bridge
+mode: A
 max_iterations: 5
-
-search_sources:
-  - web_search
-  - vendor_docs
-  - github
-
-design_research:
-  enabled: true
-  description: >
-    PDF中包含大量图示内容(QSPI时序图、FSM状态图、操作码表格、寄存器设定表格等)，
-    需要补充文字描述和详细解释。同时需要研究AXI4-Lite协议细节以完善接口时序。
-
+source_files:
+  - 1.planning/source_raw.md
+  - 1.planning/source_spec.md
 output_requirements:
-  format: markdown
+  document_type: block  # Block-level IP
   chapters:
-    - id: overview
-      title: 模块概述 (Module Overview)
-      description: SPI2AXI IP 功能描述、应用场景、关键特性
-    - id: interface
-      title: 接口定义 (Interface Definition)
-      description: SPI/QSPI 接口信号、AXI4-Lite 接口信号、时钟/复位
-    - id: sub_modules
-      title: 子模块划分 (Sub-Module Partition)
-      description: SPI Slave、命令解码器FSM、异步FIFO、AXI Master、配置寄存器、Wrap控制器
-    - id: fsm
-      title: 状态机设计 (FSM Design)
-      description: 命令解码FSM，状态编码、状态转移矩阵、输出解码
-    - id: pipeline
-      title: 流水线设计 (Pipeline Design)
-      description: SPI命令→AXI事务的转换流水线
-    - id: datapath
-      title: 数据通路 (Datapath)
-      description: SPI数据串并转换、FIFO数据通路、AXI数据通道
-    - id: csr
-      title: 配置寄存器 (Configuration Registers)
-      description: SPI侧寄存器、操作码编码表、Wrap配置、状态寄存器
-    - id: clock_reset
-      title: 时钟与复位 (Clock & Reset)
-      description: SPI时钟域(50MHz)与AXI时钟域，异步FIFO CDC，异步复位同步释放
-    - id: sdc
-      title: 时序约束 (SDC Constraints)
-      description: 跨时钟域约束、输入/输出延迟、虚假路径/多周期路径
-    - id: wrap
-      title: 地址环绕 (Address Wrap)
-      description: Wrap 功能详细设计，地址计算逻辑，环绕示例
-    - id: verification
-      title: 验证计划 (Verification Plan)
-      description: 功能验证点、时序验证、CDC 验证
-    - id: dft
-      title: DFT 设计 (DFT Design)
-      description: 扫描链插入、测试模式
-    - id: delivery
-      title: 交付物 (Deliverables)
-      description: RTL代码、SDC、验证环境、文档
-    - id: revision
-      title: 修订历史 (Revision History)
-      description: 文档版本历史
+    - 模块概述 (Module Overview)
+    - 接口定义 (Interface Definition)
+    - 子模块划分 (Sub-Module Partition)
+    - 有限状态机 (FSM)
+    - 流水线 (Pipeline)
+    - 数据通路 (Datapath)
+    - 配置寄存器 (CSR)
+    - 时钟与复位 (Clock & Reset)
+    - SDC约束 (SDC)
+    - 实现要点 (Implementation)
+    - 验证方案 (Verification)
+    - DFT设计 (DFT)
+    - 交付物 (Delivery)
+    - 修订记录 (Revision)
+  formats:
+    - html
+    - drawio
+    - markdown
+  timestamp_format: "YYYY-MM-DD-HHMM"
+design_research:
+  enabled: false  # 源文档已包含核心内容，不需要外部研究
+templates:
+  block_hld: agents/template/03_block_arch.HLD.md
+  block_lld: agents/template/04_block_micro.LLD.md

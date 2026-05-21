@@ -55,7 +55,24 @@
       "Bash(node:*)",
       "Bash(cp /tmp/spi2axi_system_arch.drawio ~/snap/drawio/255/.local/share/drawio/)",
       "Bash(DISPLAY=:99 drawio -x -f svg -o ~/snap/drawio/255/.local/share/drawio/spi2axi_system_arch.svg ~/snap/drawio/255/.local/share/drawio/spi2axi_system_arch.drawio)",
-      "Bash(cp ~/snap/drawio/255/.local/share/drawio/spi2axi_system_arch.svg /team_work/qingyun/chip_design_groq/spi2axi/4.result/spi2axi_arch_hld_assets/system_architecture.svg)"
+      "Bash(cp ~/snap/drawio/255/.local/share/drawio/spi2axi_system_arch.svg /team_work/qingyun/chip_design_groq/spi2axi/4.result/spi2axi_arch_hld_assets/system_architecture.svg)",
+      "Bash(pdftotext --version)",
+      "Bash(file:*)",
+      "Bash(ls -la /team_work/qingyun/chip_design_groq/spi2axi/2.slice/slice-*.md)",
+      "Bash(wc:*)",
+      "Bash(mkdir -p ~/.local/share/drawio/)",
+      "Bash(cp /team_work/qingyun/chip_design_groq/spi2axi/4.result/spi2axi_arch_hld_assets/system_architecture.drawio ~/.local/share/drawio/)",
+      "Bash(xvfb-run drawio:*)",
+      "Bash(cp ~/.local/share/drawio/system_architecture.svg /team_work/qingyun/chip_design_groq/spi2axi/4.result/spi2axi_arch_hld_assets/)",
+      "Bash(DISPLAY=:99 drawio -x -f svg -o /team_work/qingyun/chip_design_groq/spi2axi/4.result/spi2axi_arch_hld_assets/system_architecture.svg /team_work/qingyun/chip_design_groq/spi2axi/4.result/spi2axi_arch_hld_assets/system_architecture.drawio --embed-diagram 2>&1)",
+      "Bash(cp /team_work/qingyun/chip_design_groq/spi2axi/4.result/spi2axi_arch_hld_assets/system_architecture.drawio ~/snap/drawio/current/.local/share/drawio/)",
+      "Read(//home/qingyun/snap/drawio/255/.local/share/drawio/**)",
+      "Bash(dpkg -l)",
+      "Bash(DISPLAY=:99 drawio -x -f svg -o ~/snap/drawio/current/.local/share/drawio/system_architecture.svg ~/snap/drawio/current/.local/share/drawio/system_architecture.drawio --embed-diagram 2>&1)",
+      "Bash(du -sh /team_work/qingyun/chip_design_groq/spi2axi/4.result/*.html /team_work/qingyun/chip_design_groq/spi2axi/4.result/*.md)",
+      "Read(//team_work/qingyun/chip_design_groq/**)",
+      "Bash(/dev/null __NEW_LINE_113da1dd851b778c__ echo echo '=== HLD HTML 文件头 ===' head -30 /team_work/qingyun/chip_design_groq/spi2axi/4.result/SPI2AXI_Arch_HLD_v1.html __NEW_LINE_113da1dd851b778c__ echo echo '=== LLD HTML 文件头 ===' head -30 /team_work/qingyun/chip_design_groq/spi2axi/4.result/SPI2AXI_Micro_LLD_v1.html)",
+      "Read(//tmp/**)"
     ]
   },
   "hooks": {

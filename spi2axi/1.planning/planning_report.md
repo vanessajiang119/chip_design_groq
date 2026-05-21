@@ -1,169 +1,180 @@
-# SPI2AXI Bridge Module - Planning Report
+# SPI2AXI Bridge 文档生成规划报告
 
-> 生成日期: 2026-05-20
-> 规划阶段: 1.planning
-> 文档类型: 内部 Block (单一功能模块: SPI Slave to AXI Master Bridge)
+## Phase 1: 源材料分析 (Source Analysis) — 完成
+
+### 1.1 项目概述 (Project Overview)
+
+- **项目名称**: SPI2AXI Bridge IP 文档生成
+- **源材料**: 7 页 PDF 规格说明 (SPI2AXI SPEC)
+- **检测模式**: **Mode A** (通用文档生成模式 — General Document Generation)
+- **IP 类型**: Block-level IP — SPI Slave to AXI4-Lite Master Bridge
+
+### 1.2 源文档分析结果 (Source Analysis Results)
+
+源文档 `source_raw.md` 共包含 7 页内容，涵盖以下关键信息：
+
+| 页码 | 主要内容 |
+|---|---|
+| Page 1 | IP 概述、主要特性 (SPI 接口、AXI Lite 接口、CDC) |
+| Page 2 | SPI 接口信号定义、AXI 接口定义、写操作序列 |
+| Page 3 | 读操作序列、可配置参数表、应用场景 |
+| Page 4 | 操作描述、FSM 说明、帧格式 (Opcode + Address + Data) |
+| Page 5 | SPI 命令操作码、SPI 侧寄存器设定 |
+| Page 6 | QSPI 读写时序、Wrap 操作支持 |
+| Page 7 | Wrap 地址环绕示例 |
+
+### 1.3 关键信息提取 (Key Information Extraction)
+
+**接口方面**:
+- SPI 接口: 标准 SPI / QSPI 双模，时钟 50 MHz，低有效片选
+- AXI 接口: AXI4-Lite Master，5 通道 (AW/AR/W/R/B)，仅支持 single transfer
+- 跨时钟域: 独立 SPI 时钟域 + AXI 时钟域，通过 dual-clock FIFO 实现 CDC
+
+**协议方面**:
+- SPI 帧结构: 8-bit Opcode + 32-bit Address (optional) + Dummy Cycles + 32-bit Data
+- 数据格式: MSB first
+- 读操作需要可编程的 dummy cycles (DUMMY_CYCLES + 1)
+- 寄存器地址由 Opcode 编码，内存访问需要 32-bit 地址
+
+**可配置参数 (4 个)**:
+- `AXI_ADDR_WIDTH` (默认 32)
+- `AXI_DATA_WIDTH` (默认 32)
+- `AXI_ID_WIDTH` (默认 3)
+- `DUMMY_CYCLES` (默认 32)
+
+**特殊功能**:
+- Address Wrap: 可配置的地址回绕，模拟 burst 访问
+- QSPI: 四线 SPI 模式，4x 吞吐率
+
+### 1.4 信息完整性评估 (Information Completeness Assessment)
+
+| 章节 | 完整性 | 缺失内容 |
+|---|---|---|
+| 模块概述 (Module Overview) | 中 (Medium) | 缺少详细的框图、性能指标、面积/功耗目标 |
+| 接口定义 (Interface Definition) | 中 (Medium) | SPI 信号完整，AXI 信号缺少详细信号级描述 |
+| 子模块划分 (Sub-Module Partition) | 低 (Low) | 未提及内部子模块划分 |
+| 有限状态机 (FSM) | 低 (Low) | 提到 FSM 但无具体状态定义和转换表 |
+| 流水线 (Pipeline) | 低 (Low) | 无流水线深度和阶段信息 |
+| 数据通路 (Datapath) | 低 (Low) | 无 datapath 宽度和结构描述 |
+| 配置寄存器 (CSR) | 低 (Low) | 提到 SPI 侧寄存器但无具体 CSR 定义 |
+| 时钟与复位 (Clock & Reset) | 中 (Medium) | 提到双时钟域，但无复位策略 |
+| SDC 约束 (SDC) | 低 (Low) | 无时序约束信息 |
+| 实现要点 (Implementation) | 低 (Low) | 无 RTL coding 指南和设计决策 |
+| 验证方案 (Verification) | 低 (Low) | 无验证策略和测试计划 |
+| DFT 设计 (DFT) | 低 (Low) | 无 DFT 相关信息 |
+| 交付物 (Delivery) | 低 (Low) | 无交付物清单 |
+| 修订记录 (Revision) | 低 (Low) | 无修订记录 |
+
+**总评**: 源文档提供了 IP 的核心功能定义和接口规范，但缺少微架构级细节 (micro-architecture details)。后续文档生成阶段需要基于标准 SPI2AXI bridge 设计实践进行合理的补充 (reasonable supplementation)。
+
+### 1.5 设计研究决策 (Design Research Decision)
+
+- **外部研究 (External Research)**: 已禁用 (`enabled: false`)
+- **理由**: 源文档已定义清晰的功能规范和接口标准。SPI2AXI Bridge 是标准 IP 类型，设计模式成熟，无需额外的外部研究即可基于设计经验完成文档填充。
 
 ---
 
-## 1. 源文档分析
+## Phase 2: 切片计划 (Slicing Plan)
 
-### 1.1 文档概况
+### 2.1 文档切片策略 (Document Slicing Strategy)
 
-| 项目 | 内容 |
-|------|------|
-| 源文件 | `SPI2AXI SPEC.pdf` |
-| 页数 | 7 页 |
-| 文件大小 | 1,663,496 bytes |
-| 提取图片 | 10 张 |
-| 语言 | 中文 |
+将 14 章内容按照生成工具能力进行切片，每个切片对应一个独立的工作单元：
 
-### 1.2 内容结构
+| 切片编号 | 章节 (Chapter) | 依赖关系 | 工作量估计 |
+|---|---|---|---|
+| S01 | 模块概述 (Module Overview) | 无 | 低 |
+| S02 | 接口定义 (Interface Definition) | S01 | 中 |
+| S03 | 子模块划分 (Sub-Module Partition) | S01, S02 | 高 |
+| S04 | 有限状态机 (FSM) | S03 | 高 |
+| S05 | 流水线 (Pipeline) | S03 | 中 |
+| S06 | 数据通路 (Datapath) | S03 | 中 |
+| S07 | 配置寄存器 (CSR) | S02, S03 | 高 |
+| S08 | 时钟与复位 (Clock & Reset) | S01, S03 | 中 |
+| S09 | SDC 约束 (SDC) | S02, S08 | 中 |
+| S10 | 实现要点 (Implementation) | S03-S09 | 中 |
+| S11 | 验证方案 (Verification) | S03-S07 | 高 |
+| S12 | DFT 设计 (DFT) | S02, S08 | 低 |
+| S13 | 交付物 (Delivery) | S01-S12 | 低 |
+| S14 | 修订记录 (Revision) | 无 | 低 |
 
-| 页码 | 主要内容 | 关键图示 |
-|------|---------|---------|
-| Page 1 | 概述、IP主要特性(SPI接口/AXI Lite/跨时钟域)、接口定义 | 接口框图 |
-| Page 2 | SPI接口信号表、AXI主设备接口、写操作序列 | - |
-| Page 3 | 读操作序列、可配置参数表(AXI_ADDR_WIDTH/AXI_DATA_WIDTH/AXI_ID_WIDTH/DUMMY_CYCLES)、应用场景、地址范围图 | 地址范围图 |
-| Page 4 | 操作说明(8-bit操作码→32位地址→Dummy cycle→数据)、FSM状态机 | FSM状态图, FSM面积/带宽数据 |
-| Page 5 | SPI命令操作码表、SPI侧寄存器设定 | 操作码表格, 寄存器表格 |
-| Page 6 | QSPI写时序图、QSPI读时序图、Wrap操作支持说明 | QSPI时序图(写/读) |
-| Page 7 | Wrap示例(Wrap=2, 地址序列'h100→'h104→'h100→'h104→...) | - |
+### 2.2 切片执行顺序 (Execution Order)
 
-### 1.3 关键信息提取
-
-#### 1.3.1 SPI 接口信号
-
-| 信号名称 | 方向 | 描述 |
-|---------|------|------|
-| spi_sclk | 输入 | SPI 串行时钟, 50MHz |
-| spi_cs | 输入 | SPI 片选信号（低有效） |
-| spi_sdi[3:0] | 输入 | SPI 数据输入线 |
-| spi_sdo[3:0] | 输出 | SPI 数据输出线 |
-
-#### 1.3.2 AXI4-Lite 主设备接口
-
-五个独立通道: AW(写地址), AR(读地址), W(写数据), R(读数据), B(写响应)
-
-#### 1.3.3 可配置参数
-
-| 参数 | 默认值 | 描述 |
-|------|--------|------|
-| AXI_ADDR_WIDTH | 32 | AXI 地址总线宽度 |
-| AXI_DATA_WIDTH | 32 | AXI 数据总线宽度 |
-| AXI_ID_WIDTH | 3 | AXI ID 信号宽度 |
-| DUMMY_CYCLES | 32 | SPI 读操作虚拟周期数(实际 = 配置值 + 1) |
-
-#### 1.3.4 操作流程
-
-**写操作序列:**
-1. （可选）配置 SPI 参数（1线或者4线模式）
-2. SPI 主机发送写命令和地址
-3. 控制器解析命令并同步到 AXI 时钟域
-4. AXI 桥接发起写地址事务
-5. 通过 FIFO 传输写数据
-6. 等待 AXI 写响应完成
-
-**读操作序列:**
-1. （可选）配置 SPI 参数（1线或者4线模式）
-2. SPI 主机发送读命令和地址
-3. 控制器同步读请求到 AXI 时钟域
-4. AXI 桥接发起读地址事务
-5. 从 AXI 总线读取数据到 TX FIFO
-6. 通过 SPI 接口返回读取的数据
-
-#### 1.3.5 Wrap 操作
-
-| 参数 | 说明 |
-|------|------|
-| Wrap = 0 | 无环绕功能 |
-| Wrap = N | 环绕窗口为 N 个字(4×N 字节)，起始地址4字节对齐，每次+4，到第N个字后回绕 |
-
-示例(Wrap=2, 起始地址'h100):
 ```
-Burst 0: Write to 'h100
-Burst 1: Write to 'h104
-Burst 2: Write to 'h100 (回绕)
-Burst 3: Write to 'h104
-Burst 4: Write to 'h100
+S01 → S02 → S03 → (S04, S05, S06, S07, S08) → (S09, S10, S11, S12) → S13 → S14
+```
+
+- S04-S08 可部分并行生成
+- S09-S12 在 S04-S08 基础上进行
+
+---
+
+## Phase 3: 文档生成计划 (Generation Plan)
+
+### 3.1 输出格式 (Output Formats)
+
+| 格式 (Format) | 用途 (Purpose) | 工具 (Tool) |
+|---|---|---|
+| **Markdown** | 源文档和结构化内容 (Source + structured content) | 直接编写 (Direct write) |
+| **HTML** | 格式化设计规格书 (Formatted design spec) | html_chip_design_spec skill |
+| **DrawIO** | 框图、FSM 图、架构图 (Block diagram, FSM, architecture) | drawio_chip_diagram skill |
+
+### 3.2 模板使用 (Template Usage)
+
+| 模板 (Template) | 用途 (Purpose) |
+|---|---|
+| `agents/template/03_block_arch.HLD.md` | 生成 Block-level 架构设计文档 (HLD) |
+| `agents/template/04_block_micro.LLD.md` | 生成 Block-level 微架构设计文档 (LLD, 14 章) |
+
+### 3.3 生成策略 (Generation Strategy)
+
+1. 先基于 `source_spec.md` 和 `03_block_arch.HLD.md` 模板生成 **HLD (High-Level Design)**，聚焦于架构框图、接口信号、功能描述
+2. 再基于 `source_spec.md` 和 `04_block_micro.LLD.md` 模板生成 **LLD (Low-Level Design / Micro-Architecture)**，覆盖全部 14 个章节
+3. 对于源文档中缺失的微架构细节，依据 SPI2AXI Bridge 的标准设计实践进行补充（如 FSM 状态定义、FIFO 深度、CSR 寄存器布局等）
+4. 使用 DrawIO 生成架构图和 FSM 图
+5. 最终生成 HTML 格式的设计规格书
+
+### 3.4 迭代策略 (Iteration Strategy)
+
+- 最大迭代次数: **5**
+- 每次迭代由 `iteration_check` 子代理进行 14 章完整性检查
+- 检查标准: 每章内容覆盖度、技术准确性、格式合规性
+- 缺失的关键数据（如 state encoding、CSR 地址偏移等）标注为 **待补充 (To Be Completed)**
+
+---
+
+## Phase 4: 交付计划 (Delivery Plan)
+
+### 4.1 交付物清单 (Deliverables)
+
+| 交付物 (Deliverable) | 路径 (Path) | 说明 (Description) |
+|---|---|---|
+| 规划报告 | `spi2axi/1.planning/planning_report.md` | 本文件 |
+| 规划配置 | `spi2axi/1.planning/planning.yml` | 流程控制配置 |
+| 源材料规格分析 | `spi2axi/1.planning/source_spec.md` | 结构化源材料分析 |
+| 架构设计 HLD | `spi2axi/3.working/spi2axi_bridge_arch.HLD.md` | 高 Level 架构设计 |
+| 微架构设计 LLD | `spi2axi/3.working/spi2axi_bridge_micro.LLD.md` | 低 Level 微架构设计 |
+| HTML 文档 | `spi2axi/4.result/` | 格式化的设计规格书 |
+
+### 4.2 部署结构 (Directory Structure)
+
+```
+spi2axi/
+├── 0.start/              # 启动文件
+│   └── idea.md           # 用户需求
+├── 1.planning/           # 规划阶段 (已完成)
+│   ├── planning.yml      # 规划配置
+│   ├── source_raw.md     # 原始源文档
+│   ├── source_spec.md    # 结构化规格分析
+│   └── planning_report.md # 规划报告 (本文件)
+├── 2.slice/              # 切片阶段 (待完成)
+├── 3.working/            # 工作阶段 (待完成)
+│   ├── spi2axi_bridge_arch.HLD.md      # HLD 文档
+│   └── spi2axi_bridge_micro.LLD.md     # LLD 文档
+└── 4.result/             # 结果阶段 (待完成)
+    └── SPI2AXI_*.html     # HTML 设计规格书
 ```
 
 ---
 
-## 2. 章节划分与输出需求
-
-### 2.1 输出文档章节 (基于 14-Chapter LLD 模板)
-
-| # | 章节 | 内容要点 | 来源 |
-|---|------|---------|------|
-| 1 | 模块概述 (Module Overview) | 功能描述、应用场景(SOC调试/固件更新/芯片测试)、关键特性 | Page 1, Page 3 |
-| 2 | 接口定义 (Interface Definition) | SPI/QSPI 信号表及波形、AXI4-Lite 五通道信号表、时钟/复位、cycle-level 时序图 | Page 1-2, 图示(PDF) |
-| 3 | 子模块划分 (Sub-Module Partition) | SPI Slave、命令解码器FSM、异步FIFO(dual-clock)、AXI Master、配置寄存器、Wrap控制器 | Page 1-3 |
-| 4 | 状态机设计 (FSM Design) | 命令解码FSM: 状态编码+转移矩阵+输出解码, SPI操作码到AXI事务的映射 | Page 4, 图示(FSM) |
-| 5 | 流水线设计 (Pipeline Design) | SPI命令接收→CDC同步→AXI事务发起→响应返回的流水线 | Page 2-3, 操作序列 |
-| 6 | 数据通路 (Datapath) | SPI串行→并行转换、FIFO深度/宽度、AXI数据通道宽度(32-bit) | Page 4 |
-| 7 | 配置寄存器 (CSR) | SPI侧寄存器: 操作码编码表(READ/WRITE/REG_READ/REG_WRITE)、Wrap配置寄存器、状态寄存器 | Page 5, 图示(寄存器表) |
-| 8 | 时钟与复位 (Clock & Reset) | SPI时钟域(50MHz)与AXI时钟域独立、dual-clock FIFO CDC、异步复位同步释放 | Page 1 |
-| 9 | 时序约束 (SDC) | create_clock(spi_sclk/axi_clk)、输入延迟(spi_sdi)、输出延迟(spi_sdo)、CDC false path | Page 1-2 |
-| 10 | 地址环绕 (Wrap) | Wrap功能设计: 地址计数器、环绕边界检测、地址计算逻辑 | Page 6-7 |
-| 11 | 验证计划 (Verification) | 功能验证(SPI读/写/QSPI/Wrap)、时序验证(CDC)、覆盖率 | 待补充 |
-| 12 | DFT 设计 | 扫描链插入、测试模式、ATE 测试 | 待补充 |
-| 13 | 交付物 | RTL代码、SDC、验证环境(testbench)、文档 | - |
-| 14 | 修订历史 | 版本记录 | - |
-
-### 2.2 需要补充的内容
-
-以下内容在 PDF 中以图示形式存在，需要补充结构化的文字描述:
-
-1. **Page 1 接口框图** - 模块级端口连接、时钟域划分
-2. **Page 3 地址范围图** - SoC 配置空间地址映射
-3. **Page 4 FSM 状态图** - 状态编码、转移条件、输出信号
-4. **Page 4 FSM 面积/带宽图表** - 性能评估数据
-5. **Page 5 SPI 操作码表** - 完整操作码编码、命令类型、数据格式
-6. **Page 5 寄存器表** - 寄存器偏移地址、位域定义、读写属性
-7. **Page 6 QSPI 写时序图** - 4线SPI写操作的 cycle-level 波形
-8. **Page 6 QSPI 读时序图** - 4线SPI读操作的 cycle-level 波形(含Dummy周期)
-
----
-
-## 3. 设计约束
-
-### 3.1 技术参数
-
-| 参数 | 值 |
-|------|-----|
-| SPI 时钟频率 | 50 MHz |
-| AXI 协议 | AXI4-Lite |
-| AXI 地址宽度 | 32-bit (可配) |
-| AXI 数据宽度 | 32-bit (可配) |
-| AXI ID 宽度 | 3-bit (可配) |
-| AXI Burst 类型 | Fixed (AxLEN=0, single transfer) |
-| Dummy Cycles | 32 (可配, 实际=配置值+1) |
-
-### 3.2 应用场景
-
-- 系统调试和配置接口
-- 低引脚数系统总线扩展
-- 嵌入式系统固件更新
-- 芯片测试和验证接口
-
----
-
-## 4. 输出文件清单
-
-### 4.1 本次规划阶段输出
-
-| 文件 | 路径 | 状态 |
-|------|------|------|
-| 源文档转换 | `1.planning/source_spec.md` | 已完成 |
-| 图片提取 | `1.planning/images/` (10 张) | 已完成 |
-| 规划配置 | `1.planning/planning.yml` | 已完成 |
-| 规划报告 | `1.planning/planning_report.md` | 已完成 |
-
-### 4.2 后续阶段预期输出
-
-| 阶段 | 预期输出 |
-|------|---------|
-| 2.slice | 切片分析文档、图片分割分析 |
-| 3.working | 模块架构HLD、微架构LLD、多版本迭代 |
-| 4.result | 最终HLD/LLD文档(HTML), 规范文档 |
+*报告生成日期: 2026-05-21*
+*规划模式: Mode A (通用文档生成模式)*

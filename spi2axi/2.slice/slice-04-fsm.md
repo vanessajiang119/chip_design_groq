@@ -1,32 +1,56 @@
----
-source: SPI2AXI SPEC.pdf
-page: 4
-chapter: fsm
-tags: [fsm, state-machine, cmd-decoder]
----
+<!-- Source: source_raw.md 第4页, source_spec.md 第6-7章 -->
+<!-- Chapter: 有限状态机 (FSM) -->
 
-# 状态机设计 (FSM Design)
+# 有限状态机 (FSM)
 
-## 操作流程帧格式
+## 概述
 
-要从内存/寄存器中读取和写入数据，需要采用以下方案。首先，主设备必须发送一个8位的操作码（opcode）。如果要访问内存，则接下来必须跟随一个32位的地址（最高有效位在前）。寄存器的地址由操作码进行编码。
+SPI2AXI 控制器基于有限状态机 (FSM) 实现 SPI 事务到 AXI 事务的转换。操作流程中对状态转换的描述如下：
 
-在从内存读取数据的情况下，接下来必须插入32（可编程）个cycle以等待读数据返回。最后，实际数据将在最后的32位中传输（MSB first）。
+> 要从内存/寄存器中读取和写入数据，需要采用以下方案。首先，主设备必须发送一个 8 位的操作码（如下所示）。如果要访问内存，则接下来必须跟随一个 32 位的地址（最高有效位在前）。寄存器的地址由操作码进行编码。在从内存读取数据的情况下，接下来必须插入 32（可编程）个 cycle 已等待读数据返回。最后，实际数据将在最后的 32 位中传输（MSB first）。
 
-该从属控制器基于下图所示的有限状态机:
+![FSM 状态转换图](images/page4_img0.png)
+<!-- 第4页图片：SPI2AXI 控制器 FSM 状态转换图，包含 SPI 命令接收、地址解析、等待周期、数据传输等状态 -->
 
-![SPI2AXI 状态转移图 - 操作码格式](images/page4_img0.png)
-<!-- Page 4: SPI command frame format - opcode, address, dummy cycles, data fields -->
+## 主要状态
 
-![SPI2AXI FSM 状态图](images/page4_img1.png)
-<!-- Page 4: FSM state diagram showing IDLE → OPCODE → ADDR → DUMMY → DATA → RESPONSE state transitions -->
+SPI2AXI FSM 包含以下主要状态：
 
-## 状态转移
+| 状态 | 描述 |
+|---|---|
+| **IDLE** | 空闲状态，等待 SPI 片选有效和命令输入 |
+| **OPCODE** | 接收 8-bit 操作码，解码读/写操作 |
+| **ADDR** | 接收 32-bit 地址（仅内存访问时需要） |
+| **DUMMY** | 读操作插入虚拟等待周期（可编程，由 DUMMY_CYCLES 配置） |
+| **DATA** | 数据传输阶段，SPI ↔ AXI 数据交换 |
+| **AXI_WR** | AXI 写事务执行（发起 AW → W → 等待 B 响应） |
+| **AXI_RD** | AXI 读事务执行（发起 AR → 等待 R 响应数据） |
+| **DONE** | 事务完成，返回 IDLE |
 
-FSM的基本状态包括:
-- **IDLE**: 空闲状态，等待SPI片选
-- **OPCODE**: 接收8-bit操作码，解码命令类型
-- **ADDR**: 接收32-bit地址（MSB first），内存访问时需要
-- **DUMMY**: 插入可编程数量的虚拟周期，等待读数据返回
-- **DATA**: 数据传输阶段，32-bit数据（MSB first）
-- **RESPONSE**: 写响应处理或读数据返回
+## 状态转换
+
+```
+                 ┌──────────────────────────────────────┐
+                 │                                      │
+                 ↓                                      │
+    IDLE → OPCODE → ADDR → DUMMY → DATA → AXI_WR/AXI_RD → DONE ──→ IDLE
+                          (读路径)      (写路径)
+```
+
+## 时序控制
+
+- **操作码 (Opcode)**：8 个 SPI 时钟周期接收
+- **地址 (Address)**：32 个 SPI 时钟周期接收（MSB first）
+- **虚拟周期 (Dummy Cycles)**：由 `DUMMY_CYCLES` 参数配置，实际时钟数 = DUMMY_CYCLES + 1
+- **数据 (Data)**：32 个 SPI 时钟周期传输（MSB first）
+
+## 寄存器访问模式
+
+- 寄存器地址由操作码直接编码，无需 32-bit 地址字段
+- 当操作码编码为寄存器访问时，跳过 ADDR 状态
+- 内存访问时，操作码后跟随完整的 32-bit 地址
+
+## 时序图
+
+![FSM 时序细节图](images/page4_img1.png)
+<!-- 第4页另一张图：FSM 状态转换时序细节或 SPI 帧格式时序图，展示操作码、地址、虚拟周期、数据的串行帧排列 -->

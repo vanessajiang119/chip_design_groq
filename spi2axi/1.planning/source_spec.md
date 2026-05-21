@@ -1,180 +1,138 @@
-# SPI2AXI SPEC - Source Document
-> 源文件: `SPI2AXI SPEC.pdf`  
-> 总页数: 7  
-> 提取日期: 2026-05-20  
+# SPI2AXI Bridge — Source Specification Analysis
+
+## 1. 文档概述 (Document Overview)
+
+- **文档名称 (Document Name)**: SPI2AXI SPEC
+- **页数 (Pages)**: 7
+- **语言 (Language)**: 中文 + 英文专业术语 (Chinese + English technical terminology)
+- **文档类型 (Document Type)**: Block-level IP 规格说明 (Block-level IP Specification)
+
+## 2. IP 概述 (IP Overview)
+
+- **名称 (Name)**: SPI2AXI Bridge
+- **功能 (Function)**: SPI Slave to AXI4-Lite Master 桥接模块，将 SPI 从设备接口转换为 AXI 主设备接口，允许通过 SPI 总线访问 AXI 总线上的存储器和外设。
+- **应用场景 (Applications)**:
+  - 系统调试和配置接口 (System debug and configuration interface)
+  - 低引脚数系统总线扩展 (Low pin-count system bus expansion)
+  - 嵌入式系统固件更新 (Embedded system firmware update)
+  - 芯片测试和验证接口 (Chip test and verification interface)
+  - SoC config 配置空间访问 (SoC configuration space access)
+
+## 3. 主要特性 (Key Features)
+
+### 3.1 SPI 接口特性
+- 支持 **标准 SPI (Standard SPI)** 和 **四线 SPI / QSPI (Quad SPI)** 两种工作模式
+- SPI Slave 作为**主动外设 (active peripheral)**，无需 SoC 内部 CPU 干预即可完成 SoC 功能配置、状态观测等功能
+- SPI 时钟频率: 50 MHz (max)
+
+### 3.2 AXI 接口特性
+- **AXI4-Lite** 主设备接口 (Master Interface)
+- 仅支持单次传输 (single transfer)，每个 burst 长度固定为 1 (AxLEN = 0)
+- AxSIZE 通常配置为 2，表示每次传输 1 个 32-bit word (4 bytes)
+
+### 3.3 跨时钟域处理 (CDC)
+- SPI 时钟域与 AXI 时钟域分离，时钟域相互独立
+- 内置 **dual-clock FIFOs (双时钟 FIFO)**，实现 SPI 时钟域与 SoC AXI 时钟域之间的可靠跨时钟域传输
+
+### 3.4 Wrap 地址环绕功能
+- 支持可配置的地址 Wrap 功能
+- **Wrap = 0**: 无环绕功能
+- **Wrap = N (N > 0)**: 启用地址环绕模式，环绕窗口大小为 N 个 word (4xN bytes)
+- 起始地址必须按 4 字节对齐
+- 地址从起始地址开始，每次传输后地址 +4，访问完第 N 个 word 后自动回绕到起始地址
+
+## 4. 接口信号 (Interface Signals)
+
+### 4.1 SPI 接口信号 (SPI Interface Signals)
+
+| 信号名称 (Signal) | 方向 (Direction) | 描述 (Description) |
+|---|---|---|
+| `spi_sclk` | Input | SPI 串行时钟, 50 MHz |
+| `spi_cs` | Input | SPI 片选信号，低有效 (Active Low) |
+| `spi_sdi[3:0]` | Input | SPI 数据输入线（支持 1-wire 或 4-wire 模式） |
+| `spi_sdo[3:0]` | Output | SPI 数据输出线（支持 1-wire 或 4-wire 模式） |
+
+### 4.2 AXI 主设备接口 (AXI Master Interface)
+
+AXI4-Lite 主设备接口，包含 5 个独立通道：
+
+| 通道 (Channel) | 描述 (Description) |
+|---|---|
+| **写地址通道 (AW)** | Write Address Channel |
+| **写数据通道 (W)** | Write Data Channel |
+| **写响应通道 (B)** | Write Response Channel |
+| **读地址通道 (AR)** | Read Address Channel |
+| **读数据通道 (R)** | Read Data Channel |
+
+## 5. 可配置参数 (Configurable Parameters)
+
+| 参数 (Parameter) | 默认值 (Default) | 描述 (Description) |
+|---|---|---|
+| `AXI_ADDR_WIDTH` | 32 | AXI 地址总线宽度 (AXI address bus width) |
+| `AXI_DATA_WIDTH` | 32 | AXI 数据总线宽度 (AXI data bus width) |
+| `AXI_ID_WIDTH` | 3 | AXI ID 信号宽度 (AXI ID signal width) |
+| `DUMMY_CYCLES` | 32 | SPI 读操作虚拟周期数，实际 Dummy Cycle = 此处配置值 + 1 |
+
+## 6. 操作流程 (Operation Flow)
+
+### 6.1 写操作序列 (Write Sequence)
+
+1. **(可选)** 配置 SPI 参数 (1-wire 或 4-wire 模式)
+2. SPI 主机发送写命令和地址
+3. 控制器解析命令并同步到 AXI 时钟域
+4. AXI 桥接发起写地址事务 (AW channel)
+5. 通过 FIFO 传输写数据 (W channel)
+6. 等待 AXI 写响应完成 (B channel)
+
+### 6.2 读操作序列 (Read Sequence)
+
+1. **(可选)** 配置 SPI 参数 (1-wire 或 4-wire 模式)
+2. SPI 主机发送读命令和地址
+3. 控制器同步读请求到 AXI 时钟域
+4. AXI 桥接发起读地址事务 (AR channel)
+5. 从 AXI 总线读取数据到 TX FIFO (R channel)
+6. 通过 SPI 接口返回读取的数据
+
+## 7. 命令格式 (Command Format)
+
+### 7.1 SPI 帧格式 (SPI Frame Format)
+
+SPI 事务帧结构如下：
+
+| 字段 (Field) | 宽度 (Width) | 描述 (Description) |
+|---|---|---|
+| **操作码 (Opcode)** | 8 bits | 指定操作类型（读/写）及寄存器地址编码 |
+| **地址 (Address)** | 32 bits | 内存访问地址，MSB first（仅在内存访问时使用） |
+| **虚拟周期 (Dummy Cycles)** | 可编程 | 读操作插入的等待周期，数量由 `DUMMY_CYCLES` 参数配置（实际 = DUMMY_CYCLES + 1） |
+| **数据 (Data)** | 32 bits | 实际传输的读写数据，MSB first |
+
+- 寄存器地址由操作码直接编码（无需 32-bit 地址字段）
+- 数据始终以 MSB first 方式传输
+- 控制器基于 FSM (有限状态机) 实现状态转换
+
+### 7.2 SPI 侧寄存器设定 (SPI-side Register Configuration)
+
+SPI 侧寄存器用于配置工作模式，包括但不限于：
+- 1-wire / 4-wire 模式选择
+- 其他 SPI 协议参数
+
+## 8. 特殊功能 (Special Features)
+
+### 8.1 Wrap 地址环绕 (Address Wrap)
+
+- 由于 AXI4-Lite 仅支持 single transfer (AxLEN = 0)，SPI2AXI 引入了可配置的地址 Wrap 功能来模拟连续地址访问
+- **Wrap = 0**: 无环绕，每次访问地址不自动回绕
+- **Wrap = N (N > 0)**: 地址环绕模式，窗口大小 = N words = 4xN bytes
+- 起始地址必须 4-byte 对齐
+- 地址序列示例 (Wrap = 2, 起始地址 'h100):
+  - Burst 0: 'h100 → Burst 1: 'h104 → Burst 2: 'h100 (回绕) → Burst 3: 'h104 → ...
+
+### 8.2 QSPI 读写时序 (QSPI Read/Write Timing)
+
+- 支持 Quad SPI (4-wire) 模式下的读写操作
+- QSPI 模式下，4 条数据线 (spi_sdi[3:0] / spi_sdo[3:0]) 同时传输数据，实现 4x 数据吞吐率提升
+
 ---
 
-## Page 1
-### SPI2AXI SPEC
-概述  
-### SPI2AXI IP是一个将SPI从设备接口转换为AXI主设备接口的桥接模块，允许通过SPI总线访问AXI总线上的
-存储器和外设。因为SPI是一个通用数字接口，SPI2AXI可以在桌面PC上使用，方便pattern的调试和实验  
-室的bringup和debug。  
-### IP主要特性
-### SPI接口​：
-•  
-### 支持标准SPI和四线SPI两种工作模式。
-◦  
-SPI Slave 作为主动外设（active peripheral），无需 SoC 内部 CPU 干预即可完成SOC功能配  
-置，状态观测等功能。  
-◦  
-AXI Lite 接口:  
-•  
-### 将 SPI 侧接收到的命令/数据转换成 AXI 事务。
-◦  
-通过 AXI Lite 接口访问 SoC 的内存和外设。  
-◦  
-​跨时钟域处理​：  
-•  
-### SPI时钟域与AXI时钟域分离。
-◦  
-内置 dual-clock FIFOs（双时钟 FIFO），实现从 SPI 时钟域 和SoC AXI 时钟域之间的可靠跨时钟  
-### 域传输（CDC）。
-◦  
-接口定义  
-
-![Page 1 Image 0](images/page1_img0.png)
-*Page 1, Image Block 1 (png, 1770x1042, 104283 bytes)*
-
-## Page 2
-### SPI接口信号
-信号名称  
-方向  
-描述  
-spi_sclk  
-输入  
-SPI串行时钟,50Mhz  
-spi_cs  
-输入  
-### SPI片选信号（低有效）
-spi_sdi[3:0]  
-输入  
-### SPI数据输入线
-spi_sdo[3:0]  
-输出  
-### SPI数据输出线
-### AXI主设备接口
-AXI4 Lite主设备接口，包括：  
-### 写地址通道（AW）
-•  
-### 读地址通道（AR）
-•  
-### 写数据通道（W）
-•  
-### 读数据通道（R）
-•  
-### 写响应通道（B）
-•  
-操作流程  
-写操作序列  
-### 1. （可选）配置 SPI 参数（1线或者4线模式）
-### 2. SPI主机发送写命令和地址
-### 3. 控制器解析命令并同步到AXI时钟域
-### 4. AXI桥接发起写地址事务
-### 5. 通过FIFO传输写数据
-### 6. 等待AXI写响应完成
-
-## Page 3
-读操作序列  
-### 1. （可选）配置 SPI 参数（1线或者4线模式）
-### 2. SPI主机发送读命令和地址
-### 3. 控制器同步读请求到AXI时钟域
-### 4. AXI桥接发起读地址事务
-### 5. 从AXI总线读取数据到TX FIFO
-### 6. 通过SPI接口返回读取的数据
-可配置参数  
-参数  
-默认值  
-描述  
-### AXI_ADDR_WIDTH
-32  
-### AXI地址总线宽度
-### AXI_DATA_WIDTH
-32  
-### AXI数据总线宽度
-### AXI_ID_WIDTH
-3  
-### AXI ID信号宽度
-### DUMMY_CYCLES
-32  
-SPI读操作虚拟周期数,实际Dummy_cycle=此处配置值+1  
-应用场景  
-系统调试和配置接口  
-•  
-低引脚数系统总线扩展  
-•  
-嵌入式系统固件更新  
-•  
-芯片测试和验证接口  
-•  
-这是一个SPI slave的实现版本。该 SPI 从机可被外部微控制器用于访问相关数据。 SPI 从机通过 AXI 总  
-线来访问目标设备的配置空间和内存。 SoC配备了双时钟 FIFO 缓存器，用于实现从 SPI 频率域到 SoC  
-### （AXI）频率域的时钟域转换。
-在S3中，SPI2AXI 用于访问config 配置空间。地址范围如下图标注:  
-
-![Page 3 Image 0](images/page3_img0.png)
-*Page 3, Image Block 1 (png, 4136x5456, 185522 bytes)*
-
-## Page 4
-操作：  
-要从内存/寄存器中读取和写入数据，需要采用以下方案。首先，主设备必须发送一个 8 位的操作码（如下  
-所示）。如果要访问内存，则接下来必须跟随一个 32 位的地址（最高有效位在前）。寄存器的地址由操作  
-码进行编码。在从内存读取数据的情况下，接下来必须插入 32(可编程) 个cycle已等待读数据返回。最后，  
-实际数据将在最后的 32 位中传输（MSB first）。 该从属控制器基于下图所示的有限状态机:  
-
-![Page 4 Image 0](images/page4_img0.png)
-*Page 4, Image Block 1 (png, 4136x5456, 185522 bytes)*
-
-![Page 4 Image 1](images/page4_img1.png)
-*Page 4, Image Block 2 (png, 1971x1498, 80785 bytes)*
-
-## Page 5
-### SPI 命令操作码：
-### SPI侧寄存器设定:
-
-![Page 5 Image 0](images/page5_img0.png)
-*Page 5, Image Block 1 (png, 1971x1498, 80785 bytes)*
-
-![Page 5 Image 1](images/page5_img1.png)
-*Page 5, Image Block 2 (png, 433x763, 88529 bytes)*
-
-![Page 5 Image 2](images/page5_img2.png)
-*Page 5, Image Block 3 (png, 785x382, 62001 bytes)*
-
-## Page 6
-### QSPI写时序：
-### QSPI读时序：
-Wrap操作支持  
-SPI2AXI 模块支持 AXI4-Lite 协议。由于 AXI4-Lite 仅支持单次传输（single transfer），每个 burst 长  
-度固定为 1，即  AxLEN = 0 ，且通常配置为  AxSIZE = 2 （表示每次传输 1 个 32-bit 字，即 4 字节）。  
-SPI2AXI 引入了 可配置的地址 Wrap 功能：  
-Wrap = 0, 无环绕功能  
-•  
-Wrap = N （N > 0）：启用地址环绕模式，环绕窗口大小为 N 个字（word），即 4×N 字节。  
-起始地址必须按 4 字节对齐（因  AxSIZE=2 ）。  
-地址从起始地址开始，每次传输后地址 +4（下一个 word），当访问完第 N 个 word 后，自动回  
-绕到起始地址。  
-•  
-
-![Page 6 Image 0](images/page6_img0.png)
-*Page 6, Image Block 1 (png, 785x382, 62001 bytes)*
-
-![Page 6 Image 1](images/page6_img1.png)
-*Page 6, Image Block 2 (png, 2213x511, 137559 bytes)*
-
-![Page 6 Image 2](images/page6_img2.png)
-*Page 6, Image Block 3 (png, 2291x544, 133922 bytes)*
-
-## Page 7
-✅ 示例：  
-若  Wrap = 2 ，起始地址为  'h100 （4-byte 对齐），则连续写操作的地址序列为：  
-Burst 0: Write to  'h100  （第 1 个 word）  
-•  
-Burst 1: Write to  'h104  （第 2 个 word）  
-•  
-Burst 2: Write to  'h100  （回绕，重新从第 1 个 word 开始）  
-•  
-Burst 3: Write to  'h104  
-•  
-Burst 4: Write to  'h100  
-•  
+*分析日期: 2026-05-21*
+*分析依据: SPI2AXI SPEC (7-page PDF source)*

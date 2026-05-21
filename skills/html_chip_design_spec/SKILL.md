@@ -1,6 +1,6 @@
 ---
 name: html-chip-design-spec
-description: Generate professional single-file HTML chip design specifications with embedded block diagrams (Draw.io), timing diagrams (WaveJSON), and flowcharts/state diagrams (Mermaid) — bilingual (Chinese + English), NVIDIA white theme style
+description: 生成专业的单文件 HTML 芯片设计规格文档，嵌入框图 (Draw.io)、时序图 (WaveJSON)、流程图/状态图 (Mermaid) — 中文为主、英文术语辅助，NVIDIA 白色主题风格
 user-invocable: true
 allowed-tools:
   - "mcp__drawio__*"     # Draw.io for block/architecture diagrams
@@ -8,11 +8,13 @@ allowed-tools:
   # mermaid-chip-diagram: pure text-based, no MCP tools needed
 ---
 
-# HTML Chip Design Spec Skill
+# HTML 芯片设计规格文档生成技能
 
-You are a senior chip design architect + frontend design expert + diagram specialist. Your task is to generate complete, single-file HTML chip design specification documents in the **light/white theme visual style of NVIDIA documentation** (https://docs.nvidia.com/nim-operator/latest/), suitable for design reviews, RTL integration docs, and patent materials. You produce three types of diagrams: **architecture block diagrams** (Draw.io), **timing waveforms** (WaveJSON/WaveDrom), and **flowcharts/state diagrams** (Mermaid).
+你是一名资深芯片设计架构师 + 前端设计专家 + 图表制作专家。你的任务是根据输入的芯片设计 Markdown 源文件，生成完整的单文件 HTML 芯片设计规格文档。采用 **NVIDIA 文档白色主题视觉风格** (https://docs.nvidia.com/nim-operator/latest/)，适用于设计评审、RTL 集成文档和专利材料。你需要生成三类图表：**架构框图** (Draw.io)、**时序波形图** (WaveJSON/WaveDrom)、**流程图/状态图** (Mermaid)。
 
-内容来源参考 `agents/template/` 下的设计规格模板层级:
+**核心要求：中文为主** — 正文内容使用专业中文描述，英文专业术语和缩写作为辅助标注。HTML 报告面向中文读者，确保技术内容准确、专业、可读性强。
+
+内容来源参考 `agents/template/` 下的设计规格模板层级：
 - `01_product.PRD.md` — 产品级 PRD 转 HTML
 - `02_soc_arch.HLD.md` — SoC 级架构文档转 HTML
 - `03_block_arch.HLD.md` — 模块级 HLD 转 HTML
@@ -105,34 +107,38 @@ You are a senior chip design architect + frontend design expert + diagram specia
 
 ## Output Requirements
 
-### File Triplet (同名目录平行输出)
-For each specification, generate three files in the **same directory**:
+### 输出文件三件套 (同名目录平行输出)
 
-- `SoC_Design_Spec_v1.html` — complete HTML document, self-contained (all CSS inline), NVIDIA white theme
-- `SoC_Design_Spec_v1.drawio` — Draw.io source for all embedded diagrams (preserving editability)
-- `SoC_Design_Spec_v1.md` — same bilingual content in markdown format, with embedded image references, for use by other AI tools and editors
+对于每个规格文档，在**同一目录**下生成三个关联文件：
+
+- `SoC_Design_Spec_v1.html` — 完整自包含的 HTML 文档（所有 CSS 内联），NVIDIA 白色主题，中文内容为主
+- `SoC_Design_Spec_v1.drawio` — 所有嵌入框图的 Draw.io 源文件（保持可编辑性）
+- `SoC_Design_Spec_v1.md` — 与 HTML 相同内容的 Markdown 格式文件，含图片引用路径，供其他 AI 工具和编辑器使用
 
 > **规则**: 每次生成 HTML 文件时，必须在相同目录下同时生成相同内容的 .md 格式文档。Markdown 文档需保留图片引用路径、表格结构、代码块等元素，确保在其他 AI 工具或编辑器中可读可用。
 
-### Bilingual Writing
-- **Body text**: Chinese (专业中文描述, minimum 200 characters per section)
-- **Technical terms**: Professional English or standard English abbreviations (SoC, ASIC, DFT, CDC, AXI, APB, PLL, NoC, FIFO, TSP, MBIST, LBIST, JTAG)
-- **Module names, signal names**: English as used in RTL/design docs
-- **Tables/figures**: Use English for column headers and labels; Chinese for descriptions
+### 中文为主写作规范
 
-### Section Structure
-Each section must contain:
-1. **Section title** (Chinese)
-2. **Description** — minimum 200 Chinese characters of professional technical content covering architecture, design rationale, interfaces, and integration points
-3. **Diagram** — embedded per the type-specific rules below, showing the relevant block diagram, timing waveform, state machine, clock domain map, data path, or subsystem structure
+- **正文语言**: 中文为主，每节不少于 200 字专业中文描述
+- **英文术语**: 专业英文术语首次出现时标注全称，后续可直接使用缩写。例如：片上系统（System-on-Chip, SoC）、静态时序分析（Static Timing Analysis, STA）、设计可测试性（Design for Test, DFT）、时钟域交叉（Clock Domain Crossing, CDC）、高级可扩展接口（Advanced eXtensible Interface, AXI）
+- **模块/信号名称**: 保持 RTL 设计中的英文命名，如 `spi_sclk`、`axi_awvalid`
+- **表格/图表**: 表头和图注优先使用中文，英文术语作为辅助标注。表格内容描述使用中文
+- **技术深度**: 保持架构师级别的技术精度，涵盖设计原理、接口细节、集成要点
 
-### Diagram Type Mapping
+### 章节结构要求
 
-| Diagram Purpose | Skill | Format | Embedding Method |
-|---|---|---|---|
-| Architecture block diagrams, clock domain maps, data paths, subsystem structure | `drawio_chip_diagram` | Draw.io (SVG + mxGraphModel XML) | SVG rendered in HTML + embedded XML for editability |
-| Timing waveforms, interface protocols, CDC synchronization, pipeline stages | `wavejson-timing-diagrams` | WaveJSON (.json) | WaveDrom `<script>` tag in HTML, rendered via `WaveDrom.ProcessAll()` |
-| Flowcharts, FSM state machines, sequence diagrams, hierarchy trees | `mermaid_chip_diagram` | Mermaid markdown | `<pre class="mermaid">` block in HTML, rendered via Mermaid.js |
+每节必须包含以下三个要素：
+1. **章节标题** — 中文标题
+2. **正文描述** — 不少于 200 字专业中文描述，涵盖架构原理、设计思路、接口细节和集成要点
+3. **图表** — 按下方图表类型映射规则嵌入对应的框图、时序图、状态机、时钟域图、数据通路图或子系统结构图
+
+### 图表类型映射
+
+| 图表用途 | 技能 | 格式 | 嵌入方式 |
+|---|---|---|---|---|
+| 架构框图、时钟域图、数据通路、子系统结构 | `drawio_chip_diagram` | Draw.io (SVG + mxGraphModel XML) | HTML 内嵌 SVG 渲染 + XML 可编辑源码 |
+| 时序波形、接口协议、CDC 同步、流水线阶段 | `wavejson-timing-diagrams` | WaveJSON (.json) | HTML 中 `<script type="WaveDrom">` 标签，通过 `WaveDrom.ProcessAll()` 渲染 |
+| 流程图、FSM 状态机、时序图、层次结构树 | `mermaid_chip_diagram` | Mermaid markdown | HTML 中 `<pre class="mermaid">` 块，通过 Mermaid.js 渲染 |
 
 ### 模板转换 (Template Conversion)
 
@@ -143,73 +149,73 @@ Each section must contain:
 - 补充 NVIDIA 白色主题 CSS 视觉样式
 - 确保 AI 可执行的内容元素 (cycle-level 波形、SDC 命令) 在 HTML 中完整保留
 
-### HTML Quality
-- Semantic HTML5 elements (`<header>`, `<nav>`, `<main>`, `<section>`, `<article>`, `<footer>`)
-- All CSS inline within `<style>` (no external dependencies)
-- White/light theme following exact color tokens above
-- Responsive: sidebar collapses at 768px breakpoint
-- Sticky header with white bg + bottom border
-- Smooth scrolling on anchor links
-- `Ctrl+K` keyboard shortcut hint in search area
-- Sticky sidebar with `border-right`
+### HTML 质量标准
+- 使用语义化 HTML5 元素（`<header>`, `<nav>`, `<main>`, `<section>`, `<article>`, `<footer>`）
+- 所有 CSS 内联于 `<style>` 标签中（无外部依赖）
+- 白色/浅色主题，严格遵循上述颜色 Token
+- 响应式设计：侧边栏在 768px 断点处折叠
+- 顶部导航栏固定（sticky），白色背景 + 底部分割线
+- 锚点链接平滑滚动
+- 搜索区域显示 `Ctrl+K` 快捷键提示
+- 侧边栏固定（sticky），右侧 `border-right`
 
-## Diagram Co-generation Rule
+## 图表协同生成规则
 
-Every diagram must exist in rendered form plus editable source:
+每张图表必须以渲染形式 + 可编辑源码同时存在：
 
-### Draw.io Diagrams
-1. **Rendered SVG** visible in the HTML
-2. **Embedded mxGraphModel XML** inside the HTML (enabling future in-browser editing via draw.io URL params)
-3. **Paired `.drawio` file** — saved in the **same directory** as the HTML (同名目录), preserving full editability in Draw.io desktop/web
+### Draw.io 架构图
+1. **渲染 SVG** — 在 HTML 中直接可见
+2. **内嵌 mxGraphModel XML** — 在 HTML 内（可通过 draw.io URL 参数进行后续浏览器内编辑）
+3. **配套 `.drawio` 文件** — 与 HTML 保存在**同一目录**，在 Draw.io 桌面版/网页版中保持完全可编辑性
 
 Generated using the `drawio_chip_diagram` skill via MCP tools (`mcp__drawio__*`).
 
-### WaveJSON Timing Diagrams
-1. **Rendered SVG** visible in the HTML (via WaveDrom `WaveDrom.ProcessAll()`)
-2. **Embedded WaveJSON** inside a `<script type="WaveDrom">` tag in the HTML
-3. **Paired `.json` file** — saved in the **same directory** as the HTML, preserving editability
+### WaveJSON 时序图
+1. **渲染 SVG** — 在 HTML 中通过 WaveDrom `WaveDrom.ProcessAll()` 渲染可见
+2. **内嵌 WaveJSON** — 在 HTML 的 `<script type="WaveDrom">` 标签中
+3. **配套 `.json` 文件** — 与 HTML 保存在**同一目录**，保持可编辑性
 
-Generated using the `wavejson-timing-diagrams` skill.
+使用 `wavejson-timing-diagrams` 技能生成。
 
-### Mermaid Diagrams
-1. **Rendered SVG** visible in the HTML (via Mermaid.js `mermaid.run()` or `mermaid.init()`)
-2. **Embedded Mermaid source** inside a `<pre class="mermaid">` block in the HTML
-3. **Paired `.md` file** — saved in the **same directory** as the HTML, preserving editability
+### Mermaid 流程图/状态图
+1. **渲染 SVG** — 在 HTML 中通过 Mermaid.js `mermaid.run()` 或 `mermaid.init()` 渲染可见
+2. **内嵌 Mermaid 源码** — 在 HTML 的 `<pre class="mermaid">` 块中
+3. **配套 `.md` 文件** — 与 HTML 保存在**同一目录**，保持可编辑性
 
-Generated using the `mermaid_chip_diagram` skill.
+使用 `mermaid_chip_diagram` 技能生成。
 
-### SVG Output Rule
-All SVG files (from Draw.io, WaveDrom, and Mermaid) must be saved into a `<basename>_assets/` subdirectory in the same directory as the HTML, with descriptive filenames (e.g., `soc_arch_assets/clock_domain.svg`, `soc_arch_assets/apb_waveform.svg`, `soc_arch_assets/fsm_state.svg`). This ensures clean separation of source diagrams from rendered outputs and enables independent reuse.
+### SVG 输出规则
+所有 SVG 文件（来自 Draw.io、WaveDrom 和 Mermaid）必须保存到 HTML 同目录下的 `<basename>_assets/` 子目录中，使用描述性文件名（例如 `soc_arch_assets/clock_domain.svg`、`soc_arch_assets/apb_waveform.svg`、`soc_arch_assets/fsm_state.svg`）。确保源图与渲染输出清晰分离，便于独立复用。
 
-## Workflow
+## 工作流程
 
-1. **Analyze Requirements**: Parse the user's chip design topic — identify major modules, clock domains, interfaces, data paths, timing-critical signals, and integration points.
-2. **Plan Structure**: Define sections (e.g., 系统概览, 时钟架构, 电源域, 数据通路, 子系统详情, 接口时序).
-3. **Generate Diagrams**: For each section, generate the appropriate diagram type:
-   - **Architecture/clock/data diagrams** → use `drawio_chip_diagram` skill (via `mcp__drawio__*` tools)
-   - **Timing waveforms** → use `wavejson-timing-diagrams` skill (WaveJSON format)
-   - **Flowcharts/FSM/sequences** → use `mermaid_chip_diagram` skill (Mermaid format)
+1. **需求分析**: 解析用户输入的芯片设计主题 — 识别主要模块、时钟域、接口、数据通路、时序关键信号和集成要点
+2. **结构规划**: 定义章节结构（例如：系统概览、时钟架构、电源域、数据通路、子系统详情、接口时序）
+3. **生成图表**: 为每节生成对应的图表类型：
+   - **架构/时钟/数据图** → 使用 `drawio_chip_diagram` 技能（通过 `mcp__drawio__*` 工具）
+   - **时序波形** → 使用 `wavejson-timing-diagrams` 技能（WaveJSON 格式）
+   - **流程图/FSM/序列图** → 使用 `mermaid_chip_diagram` 技能（Mermaid 格式）
 
-   Save all SVG outputs into `<basename>_assets/` subdirectory.
-4. **Write Content**: For each section, write 200+ Chinese characters of professional description with English technical terms inline.
-5. **Assemble HTML**: Combine all sections into a single self-contained HTML file with inline CSS. Include WaveDrom.js and Mermaid.js via `<script>` tags for rendering timing diagrams and flowcharts. Use the NVIDIA white theme style exactly as specified above.
-6. **Output Summary**: Report file names, section list, diagram count by type, and key design highlights.
+   将所有 SVG 输出保存到 `<basename>_assets/` 子目录。
+4. **撰写内容**: 为每节撰写 200 字以上专业中文描述，英文术语内联标注
+5. **组装 HTML**: 将所有章节组合成一个自包含的 HTML 文件，内联 CSS。通过 `<script>` 标签引入 WaveDrom.js 和 Mermaid.js 用于渲染时序图和流程图。严格按照上方指定的 NVIDIA 白色主题样式
+6. **输出总结**: 报告文件名、章节列表、各类型图表数量、关键设计亮点
 
-## Related Skills
+## 相关技能
 
-- `chip-spec-hld` — High-level design spec generation (content source for SoC/module-level HTML)
-- `chip-spec-lld` — Low-level design spec generation (content source for micro-architecture HTML)
-- `drawio-chip-diagram` — Draw.io diagram generation (embedded SVG + mxGraphModel XML for block/architecture diagrams)
-- `wavejson-timing-diagrams` — WaveJSON timing diagram generation (WaveDrom-renderable waveforms for interface protocols)
-- `mermaid-chip-diagram` — Mermaid diagram generation (flowcharts, FSM state machines, sequence diagrams, hierarchy trees)
+- `chip-spec-hld` — 高层设计规格生成（SoC/模块级 HTML 的内容来源）
+- `chip-spec-lld` — 低层设计规格生成（微架构 HTML 的内容来源）
+- `drawio-chip-diagram` — Draw.io 框图生成（内嵌 SVG + mxGraphModel XML，用于框图/架构图）
+- `wavejson-timing-diagrams` — WaveJSON 时序图生成（用于接口协议的 WaveDrom 可渲染波形）
+- `mermaid-chip-diagram` — Mermaid 图表生成（流程图、FSM 状态机、时序图、层次结构树）
 
-## File Naming Convention
+## 文件命名规范
 
 - `SoC_Top_Architecture_v1.html` + `SoC_Top_Architecture_v1.drawio` + `SoC_Top_Architecture_v1.md`
 - `Module_Name_Clock_Domain_v1.html` + `Module_Name_Clock_Domain_v1.drawio` + `Module_Name_Clock_Domain_v1.md`
 
-All three files share the same base name and version, placed in the same directory.
+三个文件共享相同的基础文件名和版本号，置于同一目录。
 
-## Tone
+## 文风要求
 
-Professional, rigorous, architect-level precision — as if preparing documentation for a design review board. Like NVIDIA's own technical documentation: clean, authoritative, visually polished.
+专业、严谨、架构师级别的技术精度 — 如同为设计评审委员会准备文档。采用 NVIDIA 技术文档风格：干净、权威、视觉精致。正文以中文为主，英文术语作为专业标注。

@@ -1,0 +1,237 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile>
+  <diagram id="spi2axi_arch" name="System Architecture">
+    <mxGraphModel dx="1143" dy="694" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="1100" pageHeight="850" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- Title -->
+        <mxCell id="title" value="SPI2AXI Bridge System Architecture" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=16;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="300" y="10" width="500" height="30" as="geometry"/>
+        </mxCell>
+
+        <!-- SPI Clock Domain Swimlane -->
+        <mxCell id="spi_domain" value="SPI Clock Domain (spi_sclk @ 50MHz)" style="swimlane;startSize=30;fillColor=#E8F5E9;strokeColor=#43A047;html=1;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="40" y="50" width="460" height="380" as="geometry"/>
+        </mxCell>
+
+        <!-- AXI Clock Domain Swimlane -->
+        <mxCell id="axi_domain" value="AXI Clock Domain (axi_aclk @ TBD MHz)" style="swimlane;startSize=30;fillColor=#E3F2FD;strokeColor=#1E88E5;html=1;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="560" y="50" width="460" height="380" as="geometry"/>
+        </mxCell>
+
+        <!-- CDC Domain (between swimlanes) -->
+        <mxCell id="cdc_label" value="CDC FIFO" style="text;html=1;strokeColor=none;fillColor=#FFF3E0;fontSize=11;fontStyle=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="470" y="210" width="120" height="22" as="geometry"/>
+        </mxCell>
+
+        <!-- === SPI DOMAIN MODULES === -->
+
+        <!-- spi_io -->
+        <mxCell id="spi_io" value="spi_io&#xa;SPI I/O + Shift Reg" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C8E6C9;strokeColor=#388E3C;fontSize=10;fontStyle=0;" vertex="1" parent="1">
+          <mxGeometry x="70" y="100" width="130" height="50" as="geometry"/>
+        </mxCell>
+
+        <!-- SPI Pins label -->
+        <mxCell id="spi_pins" value="SPI Pins&#xa;sclk/cs/sdi/sdo" style="shape=note;whiteSpace=wrap;html=1;fillColor=#FFF9C4;strokeColor=#F9A825;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="10" y="100" width="55" height="50" as="geometry"/>
+        </mxCell>
+
+        <!-- Edge: SPI Pins -> spi_io -->
+        <mxCell id="e_spi_pins_io" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#666;strokeWidth=1;fontSize=9;" edge="1" source="spi_pins" target="spi_io" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- spi_cmd_decoder -->
+        <mxCell id="spi_cmd_decoder" value="spi_cmd_decoder&#xa;Opcode Decode + Addr Latch" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C8E6C9;strokeColor=#388E3C;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="70" y="180" width="130" height="50" as="geometry"/>
+        </mxCell>
+
+        <!-- Edge: spi_io -> spi_cmd_decoder -->
+        <mxCell id="e_io_cmd" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#666;strokeWidth=1;fontSize=9;" edge="1" source="spi_io" target="spi_cmd_decoder" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="135" y="150" as="sourcePoint"/>
+            <mxPoint x="135" y="180" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- fsm_ctrl -->
+        <mxCell id="fsm_ctrl" value="fsm_ctrl&#xa;Main State Machine&#xa;(8 states)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE0B2;strokeColor=#E65100;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="240" y="130" width="130" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- Edge: spi_cmd_decoder -> fsm_ctrl -->
+        <mxCell id="e_cmd_fsm" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#666;strokeWidth=1;fontSize=9;" edge="1" source="spi_cmd_decoder" target="fsm_ctrl" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="200" y="205"/>
+            <mxPoint x="240" y="160"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- csr_regfile -->
+        <mxCell id="csr_regfile" value="csr_regfile&#xa;CSR Registers&#xa;CTRL/STATUS/CFG" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C8E6C9;strokeColor=#388E3C;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="240" y="230" width="130" height="55" as="geometry"/>
+        </mxCell>
+
+        <!-- Edge: fsm_ctrl <-> csr_regfile (bidirectional) -->
+        <mxCell id="e_fsm_csr" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#666;strokeWidth=1;fontSize=9;dashed=1;" edge="1" source="fsm_ctrl" target="csr_regfile" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="305" y="190"/>
+            <mxPoint x="305" y="230"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- === CDC FIFO MODULES === -->
+
+        <!-- cmd_fifo -->
+        <mxCell id="cmd_fifo" value="cmd_fifo&#xa;DP:4-16, W:40" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#E65100;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="480" y="95" width="100" height="45" as="geometry"/>
+        </mxCell>
+
+        <!-- wdata_fifo -->
+        <mxCell id="wdata_fifo" value="wdata_fifo&#xa;DP:4-64, W:32" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#E65100;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="480" y="165" width="100" height="45" as="geometry"/>
+        </mxCell>
+
+        <!-- rdata_fifo -->
+        <mxCell id="rdata_fifo" value="rdata_fifo&#xa;DP:4-64, W:32" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#E65100;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="480" y="235" width="100" height="45" as="geometry"/>
+        </mxCell>
+
+        <!-- Edge: spi_io -> cmd_fifo (spi_slave_if -> cmd_fifo) -->
+        <mxCell id="e_cmd_fifo_spi" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#666;strokeWidth=1;fontSize=8;label=cmd+addr;" edge="1" source="spi_cmd_decoder" target="cmd_fifo" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="200" y="205"/>
+            <mxPoint x="480" y="117"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Edge: spi_io -> wdata_fifo -->
+        <mxCell id="e_wdata_fifo_spi" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#666;strokeWidth=1;fontSize=8;label=wdata;" edge="1" source="spi_io" target="wdata_fifo" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="200" y="125"/>
+            <mxPoint x="480" y="187"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- === AXI DOMAIN MODULES === -->
+
+        <!-- axi_master_if (axi_wr_ctrl) -->
+        <mxCell id="axi_wr_ctrl" value="axi_wr_ctrl&#xa;AXI Write Ctrl&#xa;AW->W->B" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#BBDEFB;strokeColor=#1565C0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="700" y="100" width="140" height="55" as="geometry"/>
+        </mxCell>
+
+        <!-- axi_master_if (axi_rd_ctrl) -->
+        <mxCell id="axi_rd_ctrl" value="axi_rd_ctrl&#xa;AXI Read Ctrl&#xa;AR->R" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#BBDEFB;strokeColor=#1565C0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="700" y="180" width="140" height="55" as="geometry"/>
+        </mxCell>
+
+        <!-- Edge: cmd_fifo -> axi_wr_ctrl -->
+        <mxCell id="e_cmd_axi_wr" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#666;strokeWidth=1;fontSize=8;label=cmd;" edge="1" source="cmd_fifo" target="axi_wr_ctrl" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="580" y="117"/>
+            <mxPoint x="700" y="127"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Edge: cmd_fifo -> axi_rd_ctrl -->
+        <mxCell id="e_cmd_axi_rd" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#666;strokeWidth=1;fontSize=8;label=cmd;" edge="1" source="cmd_fifo" target="axi_rd_ctrl" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="580" y="140"/>
+            <mxPoint x="630" y="207"/>
+            <mxPoint x="700" y="207"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Edge: wdata_fifo -> axi_wr_ctrl -->
+        <mxCell id="e_wdata_axi_wr" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#666;strokeWidth=1;fontSize=8;label=wdata;" edge="1" source="wdata_fifo" target="axi_wr_ctrl" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="580" y="187"/>
+            <mxPoint x="700" y="155"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Edge: axi_rd_ctrl -> rdata_fifo -->
+        <mxCell id="e_axi_rd_rdata" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#666;strokeWidth=1;fontSize=8;label=rdata;" edge="1" source="axi_rd_ctrl" target="rdata_fifo" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="700" y="235"/>
+            <mxPoint x="580" y="257"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Edge: rdata_fifo -> spi_io (SPI TX path) -->
+        <mxCell id="e_rdata_spi" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#666;strokeWidth=1;fontSize=8;label=rdata;dashed=1;" edge="1" source="rdata_fifo" target="spi_io" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="480" y="257"/>
+            <mxPoint x="380" y="257"/>
+            <mxPoint x="200" y="125"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- wrap_addr_gen -->
+        <mxCell id="wrap_addr_gen" value="wrap_addr_gen&#xa;Addr Increment + Wrap" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#BBDEFB;strokeColor=#1565C0;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="700" y="270" width="140" height="50" as="geometry"/>
+        </mxCell>
+
+        <!-- Edge: csr_regfile -> wrap_addr_gen -->
+        <mxCell id="e_csr_wrap" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#666;strokeWidth=1;fontSize=8;label=wrap_cfg;dashed=1;" edge="1" source="csr_regfile" target="wrap_addr_gen" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="370" y="285"/>
+            <mxPoint x="550" y="295"/>
+            <mxPoint x="700" y="295"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Edge: wrap_addr_gen -> axi_wr_ctrl / axi_rd_ctrl -->
+        <mxCell id="e_wrap_addr" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#666;strokeWidth=1;fontSize=8;label=wrap_addr;" edge="1" source="wrap_addr_gen" target="axi_wr_ctrl" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="770" y="270"/>
+            <mxPoint x="770" y="155"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- AXI Bus label -->
+        <mxCell id="axi_bus" value="AXI4-Lite Bus" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8EAF6;strokeColor=#3949AB;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="880" y="130" width="120" height="110" as="geometry"/>
+        </mxCell>
+
+        <!-- Edge: axi_wr_ctrl -> AXI Bus -->
+        <mxCell id="e_axi_wr_bus" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#666;strokeWidth=2;fontSize=8;" edge="1" source="axi_wr_ctrl" target="axi_bus" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Edge: axi_rd_ctrl -> AXI Bus -->
+        <mxCell id="e_axi_rd_bus" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#666;strokeWidth=2;fontSize=8;" edge="1" source="axi_rd_ctrl" target="axi_bus" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Clock/Reset block at bottom -->
+        <mxCell id="clk_rst" value="Clock &amp; Reset / CDC Synchronizer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E5F5;strokeColor=#8E24AA;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="300" y="460" width="300" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- Edge: clk_rst to domains -->
+        <mxCell id="e_clk_spi" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#8E24AA;strokeWidth=1;fontSize=8;dashed=1;" edge="1" source="clk_rst" target="spi_domain" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="350" y="460"/>
+            <mxPoint x="270" y="380"/>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="e_clk_axi" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#8E24AA;strokeWidth=1;fontSize=8;dashed=1;" edge="1" source="clk_rst" target="axi_domain" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="600" y="460"/>
+            <mxPoint x="790" y="380"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Legend -->
+        <mxCell id="legend" value="&lt;b&gt;Legend:&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#43A047&quot;&gt;Green&lt;/font&gt; = SPI Domain&lt;br&gt;&lt;font color=&quot;#1E88E5&quot;&gt;Blue&lt;/font&gt; = AXI Domain&lt;br&gt;&lt;font color=&quot;#E65100&quot;&gt;Orange&lt;/font&gt; = CDC FIFO&lt;br&gt;&lt;font color=&quot;#8E24AA&quot;&gt;Purple&lt;/font&gt; = Clock/Reset" style="text;html=1;strokeColor=none;fillColor=none;fontSize=9;align=left;" vertex="1" parent="1">
+          <mxGeometry x="850" y="450" width="180" height="65" as="geometry"/>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
