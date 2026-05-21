@@ -45,7 +45,14 @@
       "Bash(tesseract --version)",
       "Bash(apt-get install:*)",
       "Bash(python3 -c \":*)",
-      "Bash(pip list:*)"
+      "Bash(pip list:*)",
+      "Read(//home/qingyun/.claude/**)",
+      "Bash(drawio --help)",
+      "Bash(npm search:*)",
+      "Bash(npm info:*)",
+      "Bash(npx @drawio/mcp --help)",
+      "Bash(npm -v)",
+      "Bash(node:*)"
     ]
   },
   "hooks": {
