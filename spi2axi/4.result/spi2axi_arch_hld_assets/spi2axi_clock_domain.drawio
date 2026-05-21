@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile>
+  <diagram>
+    <mxGraphModel>
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- SPI Clock Domain -->
+        <mxCell id="spi_dom" value="SPI Clock Domain (spi_sclk)" style="swimlane;startSize=30;fillColor=#DAE8FC;strokeColor=#1E88E5;html=1;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="440" height="200" as="geometry"/>
+        </mxCell>
+        <mxCell id="spi_slave_d" value="spi_slave&#xa;SPI I/F" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;" vertex="1" parent="spi_dom">
+          <mxGeometry x="20" y="50" width="140" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="cmd_dec_d" value="cmd_decoder&#xa;Cmd FSM" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;" vertex="1" parent="spi_dom">
+          <mxGeometry x="200" y="50" width="140" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="cfg_reg_d" value="config_regs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;" vertex="1" parent="spi_dom">
+          <mxGeometry x="200" y="130" width="140" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="freq_spi" value="f_max ≤ 50 MHz&#xa;External SPI Master" style="text;html=1;fontSize=10;fontColor=#1E88E5;" vertex="1" parent="spi_dom">
+          <mxGeometry x="20" y="10" width="160" height="20" as="geometry"/>
+        </mxCell>
+
+        <!-- CDC FIFO (split across domains) -->
+        <mxCell id="fifo_spi" value="Async FIFO&#xa;(SPI-side ports)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;dashed=1;" vertex="1" parent="spi_dom">
+          <mxGeometry x="370" y="80" width="50" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- AXI Clock Domain -->
+        <mxCell id="axi_dom" value="AXI Clock Domain (axi_aclk)" style="swimlane;startSize=30;fillColor=#E8F5E9;strokeColor=#43A047;html=1;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="520" y="40" width="440" height="200" as="geometry"/>
+        </mxCell>
+        <mxCell id="axi_m_d" value="axi_master&#xa;AXI4-Lite Master" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;" vertex="1" parent="axi_dom">
+          <mxGeometry x="120" y="50" width="160" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="wrap_d" value="wrap_ctrl" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;" vertex="1" parent="axi_dom">
+          <mxGeometry x="120" y="130" width="140" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="freq_axi" value="freq = SoC dependent&#xa;SoC Clock Management" style="text;html=1;fontSize=10;fontColor=#43A047;" vertex="1" parent="axi_dom">
+          <mxGeometry x="20" y="10" width="180" height="20" as="geometry"/>
+        </mxCell>
+
+        <!-- FIFO AXI side -->
+        <mxCell id="fifo_axi" value="Async FIFO&#xa;(AXI-side ports)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;dashed=1;" vertex="1" parent="axi_dom">
+          <mxGeometry x="370" y="80" width="50" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- CDC connection (dashed red) -->
+        <mxCell id="cdc" value="CDC&#xa;Gray Code Sync" style="edgeStyle=orthogonalEdgeStyle;rounded=1;dashed=1;strokeColor=#FF0000;html=1;" edge="1" source="fifo_spi" target="fifo_axi" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- SPI connections -->
+        <mxCell id="es1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" edge="1" source="spi_slave_d" target="cmd_dec_d" parent="spi_dom">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="es2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;dashed=1;html=1;" edge="1" source="cmd_dec_d" target="cfg_reg_d" parent="spi_dom">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="es3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" edge="1" source="cmd_dec_d" target="fifo_spi" parent="spi_dom">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- AXI connections -->
+        <mxCell id="ea1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" edge="1" source="fifo_axi" target="axi_m_d" parent="axi_dom">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ea2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;dashed=1;html=1;" edge="1" source="wrap_d" target="axi_m_d" parent="axi_dom">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Reset labels -->
+        <mxCell id="rst_spi" value="spi_rst_n&#xa;(async, active-low)" style="text;html=1;fontSize=9;fontColor=#999999;" vertex="1" parent="spi_dom">
+          <mxGeometry x="20" y="160" width="120" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="rst_axi" value="axi_rst_n&#xa;(async, active-low)" style="text;html=1;fontSize=9;fontColor=#999999;" vertex="1" parent="axi_dom">
+          <mxGeometry x="20" y="160" width="120" height="30" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

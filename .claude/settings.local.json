@@ -52,7 +52,10 @@
       "Bash(npm info:*)",
       "Bash(npx @drawio/mcp --help)",
       "Bash(npm -v)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(cp /tmp/spi2axi_system_arch.drawio ~/snap/drawio/255/.local/share/drawio/)",
+      "Bash(DISPLAY=:99 drawio -x -f svg -o ~/snap/drawio/255/.local/share/drawio/spi2axi_system_arch.svg ~/snap/drawio/255/.local/share/drawio/spi2axi_system_arch.drawio)",
+      "Bash(cp ~/snap/drawio/255/.local/share/drawio/spi2axi_system_arch.svg /team_work/qingyun/chip_design_groq/spi2axi/4.result/spi2axi_arch_hld_assets/system_architecture.svg)"
     ]
   },
   "hooks": {

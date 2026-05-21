@@ -247,6 +247,11 @@ blockquote p { margin-bottom:0; }
 <!-- ============================================================ -->
 <h2 id="ch4">第4章 FSM 设计 (FSM Design)</h2>
 
+<div class="figure-container">
+    <img src="spi2axi_arch_hld_assets/fsm_diagram.svg" alt="SPI2AXI FSM 状态转移图" style="max-width:100%;height:auto;">
+    <figcaption>图 4-1: SPI2AXI FSM 状态转移图 — 由 draw.io 生成 (详见 HLD Ch4)</figcaption>
+</div>
+
 <p>命令解码器 FSM (cmd_decoder_fsm) 是 SPI2AXI 的核心控制单元，在 SPI 时钟域内运行。FSM 共包含 6 个主状态，采用 3-bit 二进制编码实现。FSM 负责响应 SPI 帧的各阶段，生成 AXI 事务控制信号并管理跨时钟域数据传递。</p>
 
 <h3>4.1 状态编码表</h3>
@@ -357,6 +362,11 @@ end</code></pre>
 <!-- ============================================================ -->
 <h2 id="ch6">第6章 数据通路 (Datapath)</h2>
 
+<div class="figure-container">
+    <img src="spi2axi_arch_hld_assets/system_architecture.svg" alt="SPI2AXI 系统架构与数据通路" style="max-width:100%;height:auto;">
+    <figcaption>图 6-1: SPI2AXI 系统架构与数据通路 — 由 draw.io 生成 (详见 HLD Ch3)</figcaption>
+</div>
+
 <h3>6.1 写数据通路</h3>
 <pre class="mermaid">
 flowchart LR
@@ -458,6 +468,11 @@ flowchart LR
 
 <!-- ============================================================ -->
 <h2 id="ch8">第8章 时钟与复位 (Clock & Reset)</h2>
+
+<div class="figure-container">
+    <img src="spi2axi_arch_hld_assets/clock_domain.svg" alt="SPI2AXI 时钟域划分" style="max-width:100%;height:auto;">
+    <figcaption>图 8-1: SPI2AXI 时钟域划分 — 由 draw.io 生成 (详见 HLD Ch6)</figcaption>
+</div>
 
 <h3>8.1 时钟域定义</h3>
 <table>

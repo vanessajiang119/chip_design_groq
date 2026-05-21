@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile>
+  <diagram>
+    <mxGraphModel>
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- Module: spi2axi_bridge_top (container) -->
+        <mxCell id="top" value="spi2axi_bridge_top" style="swimlane;startSize=30;fillColor=#F8FCE8;strokeColor=#76B900;html=1;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="800" height="460" as="geometry"/>
+        </mxCell>
+
+        <!-- Sub-module: spi_slave -->
+        <mxCell id="slave" value="spi_slave&#xa;SPI Slave I/F&#xa;1-line / 4-line" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;" vertex="1" parent="top">
+          <mxGeometry x="40" y="60" width="140" height="70" as="geometry"/>
+        </mxCell>
+
+        <!-- Sub-module: cmd_decoder -->
+        <mxCell id="decoder" value="cmd_decoder&#xa;Cmd FSM&#xa;IDLE→OP→ADDR→DATA→RESP" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;" vertex="1" parent="top">
+          <mxGeometry x="240" y="60" width="140" height="70" as="geometry"/>
+        </mxCell>
+
+        <!-- Sub-module: axi_master -->
+        <mxCell id="master" value="axi_master&#xa;AXI4-Lite Master&#xa;5-channel" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;" vertex="1" parent="top">
+          <mxGeometry x="600" y="60" width="140" height="70" as="geometry"/>
+        </mxCell>
+
+        <!-- connections: slave → decoder → master -->
+        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" edge="1" source="slave" target="decoder" parent="top">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e2" value="cmd+data" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" edge="1" source="decoder" target="master" parent="top">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- async_fifo (CDC) container -->
+        <mxCell id="fifo_container" value="async_fifo (Dual-Clock CDC)" style="swimlane;startSize=24;fillColor=#FFF2CC;strokeColor=#D6B656;html=1;" vertex="1" parent="top">
+          <mxGeometry x="160" y="200" width="460" height="180" as="geometry"/>
+        </mxCell>
+
+        <!-- 4 FIFOs inside -->
+        <mxCell id="fifo_wc" value="Write Cmd&#xa;FIFO (SPI→AXI)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;" vertex="1" parent="fifo_container">
+          <mxGeometry x="20" y="40" width="100" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="fifo_wd" value="Write Data&#xa;FIFO (SPI→AXI)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;" vertex="1" parent="fifo_container">
+          <mxGeometry x="130" y="40" width="100" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="fifo_ra" value="Read Addr&#xa;FIFO (SPI→AXI)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;" vertex="1" parent="fifo_container">
+          <mxGeometry x="240" y="40" width="100" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="fifo_rd" value="Read Data&#xa;FIFO (AXI→SPI)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;" vertex="1" parent="fifo_container">
+          <mxGeometry x="350" y="40" width="100" height="50" as="geometry"/>
+        </mxCell>
+
+        <!-- CDC labels -->
+        <mxCell id="cdc_s2a" value="SPI→AXI" style="text;html=1;fontSize=10;fontColor=#666666;" vertex="1" parent="fifo_container">
+          <mxGeometry x="30" y="100" width="90" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="cdc_a2s" value="AXI→SPI" style="text;html=1;fontSize=10;fontColor=#666666;" vertex="1" parent="fifo_container">
+          <mxGeometry x="360" y="100" width="90" height="20" as="geometry"/>
+        </mxCell>
+
+        <!-- connections: decoder → FIFO → master -->
+        <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" edge="1" source="decoder" target="fifo_container" parent="top">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" edge="1" source="fifo_container" target="master" parent="top">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- config_regs -->
+        <mxCell id="cfg" value="config_regs&#xa;SPI Config/Status" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;" vertex="1" parent="top">
+          <mxGeometry x="40" y="350" width="140" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;rounded=1;dashed=1;html=1;" edge="1" source="cfg" target="slave" parent="top">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- wrap_ctrl -->
+        <mxCell id="wrap" value="wrap_ctrl&#xa;Address Wrap" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;" vertex="1" parent="top">
+          <mxGeometry x="600" y="350" width="140" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="e6" style="edgeStyle=orthogonalEdgeStyle;rounded=1;dashed=1;html=1;" edge="1" source="wrap" target="master" parent="top">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- SPI interface label -->
+        <mxCell id="spi_if" value="SPI Bus&#xa;(from external)" style="shape=template;whiteSpace=wrap;html=1;fillColor=#1E88E5;fontColor=#FFFFFF;strokeColor=#1565C0;" vertex="1" parent="1">
+          <mxGeometry x="20" y="200" width="80" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="e7" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#1E88E5;" edge="1" source="spi_if" target="slave" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- AXI interface label -->
+        <mxCell id="axi_if" value="AXI Bus&#xa;(to SoC)" style="shape=template;whiteSpace=wrap;html=1;fillColor=#43A047;fontColor=#FFFFFF;strokeColor=#2E7D32;" vertex="1" parent="1">
+          <mxGeometry x="780" y="200" width="80" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="e8" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#43A047;" edge="1" source="master" target="axi_if" parent="top">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Clock/Reset block -->
+        <mxCell id="clk_rst" value="Clock / Reset&#xa;Sync Logic" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;fontStyle=1;" vertex="1" parent="top">
+          <mxGeometry x="320" y="350" width="140" height="60" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

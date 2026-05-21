@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile>
+  <diagram>
+    <mxGraphModel>
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- FSM States -->
+        <mxCell id="idle" value="IDLE&#xa;3'b000" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="120" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="opcode" value="OPCODE&#xa;3'b001" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;" vertex="1" parent="1">
+          <mxGeometry x="280" y="40" width="120" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="addr" value="ADDR&#xa;3'b010" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;" vertex="1" parent="1">
+          <mxGeometry x="520" y="40" width="120" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="dummy" value="DUMMY&#xa;3'b011" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;" vertex="1" parent="1">
+          <mxGeometry x="520" y="180" width="120" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="data" value="DATA&#xa;3'b100" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;" vertex="1" parent="1">
+          <mxGeometry x="280" y="180" width="120" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="resp" value="RESPONSE&#xa;3'b101" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;" vertex="1" parent="1">
+          <mxGeometry x="40" y="180" width="120" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- Transitions -->
+        <mxCell id="t1" value="spi_cs_n=0" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" edge="1" source="idle" target="opcode" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="t2" value="8-bit done" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" edge="1" source="opcode" target="addr" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="t3" value="read op" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" edge="1" source="addr" target="dummy" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="t4" value="write op" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" edge="1" source="addr" target="data" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="t5" value="dummy done" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" edge="1" source="dummy" target="data" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="t6" value="32-bit done" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" edge="1" source="data" target="resp" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="t7" value="done" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" edge="1" source="resp" target="idle" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Reset transitions: all states back to IDLE -->
+        <mxCell id="tr1" value="spi_cs_n=1 (abort)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;dashed=1;strokeColor=#FF0000;html=1;" edge="1" source="opcode" target="idle" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="tr2" value="abort" style="edgeStyle=orthogonalEdgeStyle;rounded=1;dashed=1;strokeColor=#FF0000;html=1;" edge="1" source="addr" target="idle" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="tr3" value="abort" style="edgeStyle=orthogonalEdgeStyle;rounded=1;dashed=1;strokeColor=#FF0000;html=1;" edge="1" source="dummy" target="idle" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="tr4" value="abort" style="edgeStyle=orthogonalEdgeStyle;rounded=1;dashed=1;strokeColor=#FF0000;html=1;" edge="1" source="data" target="idle" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="tr5" value="abort" style="edgeStyle=orthogonalEdgeStyle;rounded=1;dashed=1;strokeColor=#FF0000;html=1;" edge="1" source="resp" target="idle" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Legend -->
+        <mxCell id="legend" value="Legend:&#xa;Solid = normal transition&#xa;Dashed red = abort (spi_cs_n=1)" style="text;html=1;fontSize=11;fontColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="40" y="300" width="200" height="40" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

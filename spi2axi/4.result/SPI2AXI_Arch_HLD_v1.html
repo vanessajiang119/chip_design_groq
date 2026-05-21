@@ -380,8 +380,8 @@
 
 <h3>3.1 模块内部结构 (Internal Structure)</h3>
 <div class="figure-container">
-    <img src="spi2axi_arch_hld_assets/system_architecture.png" alt="SPI2AXI Bridge 系统架构图">
-    <figcaption>图 3-1: SPI2AXI Bridge 系统架构图 (System Architecture)</figcaption>
+    <img src="spi2axi_arch_hld_assets/system_architecture.svg" alt="SPI2AXI Bridge 系统架构图" style="max-width:100%;height:auto;">
+    <figcaption>图 3-1: SPI2AXI Bridge 系统架构图 (System Architecture) — 由 draw.io 生成</figcaption>
 </div>
 
 <pre>
@@ -484,6 +484,11 @@
 
 <h3>4.2 控制流 (Control Flow)</h3>
 <p>控制核心是 cmd_decoder 的命令解码 FSM，管理从 SPI 命令接收到 AXI 事务完成的完整流程。</p>
+
+<div class="figure-container">
+    <img src="spi2axi_arch_hld_assets/fsm_diagram.svg" alt="SPI2AXI FSM 状态转移图" style="max-width:100%;height:auto;">
+    <figcaption>图 4-1: SPI2AXI FSM 状态转移图 (FSM State Diagram) — 由 draw.io 生成</figcaption>
+</div>
 
 <div class="mermaid-container">
 <div class="mermaid">
@@ -592,6 +597,11 @@ stateDiagram-v2
 <!-- ======================== Chapter 6 ======================== -->
 <section id="ch6">
 <h2><span class="chapter-num">第6章</span> 时钟、复位与电源架构 (Clock/Reset/Power)</h2>
+
+<div class="figure-container">
+    <img src="spi2axi_arch_hld_assets/clock_domain.svg" alt="SPI2AXI 时钟域图" style="max-width:100%;height:auto;">
+    <figcaption>图 6-1: SPI2AXI 时钟域划分 (Clock Domain Partition) — 由 draw.io 生成</figcaption>
+</div>
 
 <h3>6.1 时钟域概述 (Clock Domains)</h3>
 <table>
