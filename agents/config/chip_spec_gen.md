@@ -62,7 +62,9 @@ description: Multi-phase chip design spec generator — dual-mode orchestrator. 
 - 生成完成后，**等待用户确认**，确认后保存到 `4.result/` 目录并附带时间戳
 - 如果是SOC，则按照02_soc_arch.HLD.md 生成输出文档（单文件）；
   如果是内部block，则按照03_block_arch.HLD.md 和 04_block_micro.LLD.md **分别**生成两份独立的输出文档（HLD + LLD）；
-- 委托 `design_research.workingresult` 使用 `html_chip_design_spec` skill 根据HLD和LLD生成最终 HTML 报告、drawio 图；
+- 委托 `design_research.workingresult` 分别处理 HLD 和 LLD:
+  - Block级: 使用 `html_chip_design_spec` skill **分别**对 HLD 和 LLD 两个 markdown 文件各调用一次，生成**两个独立**的 HTML 报告（如 `SPI2AXI_Arch_HLD_v1.html` + `SPI2AXI_Micro_LLD_v1.html`）
+  - SoC级: 使用 `html_chip_design_spec` skill 对单个 markdown 文件调用一次，生成单个 HTML 报告；
 - 当html_chip_design_spec中需要图片时，首选到2.slice中找到合适的原图片，如果实在没有，则根据html_chip_design_spec中的要求，启动绘图软件绘图;
 - 使用 `html_chip_design_spec` skill + `drawio_chip_diagram` skill + drawio_chip_diagram + wavejson-timing-diagrams + mermaid_chip_diagram
 
