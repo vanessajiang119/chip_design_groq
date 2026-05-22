@@ -1,0 +1,24 @@
+<mxfile>
+<diagram name="SPI2AXI Clock Domain" id="spi2axi-clk">
+<mxGraphModel dx="900" dy="600" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="900" pageHeight="600" math="0" shadow="0">
+<root>
+<mxCell id="0"/>
+<mxCell id="1" parent="0"/>
+<mxCell id="spi-domain" value="SPI 时钟域 (SPI Clock Domain)&#10;spi_sclk ≤ 50MHz" style="swimlane;whiteSpace=wrap;html=1;fillColor=#DBEAFE;strokeColor=#3B82F6;strokeWidth=2;startSize=40;horizontal=1;fontStyle=1;fontSize=12;container=1;collapsible=0;" parent="1" vertex="1"><mxGeometry x="20" y="20" width="380" height="460" as="geometry"/></mxCell>
+<mxCell id="axi-domain" value="AXI 时钟域 (AXI Clock Domain)&#10;axi_aclk 50~200MHz" style="swimlane;whiteSpace=wrap;html=1;fillColor=#D1FAE5;strokeColor=#10B981;strokeWidth=2;startSize=40;horizontal=1;fontStyle=1;fontSize=12;container=1;collapsible=0;" parent="1" vertex="1"><mxGeometry x="480" y="20" width="380" height="460" as="geometry"/></mxCell>
+<mxCell id="spi-if" value="spi_slave_if&#10;(SPI串行接口)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#93C5FD;strokeColor=#2563EB;strokeWidth=1.5;fontSize=11;" parent="spi-domain" vertex="1"><mxGeometry x="30" y="30" width="150" height="70" as="geometry"/></mxCell>
+<mxCell id="spi-fsm" value="fsm_ctrl&#10;(主状态机)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDE68A;strokeColor=#D97706;strokeWidth=1.5;fontSize=11;" parent="spi-domain" vertex="1"><mxGeometry x="200" y="30" width="150" height="70" as="geometry"/></mxCell>
+<mxCell id="spi-csr" value="csr_regfile&#10;(配置寄存器)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDE68A;strokeColor=#D97706;strokeWidth=1.5;fontSize=11;" parent="spi-domain" vertex="1"><mxGeometry x="30" y="140" width="150" height="70" as="geometry"/></mxCell>
+<mxCell id="spi-sync" value="spi_sync&#10;(SPI侧同步器)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCA5A5;strokeColor=#DC2626;strokeWidth=1.5;fontSize=11;" parent="spi-domain" vertex="1"><mxGeometry x="200" y="140" width="150" height="70" as="geometry"/></mxCell>
+<mxCell id="axi-master" value="axi_master_if&#10;(AXI4-Lite主接口)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#6EE7B7;strokeColor=#059669;strokeWidth=1.5;fontSize=11;" parent="axi-domain" vertex="1"><mxGeometry x="30" y="30" width="160" height="70" as="geometry"/></mxCell>
+<mxCell id="axi-wrap" value="wrap_addr_gen&#10;(地址环绕)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#6EE7B7;strokeColor=#059669;strokeWidth=1.5;fontSize=11;" parent="axi-domain" vertex="1"><mxGeometry x="210" y="30" width="150" height="70" as="geometry"/></mxCell>
+<mxCell id="axi-sync" value="axi_sync&#10;(AXI侧同步器)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCA5A5;strokeColor=#DC2626;strokeWidth=1.5;fontSize=11;" parent="axi-domain" vertex="1"><mxGeometry x="30" y="140" width="160" height="70" as="geometry"/></mxCell>
+<mxCell id="async-fifo" value="CDC Async FIFO&#10;(跨时钟域异步FIFO)&#10;cmd_fifo / wdata_fifo / rdata_fifo" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DDD6FE;strokeColor=#7C3AED;strokeWidth=2;fontSize=11;fontStyle=1;" parent="1" vertex="1"><mxGeometry x="250" y="280" width="200" height="90" as="geometry"/></mxCell>
+<mxCell id="cdc-path" value="CDC 路径 (红色虚线)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#DC2626;strokeWidth=2;dashed=1;fontSize=10;fontColor=#DC2626;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" parent="1" target="async-fifo" source="spi-sync" edge="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="cdc-path2" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#DC2626;strokeWidth=2;dashed=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" parent="1" target="axi-sync" source="async-fifo" edge="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="label-false" value="False Path&#10;(时序例外)" style="text;whiteSpace=wrap;html=1;fillColor=none;strokeColor=none;fontSize=10;fontColor=#DC2626;fontStyle=1;" parent="1" vertex="1"><mxGeometry x="470" y="280" width="80" height="30" as="geometry"/></mxCell>
+<mxCell id="note" value="关键设计要点:&#10;1. 异步FIFO使用格雷码指针同步&#10;2. 跨时钟域路径标记为false_path&#10;3. SPI域和AXI域有独立复位信号&#10;4. 空/满标志使用同步器打两拍" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#D97706;strokeWidth=1;fontSize=10;" parent="1" vertex="1"><mxGeometry x="250" y="390" width="240" height="80" as="geometry"/></mxCell>
+</root>
+</mxGraphModel>
+</diagram>
+</mxfile>
